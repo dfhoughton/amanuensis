@@ -1,26 +1,25 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import './App.scss';
+// import Game from './Game.js';
+import Note from './Note.js';
+import Switchboard from './modules/switchboard.js'
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+/*global chrome*/
+class App extends React.Component {
+  constructor(props) {
+    super()
+    this.switchboard = new Switchboard(chrome)
+  }
+  render() {
+    return (
+      <div className="App">
+        <Note switchboard={this.switchboard}/>
+      </div>
+    );
+  }
+  componentDidMount() {
+    this.switchboard.mounted()
+  }
 }
 
 export default App;

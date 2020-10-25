@@ -1,0 +1,42 @@
+.App {
+  min-width: 270px;
+}
+
+.word {
+  background-color: lighten(yellow, 20%);
+}
+
+._watermark {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  font-size: larger;
+  opacity: 0.5;
+  z-index: 99;
+}
+
+.star {
+  @extend ._watermark;
+  &::before {
+    color: black;
+    content: '☆'
+  }
+  &.starred::before {
+    color: goldenrod;
+    content: '★'
+  }
+}
+
+.dot {
+  @extend ._watermark;
+  top: 2rem;
+  margin-right: 2px;
+  &::before {
+    color: black;
+    content: '⦾'
+  }
+  &.filled::before {
+    color: darken(red, 20%);
+    content: '⦿'
+  }
+}
