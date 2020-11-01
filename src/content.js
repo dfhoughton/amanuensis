@@ -251,6 +251,7 @@ function describeSelectionNode(n, offset) {
     return { offset, node: n }
 }
 
+// simplify the representation of a node
 function trimNode({ offset, path, parentOffset, parent }) {
     if (parent) {
         return { path, offset, parentOffset }
