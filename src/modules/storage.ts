@@ -1,5 +1,5 @@
 import { deepClone } from './clone'
-import { KeyPair, NoteRecord, RealmInfo, RealmIdentifier, Normalizer } from './types'
+import { Chrome, KeyPair, NoteRecord, RealmInfo, RealmIdentifier, Normalizer } from './types'
 
 // utility function to convert maps into arrays for permanent storage
 function m2a(map: Map<any, any>): [any, any][] {
@@ -10,20 +10,8 @@ function m2a(map: Map<any, any>): [any, any][] {
 
 type FindResponse = { error: string } | { found: NoteRecord, realm: string }
 
-// the Chrome extension API
-interface Chrome {
-    storage: {
-        local: {
-            get: (key: string[], callback: (arg: any) => void) => void,
-            set: (vals: { [key: string]: any }, callback?: () => void) => void,
-            getBytesInUse: (arg: null, callback: (bytes: number) => void) => void,
-        }
-    },
-    runtime: { lastError: string },
-}
-
 // an interface between the app and the Chrome storage mechanism
-class Index {
+export class Index {
     chrome: Chrome                                 // the chrome API
     realms: Map<string, RealmInfo>                 // an index from realm names to RealmInfo records
     index: Map<string, number[]>                   // an index from normalized phrases to the primary keys of realms in which there are records for these phrases
@@ -387,7 +375,7 @@ class Index {
     }
 }
 
-export default function getIndex(chrome: Chrome, callback: (resp: string | Index) => void): void {
+export function getIndex(chrome: Chrome, callback: (resp: string | Index) => void): void {
     chrome.storage.local.get(['realms', 'index', 'tags'], function (result) {
         if (chrome.runtime.lastError) {
             callback(chrome.runtime.lastError)

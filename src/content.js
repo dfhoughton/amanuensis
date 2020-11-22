@@ -62,7 +62,7 @@ function hits(cz) {
 // escapes weird characters in class names
 function escapeClass(cz) {
     const chars = []
-    const conv = function(c) {
+    const conv = function (c) {
         return '\\' + c.codePointAt(0).toString(16) + ' '
     }
     for (let i = 0; i < cz.length; i++) {
@@ -283,15 +283,15 @@ function wrapSelection() {
     focus.path = focusPath
     anchor = trimNode(anchor)
     focus = trimNode(focus)
-    return { phrase, before, after, path, anchor, focus }
+    return { phrase, before, after, selection: { path, anchor, focus } }
 }
 
-function findSelection({ phrase, before, after, path }) {
+function findSelection({ phrase, before, after, selection }) {
     const context = before + phrase + after
-    const candidates = document.querySelectorAll(path)
+    const candidates = document.querySelectorAll(selection.path)
     for (let i = 0; i < candidates.length; i++) {
         const candidate = candidates[i]
-        if (squish(candidate.textContent) === context) {
+        if (squish(candidate.textContent).indexOf(context) > -1) {
             return candidate
         }
     }
@@ -301,7 +301,7 @@ function findSelection({ phrase, before, after, path }) {
 function highlightSelection(wrappedSelection) {
     const element = findSelection(wrappedSelection)
     if (element) {
-        const a = wrappedSelection.anchor, f = wrappedSelection.focus
+        const { anchor: a, focus: f } = wrappedSelection.selection
         let anchor = a.path ? element.querySelector(a.path) : element
         let focus = f.path ? element.querySelector(f.path) : element;
         (anchor || element).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
@@ -327,14 +327,14 @@ function highlightSelection(wrappedSelection) {
 const port = chrome.extension.connect({
     name: "content"
 });
-port.postMessage({action: 'open'})
-port.onMessage.addListener(function(msg) {
+port.postMessage({ action: 'open' })
+port.onMessage.addListener(function (msg) {
     switch (msg.action) {
         case 'getSelection':
             const selection = wrapSelection()
             if (selection) {
                 console.log(selection)
-                port.postMessage({action: 'selection', selection})
+                port.postMessage({ action: 'selection', selection })
             }
             break
     }

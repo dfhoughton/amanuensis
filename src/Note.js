@@ -15,7 +15,6 @@ class Note extends React.Component {
             relations: {},
             starred: false,
             unsavedContent: false,
-            source: null,
         }
         this.savedState = deepClone(nullState) // used as basis of comparison to see whether the record is dirty
         this.switchboard.addActions({

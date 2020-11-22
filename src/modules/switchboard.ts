@@ -1,14 +1,15 @@
-import getIndex from "./storage"
+import { getIndex, Index } from "./storage"
+import { Chrome, Port, Payload } from './types'
 
 // the communication device shared among components
 export default class Switchboard {
-    actions: Map<string, (data: object) => void>
+    actions: Map<string, (data?: Payload) => void>
     queue: (() => void)[]
-    chrome: any
-    port: any
-    index: any
+    chrome: Chrome
+    port: Port
+    index: Index
 
-    constructor(chrome: any) {
+    constructor(chrome: Chrome) {
         this.actions = new Map()
         this.queue = []
         this.chrome = chrome
@@ -23,7 +24,7 @@ export default class Switchboard {
             callback()
         }
     }
-    addActions(actions: { prop: () => void }) {
+    addActions(actions: { [prop: string]: () => void }) {
         for (const [name, action] of Object.entries(actions)) {
             this.actions.set(name, action)
         }

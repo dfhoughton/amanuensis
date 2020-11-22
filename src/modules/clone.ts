@@ -4,6 +4,7 @@ Some utility functions for cloning state and diffing state
 
 // make a deep copy of an object, possibly nullifying certain object keys at whatever depth they might appear
 // note the only non-simple object expected is Dates
+// this is meant for cloning the sorts of things that can be stored in chrome.storage.local
 export function deepClone(obj: any, ...except: string[]): any {
     if (typeof obj === 'object') {
         if (obj == null) {
@@ -33,7 +34,11 @@ export function deepClone(obj: any, ...except: string[]): any {
 
 // to find whether there has been any change since the last save, possibly ignoring certain object keys at whatever depth they might appear
 // note the only non-simple object expected is Dates
+// this is meant for comparing the sorts of things that can be stored in chrome.storage.local
 export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolean {
+    if (Object.is(obj1, obj2)) {
+        return false
+    }
     if (typeof obj1 !== typeof obj2) {
         return true
     }
