@@ -65,7 +65,7 @@ export interface Port {
     postMessage: (message: Payload) => void
 }
 
-// the Chrome extension API
+// the Chrome extension API (the portion of it which we use)
 export interface Chrome {
     storage: {
         local: {
@@ -80,3 +80,9 @@ export interface Chrome {
     runtime: { lastError: string },
 }
 
+export interface ContentSelection {
+    phrase: string,
+    before: string,
+    after: string,
+    selection: Selection
+}

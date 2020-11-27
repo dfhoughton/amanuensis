@@ -1,6 +1,6 @@
 import React from 'react'
 import { deepClone, anyDifference } from './modules/clone'
-import { NoteRecord, Chrome, CitationRecord } from './modules/types'
+import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
 
 interface NoteProps {
@@ -43,13 +43,13 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     render() {
-        const hasWord = !!this.state.citations[0].phrase;
+        const hasWord = !!this.currentCitation().phrase;
         return (
             <div className={"note"}>
                 <span className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
                 <span className={`dot${this.state.starred ? ' filled' : ''}`} onClick={() => this.saveNote()} />
-                <Phrase phrase={this.currentCitation().phrase} hasWord={hasWord} />
-                {/* annotations needed here */}
+                <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
+                <Annotations note={this.state.note} />
                 <Tags tags={this.state.tags} hasWord={hasWord} />
                 <Citations citations={this.state.citations} hasWord={hasWord} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
@@ -62,19 +62,56 @@ class Note extends React.Component<NoteProps, NoteState> {
         this.checkForUnsavedContent()
     }
 
-    showSelection({ selection, tab }) {
-        const citation = {
-            source: { selection, tab: { title: tab.title, url: tab.url }, when: [new Date()] },
-            phrase: { before: selection.before, after: selection.after, word: selection.phrase },
+    showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
+        const citation: CitationRecord = {
+            source,
+            ...selection,
+            when: [new Date()],
         }
         this.switchboard.index.find(selection.phrase, this.state.realm)
             .then((found) => {
                 switch (found.state) {
                     case "found":
-                        // will need to set state
+                        const foundState: NoteState = {
+                            realm: found.realm,
+                            unsavedContent: true,
+                            ...found.record,
+                        }
+                        // look for an earlier citation identical to this
+                        let match: CitationRecord
+                        const { source, selection } = citation
+                        for (let i = 0; i < foundState.citations.length; i++) {
+                            const c = foundState.citations[i]
+                            if (citation.phrase === c.phrase &&
+                                citation.before === c.before &&
+                                citation.after === c.after &&
+                                source.title === c.source.title &&
+                                source.url === c.source.url &&
+                                selection.path === c.selection.path &&
+                                !anyDifference(selection.anchor, c.selection.anchor) &&
+                                !anyDifference(selection.focus, c.selection.focus)
+                            ) {
+                                match = c
+                                break
+                            }
+                        }
+                        if (match) {
+                            match.when.unshift(citation.when[0])
+                        } else {
+                            foundState.citations.unshift(citation)
+                        }
+                        this.setState(foundState)
                         break
                     case "none":
-                        // TODO announce somehow that we couldn't find anything
+                        this.setState({
+                            realm: 0,
+                            note: "",
+                            tags: [],
+                            citations: [citation],
+                            relations: {},
+                            starred: false,
+                            unsavedContent: true,
+                        })
                         break
                     case "ambiguous":
                         // TODO ask user to choose the realm
@@ -84,44 +121,6 @@ class Note extends React.Component<NoteProps, NoteState> {
             .catch((error) => {
                 console.error(error) // TODO improve error handling
             })
-        // chrome.storage.local.get(this.normalize(selection.phrase), (result) => {
-        //     let newState, found = result && result.citations
-        //     if (found) {
-        //         newState = {
-        //             ...citation,
-        //             ...result,
-        //             unsavedContent: false, // FIXME -- need to think about this
-        //         }
-        //     } else {
-        //         newState = {
-        //             ...citation,
-        //             starred: false,
-        //             tags: [],
-        //             note: '',
-        //             citations: [],
-        //             relations: [],
-        //             unsavedContent: true,
-        //         }
-        //     }
-        //     newState.savedState = null
-        //     newState.savedState = deepClone(newState, 'savedState', 'when')
-        //     console.log(newState)
-        //     this.setState(newState)
-        // })
-    }
-
-    // have we seen this selection before on this page?
-    sameCitation(c) {
-        const current = this.currentCitation()
-        const { source, selection } = current
-        return current.phrase === c.selection.phrase &&
-            current.before === c.selection.before &&
-            current.after === c.selection.after &&
-            source.title === c.tab.title &&
-            source.url === c.tab.url &&
-            selection.path === c.path &&
-            !anyDifference(selection.anchor, c.anchor) &&
-            !anyDifference(selection.focus, c.focus)
     }
 
     saveNote() {
@@ -136,8 +135,18 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     // report the outcome of some action 
-    report(level, msg) {
-        console.log({ level, msg })
+    report(level: "error" | "info" | "warn", msg: string) {
+        switch (level) {
+            case "error":
+                console.error(msg)
+                break
+            case "info":
+                console.log(msg)
+                break
+            case "warn":
+                console.warn(msg)
+                break
+        }
     }
 
     // obtain all the tags ever used
@@ -148,13 +157,13 @@ class Note extends React.Component<NoteProps, NoteState> {
 
 export default Note;
 
-function Phrase(props) {
+function Phrase(props: { hasWord: boolean; phrase: CitationRecord; }) {
     if (props.hasWord) {
         const phrase = { ...props.phrase };
         return (
             <div className="phrase">
                 <span className="before">{phrase.before}</span>
-                <span className="word">{phrase.word}</span>
+                <span className="word">{phrase.phrase}</span>
                 <span className="after">{phrase.after}</span>
             </div>
         )
@@ -163,7 +172,7 @@ function Phrase(props) {
     }
 }
 
-function Tags(props) {
+function Tags(props: { hasWord: boolean; tags: string[]; }) {
     if (!props.hasWord) {
         return null
     }
@@ -181,15 +190,14 @@ function Tags(props) {
     );
 }
 
-function Citations(props) {
+function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
     if (!props.hasWord) {
         return null
     }
-    const citations = props.citations.slice(1, props.citations.length).map((step, cite) => {
-        const citation = { ...cite };
+    const citations = props.citations.slice(1, props.citations.length).map((cite) => {
         return ( // should include date, and it should be possible to delete a citation
-            <li key={citation.url}>
-                {citation.url}
+            <li key={cite.source.url}>
+                {cite.source.url}
             </li>
         )
     });
@@ -200,20 +208,18 @@ function Citations(props) {
     );
 }
 
-function Relations(props) {
+function Annotations(props: { note: string }) {
+    // TODO add on-change handler
+    return <textarea value={props.note}></textarea>
+}
+
+function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPair[] } }) {
     if (!props.hasWord) {
         return null
     }
-    const relations = props.relations.slice(0, props.relations.length).map((step, pal) => {
-        // relations are stored as an object whose keys are relationship types and whose values are lists
-        // each object in the list consists of a phrase, a realm, and index, and optionally a note
-        const relation = { ...pal };
-        return (
-            <li key={relation.word}>
-                {relation.word}
-            </li>
-        )
-    });
+    // TODO we need to pass in a function as well that allows the modification of relations
+    // the switchboard and realm are in here to facilitate lazily loading in the instances of the relation
+    const relations = Object.entries(props.relations).map(([k, v],) => <li key={k}>{k}</li>)
     return (
         <ul className="relations">
             {relations}
