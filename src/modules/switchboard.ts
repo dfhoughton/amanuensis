@@ -24,7 +24,7 @@ export default class Switchboard {
             callback()
         }
     }
-    addActions(actions: { [prop: string]: () => void }) {
+    addActions(actions: { [prop: string]: (data?: any) => void }) {
         for (const [name, action] of Object.entries(actions)) {
             this.actions.set(name, action)
         }
@@ -37,17 +37,13 @@ export default class Switchboard {
         // the channel doesn't open until you send a message down it
         this.port.postMessage({ action: 'open' })
         // prepare to handle messages
-        getIndex(this.chrome, (arg) => {
-            if (typeof arg === 'string') {
-                alert(arg) // TODO something nicer
-            } else {
-                this.index = arg
-                // handle all tasks that were awaiting initialization
-                while (this.queue.length) {
-                    this.queue.shift()()
-                }
-                this.queue = null
+        getIndex(this.chrome).then((index) => {
+            this.index = index
+            // handle all tasks that were awaiting initialization
+            while (this.queue.length) {
+                this.queue.shift()()
             }
-        })
+            this.queue = null
+        }).catch((error) => alert(error))// TODO something nicer
     }
 }

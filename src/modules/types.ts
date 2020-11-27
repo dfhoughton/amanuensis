@@ -32,17 +32,11 @@ export interface SourceRecord {
 export type KeyPair = [realmKey: number, phraseKey: number]
 
 export interface NoteRecord {
-    realm: number,                            // realm index
     note: string,                             // free-form notes on the phrase
     tags: string[],                           // closed-class tags categorizing the phrase
     citations: CitationRecord[],              // all the times this phrase has been looked up
     relations: { [name: string]: KeyPair[] }, // relations of this phrase to other phrases
     starred: boolean,                         // whether this phrase is marked as of particular interest
-}
-
-// note record for rendering in React
-export interface NoteState extends NoteRecord {
-    unsavedContent: boolean,
 }
 
 export interface RealmInfo {

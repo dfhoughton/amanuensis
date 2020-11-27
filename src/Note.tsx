@@ -1,13 +1,25 @@
 import React from 'react'
 import { deepClone, anyDifference } from './modules/clone'
+import { NoteRecord, Chrome, CitationRecord } from './modules/types'
+import SwitchBoard from './modules/switchboard'
+
+interface NoteProps {
+    switchboard: SwitchBoard
+}
+
+interface NoteState extends NoteRecord {
+    unsavedContent: boolean,
+    realm: number,
+}
 
 /*global chrome*/
-class Note extends React.Component {
-    constructor(props) {
-        super();
+class Note extends React.Component<NoteProps, NoteState> {
+    switchboard: SwitchBoard;
+    savedState: NoteState;
+    constructor(props: Readonly<NoteProps>) {
+        super(props);
         this.switchboard = props.switchboard;
-        const nullState = {
-            phrase: {},
+        this.state = {
             realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
             note: "", // notes about the phrase
             tags: [], // tags used to categorize phrases
@@ -16,23 +28,27 @@ class Note extends React.Component {
             starred: false,
             unsavedContent: false,
         }
-        this.savedState = deepClone(nullState) // used as basis of comparison to see whether the record is dirty
+        this.savedState = deepClone(this.state) // used as basis of comparison to see whether the record is dirty
         this.switchboard.addActions({
             selection: (msg) => { this.showSelection(msg) }
         })
     }
 
     checkForUnsavedContent() {
-        this.setState({ unsavedContent: anyDifference(this.state, this.savedState) })
+        this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent") })
+    }
+
+    currentCitation(): CitationRecord {
+        return this.state.citations[0]
     }
 
     render() {
-        const hasWord = !!this.state.phrase.word;
+        const hasWord = !!this.state.citations[0].phrase;
         return (
             <div className={"note"}>
                 <span className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
                 <span className={`dot${this.state.starred ? ' filled' : ''}`} onClick={() => this.saveNote()} />
-                <Phrase phrase={this.state.phrase} hasWord={hasWord} />
+                <Phrase phrase={this.currentCitation().phrase} hasWord={hasWord} />
                 {/* annotations needed here */}
                 <Tags tags={this.state.tags} hasWord={hasWord} />
                 <Citations citations={this.state.citations} hasWord={hasWord} />
@@ -51,87 +67,71 @@ class Note extends React.Component {
             source: { selection, tab: { title: tab.title, url: tab.url }, when: [new Date()] },
             phrase: { before: selection.before, after: selection.after, word: selection.phrase },
         }
-        let existing = this.index.find(selection.phrase)
-        if (existing) {
-            // we've seen this phrase before
-            if (existing.length === 1) {
-                // and only in one realm
-            } else {
-                // we need the user to choose a realm
-            }
-        } else {
-            // this is the first time we've seen this phrase
-        }
-        chrome.storage.local.get(this.normalize(selection.phrase), (result) => {
-            let newState, found = result && result.citations
-            if (found) {
-                newState = {
-                    ...citation,
-                    ...result,
-                    unsavedContent: false, // FIXME -- need to think about this
+        this.switchboard.index.find(selection.phrase, this.state.realm)
+            .then((found) => {
+                switch (found.state) {
+                    case "found":
+                        // will need to set state
+                        break
+                    case "none":
+                        // TODO announce somehow that we couldn't find anything
+                        break
+                    case "ambiguous":
+                        // TODO ask user to choose the realm
+                        break
                 }
-            } else {
-                newState = {
-                    ...citation,
-                    starred: false,
-                    tags: [],
-                    note: '',
-                    citations: [],
-                    relations: [],
-                    unsavedContent: true,
-                }
-            }
-            newState.savedState = null
-            newState.savedState = deepClone(newState, 'savedState', 'when')
-            console.log(newState)
-            this.setState(newState)
-        })
+            })
+            .catch((error) => {
+                console.error(error) // TODO improve error handling
+            })
+        // chrome.storage.local.get(this.normalize(selection.phrase), (result) => {
+        //     let newState, found = result && result.citations
+        //     if (found) {
+        //         newState = {
+        //             ...citation,
+        //             ...result,
+        //             unsavedContent: false, // FIXME -- need to think about this
+        //         }
+        //     } else {
+        //         newState = {
+        //             ...citation,
+        //             starred: false,
+        //             tags: [],
+        //             note: '',
+        //             citations: [],
+        //             relations: [],
+        //             unsavedContent: true,
+        //         }
+        //     }
+        //     newState.savedState = null
+        //     newState.savedState = deepClone(newState, 'savedState', 'when')
+        //     console.log(newState)
+        //     this.setState(newState)
+        // })
     }
 
     // have we seen this selection before on this page?
     sameCitation(c) {
-        return this.state.phrase.word === c.selection.phrase &&
-            this.state.phrase.before === c.selection.before &&
-            this.state.source.tab.title === c.tab.title &&
-            this.state.source.url === c.tab.url &&
-            this.state.source.path === c.path &&
-            !anyDifference(this.state.source.anchor, c.anchor) &&
-            !anyDifference(this.state.source.focus, c.focus)
+        const current = this.currentCitation()
+        const { source, selection } = current
+        return current.phrase === c.selection.phrase &&
+            current.before === c.selection.before &&
+            current.after === c.selection.after &&
+            source.title === c.tab.title &&
+            source.url === c.tab.url &&
+            selection.path === c.path &&
+            !anyDifference(selection.anchor, c.anchor) &&
+            !anyDifference(selection.focus, c.focus)
     }
 
     saveNote() {
         if (!this.state.unsavedContent) {
-            // no-op
             return
         }
-        // TODO
-        // check to see whether we already have this citation
-        let found = false
-        const savedState = { ...this.state }
-        delete savedState.phrase
-        delete savedState.source
-        delete savedState.savedState
-        delete savedState.unsavedContent
-        savedState.citations = savedState.citations.splice()
-        for (let i = 0; i < savedState.citations.length; i++) {
-            const c = savedState.citations[i]
-            if (this.sameCitation(c)) {
-                found = true
-                // just store the latest timestamp
-                c.when = c.when.splice()
-                c.when.push(this.source.when[0])
-                break
-            }
-        }
-        if (!found) {
-            savedState.citations.push(this.source)
-        }
-        chrome.storage.local.set(this.normalize(this.state.phrase.word), savedState, () => {
-            const newState = deepClone(this.state, 'savedState')
-            newState.unsavedContent = false
-            newState.savedState = deepClone(newState, 'savedState')
-            this.setState(newState)
-            this.report("success", "saved note")
+        const data = deepClone(this.state, "unsavedContent", "realm")
+        this.switchboard.index.add({ phrase: this.currentCitation().phrase, realm: this.state.realm, data: data }).then(() => {
+            this.savedState = deepClone(this.state)
+            this.setState({ unsavedContent: false })
         })
     }
 
@@ -141,17 +141,8 @@ class Note extends React.Component {
     }
 
     // obtain all the tags ever used
-    allTags(callback) {
-        chrome.storage.local.get(null, (results) => {
-            const tags = new Set()
-            for (let i = 0; i < results.length; i++) {
-                const r = results[i]
-                for (let j = 0; j < r.tags.length; j++) {
-                    tags.add(r.tags[j])
-                }
-            }
-            callback(tags)
-        })
+    allTags() {
+        return Array.from(this.switchboard.index.tags).sort()
     }
 }
 
@@ -194,7 +185,7 @@ function Citations(props) {
     if (!props.hasWord) {
         return null
     }
-    const citations = props.citations.slice(0, props.citations.length).map((step, cite) => {
+    const citations = props.citations.slice(1, props.citations.length).map((step, cite) => {
         const citation = { ...cite };
         return ( // should include date, and it should be possible to delete a citation
             <li key={citation.url}>
