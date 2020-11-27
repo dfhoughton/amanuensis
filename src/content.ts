@@ -5,6 +5,10 @@ Selections are serialized as the selection, its context -- text before and after
 a selector to find its node.
 */
 
+import { Chrome, ContentSelection, Node as OurNode } from './modules/types'
+
+declare var chrome: Chrome
+
 // count the number of hits for a complete path
 const cachedPathCounts = new Map();
 function countHits(path) {
@@ -22,7 +26,7 @@ given a list of classes (strings), return all sublists producible by deleting so
 members of the list, so, from ["foo", "bar", "baz"], ["", ".foo", ".bar", ".baz", ".foo.bar", ".foo.baz", ".bar.baz", ".foo.bar.baz"]
 the list is de-duped, so [1,1,1] returns ["", ".1", ".1.1", ".1.1.1"]
 */
-function classCombinations(ar) {
+function classCombinations(ar: string[]): string[] {
     const l = ar.length
     const seen = new Set()
     if (l) {
@@ -49,8 +53,8 @@ function classCombinations(ar) {
 }
 
 // how selective is a particular class?
-const classUses = new Map()
-function hits(cz) {
+const classUses = new Map<string, HTMLElement[]>()
+function hits(cz: string): HTMLElement[] {
     let n = classUses[cz]
     if (!n) { // n will necessarily never be 0 after the line below
         n = document.getElementsByClassName(cz)
@@ -60,7 +64,7 @@ function hits(cz) {
 }
 
 // escapes weird characters in class names
-function escapeClass(cz) {
+function escapeClass(cz: string): string {
     const chars = []
     const conv = function (c) {
         return '\\' + c.codePointAt(0).toString(16) + ' '
@@ -80,7 +84,7 @@ function escapeClass(cz) {
     return chars.join('').replace(/ $/, '')
 }
 
-function escapeClasses(classes) {
+function escapeClasses(classes: string[]): string[] {
     const ar = []
     for (let i = 0; i < classes.length; i++) {
         ar.push(escapeClass(classes[i]))
@@ -89,7 +93,7 @@ function escapeClasses(classes) {
 }
 
 // to reduce combinatorial explosions when looking for a good path, prune the class list to 4 or fewer useful classes
-function optimalClasses(classes) {
+function optimalClasses(classes: string[]): string[] {
     if (classes.length <= 4) {
         return escapeClasses(classes)
     }
@@ -116,7 +120,7 @@ function optimalClasses(classes) {
         return optima
     }
     optima.sort(function (a, b) {
-        let cmp = hits(a) - hits(b)
+        let cmp = hits(a).length - hits(b).length
         if (!cmp) {
             cmp = a.length - b.length
         }
@@ -129,12 +133,12 @@ function optimalClasses(classes) {
 }
 
 // collect a set of ways one might find a particular node which we can then winnow down
-function descriptors(node) {
+function descriptors(node: HTMLElement): string[] {
     let descriptors = [node.nodeName]
     if (node.id) {
         descriptors.push[`${node.nodeName}#${node.id}`]
     }
-    let classes = classCombinations(optimalClasses(node.classList))
+    let classes = classCombinations(optimalClasses(Array.from(node.classList)))
     if (classes) {
         let rv = []
         for (let i = 0; i < classes.length; i++) {
@@ -155,8 +159,8 @@ function descriptors(node) {
 
 // find a selector that is not terribly long but as specifically as possible identifies the given node
 const pathSymbol = Symbol("best path")
-function simplestPath(node, suffix) {
-    let path
+function simplestPath(node: HTMLElement, suffix?: string): string {
+    let path: string
     if (!suffix) {
         path = node[pathSymbol]
         if (path) {
@@ -180,7 +184,7 @@ function simplestPath(node, suffix) {
         }
         return path
     }
-    const maybeBetterPath = simplestPath(node.parentNode, path)
+    const maybeBetterPath = simplestPath(<HTMLElement>node.parentNode, path)
     if (countHits(path) <= countHits(maybeBetterPath)) {
         if (!suffix) {
             node[pathSymbol] = path
@@ -193,22 +197,29 @@ function simplestPath(node, suffix) {
     return maybeBetterPath
 }
 
-function parents(node) {
+function parents(node: Node): Node[] {
     const ar = [node]
     let n = node.parentNode
     while (n) {
-        ar.unshift(n)
-        n = n.parentNode
+        if (n.nodeType !== Node.ELEMENT_NODE) {
+            break
+        }
+        let n2 = <HTMLElement>n
+        ar.unshift(n2)
+        if (n2.tagName === 'BODY') {
+            break
+        }
+        n = n2.parentNode
     }
     return ar
 }
 
-function commonParent(anchor, focus) {
+function commonParent(anchor: Node, focus: Node): Node {
     if (anchor === focus) {
         return anchor // null signifies anchor and focus are the same node
     }
     const aParents = parents(anchor), fParents = parents(focus);
-    let i = 2; // skip the document and html nodes
+    let i = 0
     while (true) {
         if (aParents[i] != fParents[i]) {
             return aParents[i - 1]
@@ -217,10 +228,13 @@ function commonParent(anchor, focus) {
     }
 }
 
-function absolutePath(ancestor, descendant) {
+function absolutePath(ancestor: HTMLElement, descendant: Node): string {
     let n = descendant
     const steps = []
     while (n !== ancestor) {
+        if (!n.parentNode) {
+            break
+        }
         const children = n.parentNode.children;
         for (let i = 0; i < children.length; i++) {
             if (children[i] === n) {
@@ -228,18 +242,26 @@ function absolutePath(ancestor, descendant) {
                 break
             }
         }
-        n = n.parentNode
+        n = <HTMLElement>n.parentNode
     }
     return steps.join(" > ")
 }
 
-function squish(string) {
+function squish(string: string): string {
     if (string) {
         return string.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
     }
 }
 
-function describeSelectionNode(n, offset) {
+interface NodeObj {
+    offset: number,
+    node?: Node,
+    parentOffset?: number,
+    parent?: Node,
+    path?: string,
+}
+
+function describeSelectionNode(n: Node, offset: number): NodeObj {
     if (n.nodeType === Node.TEXT_NODE) {
         const ar = n.parentNode.childNodes
         for (let i = 0; i < ar.length; i++) {
@@ -252,7 +274,7 @@ function describeSelectionNode(n, offset) {
 }
 
 // simplify the representation of a node
-function trimNode({ offset, path, parentOffset, parent }) {
+function trimNode({ offset, path, parentOffset, parent }: NodeObj): NodeObj {
     if (parent) {
         return { path, offset, parentOffset }
     } else {
@@ -260,8 +282,19 @@ function trimNode({ offset, path, parentOffset, parent }) {
     }
 }
 
+function makeOurs(n: NodeObj): OurNode {
+    const on: OurNode = {
+        path: n.path,
+        offset: n.offset
+    }
+    if (n.parentOffset) {
+        on.parentOffset = n.parentOffset
+    }
+    return on
+}
+
 // extract the useful information out of a selection
-function wrapSelection() {
+function wrapSelection(): ContentSelection {
     const selection = document.getSelection()
     if (!selection || selection.isCollapsed) {
         return
@@ -274,19 +307,23 @@ function wrapSelection() {
     let anchor = describeSelectionNode(selection.anchorNode, selection.anchorOffset)
     let focus = describeSelectionNode(selection.focusNode, selection.focusOffset)
     const ap = anchor.parent || anchor.node, fp = focus.parent || focus.node
-    const parent = commonParent(ap, fp)
+    let parent = commonParent(ap, fp)
+    while (parent.nodeType !== Node.ELEMENT_NODE) {
+        parent = parent.parentNode
+    }
     const context = squish(parent.textContent)
     const i = context.indexOf(phrase);
     const before = context.substr(0, i), after = context.substr(i + phrase.length)
-    const path = simplestPath(parent), anchorPath = absolutePath(parent, ap), focusPath = absolutePath(parent, fp)
+    const path = simplestPath(<HTMLElement>parent), anchorPath = absolutePath(<HTMLElement>parent, ap), focusPath = absolutePath(<HTMLElement>parent, fp)
     anchor.path = anchorPath
     focus.path = focusPath
-    anchor = trimNode(anchor)
-    focus = trimNode(focus)
-    return { phrase, before, after, selection: { path, anchor, focus } }
+    return {
+        phrase, before, after,
+        selection: { path, anchor: makeOurs(trimNode(anchor)), focus: makeOurs(trimNode(focus)) }
+    }
 }
 
-function findSelection({ phrase, before, after, selection }) {
+function findSelection({ phrase, before, after, selection }: ContentSelection): Element {
     const context = before + phrase + after
     const candidates = document.querySelectorAll(selection.path)
     for (let i = 0; i < candidates.length; i++) {
@@ -298,7 +335,7 @@ function findSelection({ phrase, before, after, selection }) {
 }
 
 // attempt to find the original selection, select it again, and scroll it into view
-function highlightSelection(wrappedSelection) {
+function highlightSelection(wrappedSelection: ContentSelection): void {
     const element = findSelection(wrappedSelection)
     if (element) {
         const { anchor: a, focus: f } = wrappedSelection.selection
@@ -307,10 +344,10 @@ function highlightSelection(wrappedSelection) {
         (anchor || element).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
         if (anchor && focus) {
             if (a.hasOwnProperty('parentOffset')) {
-                anchor = anchor.childNodes[a.parentOffset]
+                anchor = <Element>anchor.childNodes[a.parentOffset]
             }
             if (f.hasOwnProperty('parentOffset')) {
-                focus = focus.childNodes[f.parentOffset]
+                focus = <Element>focus.childNodes[f.parentOffset]
             }
             const range = new Range()
             range.setStart(anchor, a.offset)
@@ -323,6 +360,7 @@ function highlightSelection(wrappedSelection) {
     }
 }
 
+/* global chrome */
 // to get messages back from the background
 const port = chrome.extension.connect({
     name: "content"
