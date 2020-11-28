@@ -4,10 +4,10 @@ import { Chrome, Port, Payload } from './types'
 // the communication device shared among components
 export default class Switchboard {
     actions: Map<string, (data?: Payload) => void>
-    queue: (() => void)[]
+    queue: (() => void)[] | null
     chrome: Chrome
-    port: Port
-    index: Index
+    port: Port | null
+    index: Index | null
 
     constructor(chrome: Chrome) {
         this.actions = new Map()
@@ -40,8 +40,8 @@ export default class Switchboard {
         getIndex(this.chrome).then((index) => {
             this.index = index
             // handle all tasks that were awaiting initialization
-            while (this.queue.length) {
-                this.queue.shift()()
+            while (this.queue?.length) {
+                (this.queue.shift() as () => void)()
             }
             this.queue = null
         }).catch((error) => alert(error))// TODO something nicer

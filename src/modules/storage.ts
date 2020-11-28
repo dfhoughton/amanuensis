@@ -3,7 +3,7 @@ import { Chrome, KeyPair, NoteRecord, RealmInfo, RealmIdentifier, Normalizer } f
 
 // utility function to convert maps into arrays for permanent storage
 function m2a(map: Map<any, any>): [any, any][] {
-    const ar = []
+    const ar: [any, any][] = []
     map.forEach((v, k) => ar.push([k, v]))
     return ar
 }
@@ -69,11 +69,14 @@ export class Index {
     // if no realm is given and the phrase exists in multiple realms, provides [realm...]
     find(phrase: string, realm: RealmIdentifier): Promise<FindResponse> {
         return new Promise((resolve, reject) => {
-            let key: string, realmInfo: RealmInfo, found: NoteRecord
+            let key: string | null, realmInfo: RealmInfo, found: NoteRecord | null
             if (realm) {
                 [, realmInfo] = this.findRealm(realm)
                 const index = this.realmIndex(phrase, realmInfo)
-                found = this.cache.get([realmInfo.pk, index])
+                if (index == null) {
+                    return resolve({ state: "none" })
+                }
+                found = this.cache.get([realmInfo.pk, index as number]) || null
                 if (found) {
                     resolve({ state: "found", realm: realmInfo.pk, record: found })
                 } else {
@@ -81,7 +84,7 @@ export class Index {
                     if (!key) {
                         resolve({ state: "none" })
                     } else {
-                        this.chrome.storage.local.get([key], function (found) {
+                        this.chrome.storage.local.get([key], (found) => {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
@@ -92,16 +95,16 @@ export class Index {
                     }
                 }
             } else {
-                const realms = this.index[this.defaultNormalize(phrase)]
+                const realms = this.index.get(this.defaultNormalize(phrase))
                 if (realms) {
                     if (realms.length === 1) {
                         [, realmInfo] = this.findRealm(realms[0])
-                        this.chrome.storage.local.get([this.key(phrase, realmInfo)], function (found) {
+                        this.chrome.storage.local.get([this.key(phrase, realmInfo) as string], (found) => {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
                                 const index = this.realmIndex(phrase, realmInfo)
-                                this.cache.set([realmInfo.pk, index], found)
+                                this.cache.set([realmInfo.pk, index as number], found)
                                 resolve({ state: "found", realm: realmInfo.pk, record: found })
                             }
                         })
@@ -121,8 +124,8 @@ export class Index {
             const storable: { [key: string]: any } = {}
             const [, realmInfo] = this.findRealm(realm)
             let key = this.normalize(phrase, realmInfo)
-            let realmIndex = this.realmIndices.get(realmInfo.pk)
-            let pk = realmIndex[key]
+            let realmIndex = this.realmIndices.get(realmInfo.pk) || new Map()
+            let pk = realmIndex.get(key)
             if (pk == null) {
                 // this is necessarily in neither the index nor the realm index
                 // we will have to generate a primary key for this phrase and store both indices
@@ -132,10 +135,10 @@ export class Index {
                         pk = v + 1
                     }
                 })
-                realmIndex[key] = pk
+                realmIndex.set(key, pk)
                 storable[realmInfo.pk.toString()] = m2a(realmIndex)
                 key = this.defaultNormalize(phrase)
-                let realms = this.index[key] || []
+                let realms = this.index.get(key) || []
                 realms.push(realmInfo.pk)
                 storable.index = m2a(this.index)
             }
@@ -147,7 +150,7 @@ export class Index {
                 this.tags.add(tag)
             }
             if (this.tags.size > l) {
-                const tags = []
+                const tags: string[] = []
                 for (const tag in this.tags) {
                     tags.push(tag)
                 }
@@ -156,12 +159,12 @@ export class Index {
             // modify any phrases newly tied to this by a relation
             // NOTE any relation *deleted* in editing will need to be handled separately
             for (const [relation, pairs] of Object.entries(data.relations)) {
-                let reversedRelation: string
+                let reversedRelation: string = ''
                 for (const pair of pairs) {
                     const other = this.cache.get(pair)
                     if (other) {
                         // other will necessarily be cached if a relation to it was added
-                        reversedRelation ||= this.reverseRelation(realmInfo, relation)
+                        reversedRelation ||= this.reverseRelation(realmInfo, relation) || ''
                         outer: for (const [relation2, pairs2] of Object.entries(other.relations)) {
                             if (relation2 === reversedRelation) {
                                 for (const key2 in pairs2) {
@@ -190,78 +193,93 @@ export class Index {
         })
     }
 
-    delete({ phrase, realm }) {
-        // TODO
-        // must delete given phrase from the given realm
-        // must delete it from the realm index
-        // must delete it from all the phrases to which it is related
-        // then must also iterate over *all* the phrases in the realm to see if any share its default normalization
-        // if so, the master index need not be altered and saved
-        // otherwise, we must delete its entry from the master index as well
+    delete({ phrase, realm }: { phrase: string, realm: RealmInfo }): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // TODO
+            // must delete given phrase from the given realm
+            // must delete it from the realm index
+            // must delete it from all the phrases to which it is related
+            // then must also iterate over *all* the phrases in the realm to see if any share its default normalization
+            // if so, the master index need not be altered and saved
+            // otherwise, we must delete its entry from the master index as well
+        })
     }
 
     // delete a particular relation between two phrases
     // these two phrases will necessarily both already be saved
-    deleteRelation({ phrase, realm, relation, pair }): Promise<void> {
+    deleteRelation({ phrase, realm, relation, pair }: { phrase: string, realm: RealmInfo, relation: string, pair: KeyPair }): Promise<void> {
         return new Promise((resolve, reject) => {
-            const [, realmInfo] = this.findRealm(realm)
+            const [realmName, realmInfo] = this.findRealm(realm)
             let key = this.normalize(phrase, realmInfo)
             const realmIndex = this.realmIndices.get(realmInfo.pk)
-            let pk = realmIndex[key]
-            let keyPair: KeyPair = [realmInfo.pk, pk]
-            const data = this.cache.get(keyPair) // the phrase in question is necessarily cached
-            const continuation = (other: NoteRecord) => {
-                // prepare other end of relation for storage
-                const reversedRelation = this.reverseRelation(realmInfo, relation), storable = {}
-                storable[`${pair[0]}:${pair[1]}`] = other
-                // remove other end of relation from other's relations
-                let pairs2 = other.relations[reversedRelation] || []
-                const pairs22 = []
-                for (const [r2, pk2] of pairs2) {
-                    if (!(r2 === pk[0] && pk2 === pk[1])) {
-                        pairs22.push([r2, pk2])
-                    }
-                }
-                if (pairs22.length) {
-                    other.relations[reversedRelation] = pairs22
-                } else {
-                    delete other.relations[reversedRelation]
-                }
-                // remove near end of relation from data's relations
-                const data2 = deepClone(data) // don't modify the original so React can use if for diffing
-                storable[`${key[0]}:${key[1]}`] = data2
-                let pairs = data2.relations[relation] || []
-                pairs2 = []
-                for (const [r2, pk2] of pairs) {
-                    if (!(r2 === pair[0] && pk2 === pair[1])) {
-                        pairs2.push([r2, pk2])
-                    }
-                }
-                if (pairs2.length) {
-                    data2.relations[relation] = pairs2
-                } else {
-                    delete data2.relations[relation]
-                }
-                this.chrome.storage.local.set(storable, () => {
-                    if (this.chrome.runtime.lastError) {
-                        reject(this.chrome.runtime.lastError)
-                    } else {
-                        resolve()
-                    }
-                })
-            }
-            let other = this.cache.get(pair)
-            if (other) {
-                continuation(other)
+            let pk = realmIndex?.get(key)
+            if (pk == null) {
+                reject(`the phrase ${phrase} is not stored in ${realmName}`)
             } else {
-                this.chrome.storage.local.get([`${pair[0]}:${pair[1]}`], (found) => {
-                    if (this.chrome.runtime.lastError) {
-                        reject(this.chrome.runtime.lastError)
-                    } else {
-                        this.cache.set(pair, found)
-                        continuation(other)
+                let keyPair: KeyPair = [realmInfo.pk, pk]
+                const data = this.cache.get(keyPair) // the phrase in question is necessarily cached
+                if (data) {
+                    const continuation = (other: NoteRecord) => {
+                        // prepare other end of relation for storage
+                        const reversedRelation = this.reverseRelation(realmInfo, relation)
+                        if (reversedRelation) {
+                            const storable: { [key: string]: any } = {}
+                            storable[`${pair[0]}:${pair[1]}`] = other
+                            // remove other end of relation from other's relations
+                            let pairs2 = other.relations[reversedRelation] || []
+                            const pairs22: KeyPair[] = []
+                            for (const [r2, pk2] of pairs2) {
+                                if (!(r2 === realmInfo.pk && pk2 === pk)) {
+                                    pairs22.push([r2, pk2])
+                                }
+                            }
+                            if (pairs22.length) {
+                                other.relations[reversedRelation] = pairs22
+                            } else {
+                                delete other.relations[reversedRelation]
+                            }
+                            // remove near end of relation from data's relations
+                            const data2 = deepClone(data) // don't modify the original so React can use if for diffing
+                            storable[`${key[0]}:${key[1]}`] = data2
+                            let pairs: KeyPair[] = data2.relations[relation] || []
+                            pairs2 = []
+                            for (const [r2, pk2] of pairs) {
+                                if (!(r2 === pair[0] && pk2 === pair[1])) {
+                                    pairs2.push([r2, pk2])
+                                }
+                            }
+                            if (pairs2.length) {
+                                data2.relations[relation] = pairs2
+                            } else {
+                                delete data2.relations[relation]
+                            }
+                            this.chrome.storage.local.set(storable, () => {
+                                if (this.chrome.runtime.lastError) {
+                                    reject(this.chrome.runtime.lastError)
+                                } else {
+                                    resolve()
+                                }
+                            })
+                        } else {
+                            reject(`could not find the reversed relation for ${relation} in ${realmName}`)
+                        }
                     }
-                })
+                    let other = this.cache.get(pair)
+                    if (other) {
+                        continuation(other)
+                    } else {
+                        this.chrome.storage.local.get([`${pair[0]}:${pair[1]}`], (found) => {
+                            if (this.chrome.runtime.lastError) {
+                                reject(this.chrome.runtime.lastError)
+                            } else {
+                                this.cache.set(pair, found)
+                                continuation(found)
+                            }
+                        })
+                    }
+                } else {
+                    reject("the phrase was not cached; this should be unreachable code")
+                }
             }
         })
     }
@@ -271,7 +289,7 @@ export class Index {
     // success value of promise will be the number of bytes remaining
     memfree(): Promise<number> {
         return new Promise((resolve, reject) => {
-            this.chrome.storage.local.getBytesInUse(null, function (bytes: number) {
+            this.chrome.storage.local.getBytesInUse(null, (bytes: number) => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
@@ -284,29 +302,44 @@ export class Index {
     findRealm(realm: string | number | RealmInfo): [string, RealmInfo] {
         let realmInfo: RealmInfo
         switch (typeof realm) {
+            case 'number':
+                const r = this.reverseRealmIndex.get(realm)
+                if (r) {
+                    realm = r
+                    const ri = this.realms.get(realm)
+                    if (ri) {
+                        return [r, ri]
+                    } else {
+                        return this.defaultRealm()
+                    }
+                } else {
+                    return this.defaultRealm()
+                }
             case 'string':
-                realmInfo = this.realms.get(realm)
-                break
+                const ri = this.realms.get(realm)
+                if (ri) {
+                    return [realm.toString(), ri]
+                } else {
+                    return this.defaultRealm()
+                }
             case 'object':
-                // test for null
                 if (realm) {
                     realmInfo = realm
-                    realm = this.reverseRealmIndex.get(realm.pk)
+                    const r = this.reverseRealmIndex.get(realm.pk)
+                    if (r) {
+                        return [r, realmInfo]
+                    } else {
+                        return this.defaultRealm()
+                    }
+                } else {
+                    return this.defaultRealm()
                 }
-                break
-            case 'number':
-                realm = this.reverseRealmIndex.get(realm)
-                realmInfo = this.realms.get(realm)
-                break
             default:
-                throw "unreachable"
+                throw new Error("unreachable")
         }
-        if (realmInfo) {
-            return [realm.toString(), realmInfo]
-        } else {
-            // default realm
-            return ['', this.realms.get('')]
-        }
+    }
+    defaultRealm(): [string, RealmInfo] {
+        return ['', this.realms.get('') as RealmInfo]
     }
     // save a realm or create a new one
     // the optional callback receives an error message, if any
@@ -331,7 +364,7 @@ export class Index {
             let pk: number
             const storable: { [key: string]: any } = {}
             if (this.realms.has(name)) {
-                pk = this.realms.get(name).pk
+                pk = (this.realms.get(name) as RealmInfo).pk
             } else {
                 pk = 1
                 for (const [, realmInfo] of this.realms) {
@@ -344,7 +377,7 @@ export class Index {
                 storable[pk.toString()] = []
             }
             const realm: RealmInfo = { pk, description, normalizer, relations }
-            this.realms[name] = realm
+            this.realms.set(name, realm)
             storable.realms = m2a(this.realms)
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {
@@ -357,9 +390,9 @@ export class Index {
     }
     removeRealm(realm: RealmIdentifier): Promise<void> {
         return new Promise((resolve, reject) => {
-            const [, realmInfo] = this.findRealm(realm)
-            const delenda = []
-            const memoranda = []
+            // const [, realmInfo] = this.findRealm(realm)
+            // const delenda = []
+            // const memoranda = []
             // TODO
             // iterate over all phrases in realm via realm index
             // for each phrase in realm, iterate over relations, adding relations with other realms to memoranda, adding key for phrase to delenda
@@ -374,16 +407,23 @@ export class Index {
         })
     }
     // create the key a phrase should be stored under for a given realm
-    key(phrase: string, realm: RealmIdentifier): string {
+    key(phrase: string, realm: RealmIdentifier): string | null {
         const [, realmInfo] = this.findRealm(realm)
         const index = this.realmIndex(phrase, realmInfo)
         if (index != null) {
             return `${realmInfo.pk}:${index}`
         }
+        return null
     }
-    realmIndex(phrase: string, realm: string | number | RealmInfo): number {
+    realmIndex(phrase: string, realm: string | number | RealmInfo): number | null {
         const [, realmInfo] = this.findRealm(realm)
-        return this.realmIndices.get(realmInfo.pk).get(this.normalize(phrase, realmInfo))
+        const idx = this.realmIndices.get(realmInfo.pk) as Map<string, number>
+        const i = idx.get(this.normalize(phrase, realmInfo))
+        if (i == null) {
+            return null
+        } else {
+            return i
+        }
     }
     // normalize phrase for use in retrieval and insertion
     normalize(phrase: string, realm: string | number | RealmInfo): string {
@@ -404,13 +444,13 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['realms', 'index', 'tags'], function (result) {
+        chrome.storage.local.get(['realms', 'index', 'tags'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
                 let { realms = [], index = [], tags = [] } = result || {}
                 // now that we have the realm we can fetch the realm indices
-                const indices = []
+                const indices: string[] = []
                 for (const [, realmInfo] of realms) {
                     indices.push(realmInfo.pk.toString())
                 }

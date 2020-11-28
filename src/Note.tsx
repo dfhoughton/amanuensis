@@ -12,7 +12,6 @@ interface NoteState extends NoteRecord {
     realm: number,
 }
 
-/*global chrome*/
 class Note extends React.Component<NoteProps, NoteState> {
     switchboard: SwitchBoard;
     savedState: NoteState;
@@ -43,7 +42,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     render() {
-        const hasWord = !!this.currentCitation().phrase;
+        const hasWord = !!this.currentCitation()?.phrase;
         return (
             <div className={"note"}>
                 <span className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
@@ -68,7 +67,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             ...selection,
             when: [new Date()],
         }
-        this.switchboard.index.find(selection.phrase, this.state.realm)
+        this.switchboard.index?.find(selection.phrase, this.state.realm)
             .then((found) => {
                 switch (found.state) {
                     case "found":
@@ -78,7 +77,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                             ...found.record,
                         }
                         // look for an earlier citation identical to this
-                        let match: CitationRecord
+                        let match: CitationRecord | null = null
                         const { source, selection } = citation
                         for (let i = 0; i < foundState.citations.length; i++) {
                             const c = foundState.citations[i]
@@ -128,7 +127,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             return
         }
         const data = deepClone(this.state, "unsavedContent", "realm")
-        this.switchboard.index.add({ phrase: this.currentCitation().phrase, realm: this.state.realm, data: data }).then(() => {
+        this.switchboard.index?.add({ phrase: this.currentCitation().phrase, realm: this.state.realm, data: data }).then(() => {
             this.savedState = deepClone(this.state)
             this.setState({ unsavedContent: false })
         })
@@ -151,7 +150,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     // obtain all the tags ever used
     allTags() {
-        return Array.from(this.switchboard.index.tags).sort()
+        return Array.from(this.switchboard.index?.tags || []).sort()
     }
 }
 

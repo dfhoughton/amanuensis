@@ -13,13 +13,13 @@ export function deepClone(obj: any, ...except: string[]): any {
         if (obj.getTime) {
             return new Date(obj.getTime())
         } else if (Array.isArray(obj)) {
-            const rv = []
+            const rv : any[] = []
             for (const v of obj) {
                 rv.push(deepClone(v, ...except))
             }
             return rv
         } else {
-            const rv = {}
+            const rv: { [key: string]: any } = {}
             for (const [k, v] of Object.entries(obj)) {
                 // keep the key but not the value
                 const clone = except.indexOf(k) === -1 ? null : deepClone(v, ...except)
@@ -43,7 +43,7 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
         return true
     }
     if (typeof obj1 === 'object') {
-        if (obj1 == null !== obj2 == null) {
+        if ((obj1 == null) !== (obj2 == null)) {
             return true
         }
         if (obj1 == null) {
