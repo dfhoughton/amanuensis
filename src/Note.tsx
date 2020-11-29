@@ -4,6 +4,7 @@ import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } f
 import SwitchBoard from './modules/switchboard'
 
 interface NoteProps {
+    stash: Map<string, any>,
     switchboard: SwitchBoard
 }
 
@@ -13,19 +14,30 @@ interface NoteState extends NoteRecord {
 }
 
 class Note extends React.Component<NoteProps, NoteState> {
-    switchboard: SwitchBoard;
-    savedState: NoteState;
+    switchboard: SwitchBoard
+    savedState: NoteState
+    stash: Map<string, any>
     constructor(props: Readonly<NoteProps>) {
         super(props);
-        this.switchboard = props.switchboard;
-        this.state = {
-            realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
-            note: "", // notes about the phrase
-            tags: [], // tags used to categorize phrases
-            citations: [], // instances this *particular* phrase, after normalization, has been found
-            relations: {},
-            starred: false,
-            unsavedContent: false,
+        console.log('making a new note')
+        this.stash = props.stash
+        this.switchboard = props.switchboard
+        const maybeSaved: [NoteState, NoteState] | null = this.stash.get('note')
+        console.log({maybeSaved, keys: Array.from(this.stash.keys())})
+        if (maybeSaved) {
+            const [current, saved] = maybeSaved
+            this.state = current
+            this.savedState = saved
+        } else {
+            this.state = {
+                realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
+                note: "", // notes about the phrase
+                tags: [], // tags used to categorize phrases
+                citations: [], // instances this *particular* phrase, after normalization, has been found
+                relations: {},
+                starred: false,
+                unsavedContent: false,
+            }
         }
         this.savedState = deepClone(this.state) // used as basis of comparison to see whether the record is dirty
         this.switchboard.addActions({
@@ -54,6 +66,11 @@ class Note extends React.Component<NoteProps, NoteState> {
                 <Relations relations={this.state.relations} hasWord={hasWord} />
             </div>
         );
+    }
+
+    componentWillUnmount() {
+        const stashedState = [this.state, this.savedState]
+        this.stash.set('note', stashedState)
     }
 
     star() {
