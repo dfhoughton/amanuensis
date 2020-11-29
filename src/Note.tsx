@@ -19,11 +19,9 @@ class Note extends React.Component<NoteProps, NoteState> {
     stash: Map<string, any>
     constructor(props: Readonly<NoteProps>) {
         super(props);
-        console.log('making a new note')
         this.stash = props.stash
         this.switchboard = props.switchboard
         const maybeSaved: [NoteState, NoteState] | null = this.stash.get('note')
-        console.log({maybeSaved, keys: Array.from(this.stash.keys())})
         if (maybeSaved) {
             const [current, saved] = maybeSaved
             this.state = current
@@ -38,8 +36,8 @@ class Note extends React.Component<NoteProps, NoteState> {
                 starred: false,
                 unsavedContent: false,
             }
+            this.savedState = deepClone(this.state) // used as basis of comparison to see whether the record is dirty
         }
-        this.savedState = deepClone(this.state) // used as basis of comparison to see whether the record is dirty
         this.switchboard.addActions({
             selection: (msg) => { this.showSelection(msg) }
         })
@@ -71,6 +69,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     componentWillUnmount() {
         const stashedState = [this.state, this.savedState]
         this.stash.set('note', stashedState)
+        this.switchboard.removeActions("selection")
     }
 
     star() {

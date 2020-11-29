@@ -13,16 +13,16 @@ export function deepClone(obj: any, ...except: string[]): any {
         if (obj.getTime) {
             return new Date(obj.getTime())
         } else if (Array.isArray(obj)) {
-            const rv : any[] = []
-            for (const v of obj) {
-                rv.push(deepClone(v, ...except))
+            const rv : any[] = obj.slice()
+            for (let i = 0; i < rv.length; i++) {
+                rv[i] = deepClone(rv[i], ...except)
             }
             return rv
         } else {
             const rv: { [key: string]: any } = {}
             for (const [k, v] of Object.entries(obj)) {
                 // keep the key but not the value
-                const clone = except.indexOf(k) === -1 ? null : deepClone(v, ...except)
+                const clone = except.indexOf(k) === -1 ? deepClone(v, ...except) : null
                 rv[k] = clone
             }
             return rv

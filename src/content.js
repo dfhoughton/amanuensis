@@ -333,7 +333,6 @@ port.onMessage.addListener(function (msg) {
         case 'getSelection':
             const selection = wrapSelection()
             if (selection) {
-                console.log(selection)
                 port.postMessage({ action: 'selection', selection })
             }
             break

@@ -29,6 +29,11 @@ export default class Switchboard {
             this.actions.set(name, action)
         }
     }
+    removeActions(...actions: string[]) {
+        for (const m of actions) {
+            this.actions.delete(m)
+        }
+    }
     mounted() {
         this.port = this.chrome.extension.connect({ name: "popup" })
         this.port.onMessage.addListener((msg) => {
