@@ -1,7 +1,6 @@
-import React from 'react';
-import './App.scss';
-// import Game from './Game.js';
-import Note from './Note';
+import React from 'react'
+import './App.scss'
+import Note from './Note'
 import Switchboard from './modules/switchboard'
 
 /*global chrome*/

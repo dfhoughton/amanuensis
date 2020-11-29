@@ -116,7 +116,7 @@ function optimalClasses(classes) {
         return optima
     }
     optima.sort(function (a, b) {
-        let cmp = hits(a) - hits(b)
+        let cmp = hits(a).length - hits(b).length
         if (!cmp) {
             cmp = a.length - b.length
         }
