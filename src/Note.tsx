@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
+import TextField from '@material-ui/core/TextField'
 
 interface NoteProps {
     stash: Map<string, any>,
@@ -58,7 +59,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                 <span className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
                 <span className={`dot${this.state.starred ? ' filled' : ''}`} onClick={() => this.saveNote()} />
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
-                <Annotations note={this.state.note} />
+                <Annotations note={this.state.note} handler={(e) => this.setState({ note: e.target.value})} />
                 <Tags tags={this.state.tags} hasWord={hasWord} />
                 <Citations citations={this.state.citations} hasWord={hasWord} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
@@ -223,9 +224,17 @@ function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
     );
 }
 
-function Annotations(props: { note: string }) {
-    // TODO add on-change handler
-    return <textarea value={props.note}></textarea>
+function Annotations(props: { note: string, handler: (e: ChangeEvent<HTMLTextAreaElement>) => void }) {
+    return <TextField
+        label="Annotations"
+        id="annotations"
+        multiline
+        placeholder="Add observations about this topic."
+        style={{width: "100%"}}
+        rowsMax={6}
+        value={props.note}
+        onChange={props.handler}
+    />
 }
 
 function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPair[] } }) {
