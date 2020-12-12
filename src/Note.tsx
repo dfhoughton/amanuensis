@@ -18,6 +18,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     switchboard: SwitchBoard
     savedState: NoteState
     stash: Map<string, any>
+    checkSavedState: () => void
     constructor(props: Readonly<NoteProps>) {
         super(props);
         this.stash = props.stash
@@ -27,10 +28,12 @@ class Note extends React.Component<NoteProps, NoteState> {
             const [current, saved] = maybeSaved
             this.state = current
             this.savedState = saved
+            this.checkForDeletions()
         } else {
             this.state = {
                 realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
-                note: "", // notes about the phrase
+                gist: "", // the most important notes about the phrase
+                details: "", // less essential notes about the phrase
                 tags: [], // tags used to categorize phrases
                 citations: [], // instances this *particular* phrase, after normalization, has been found
                 relations: {},
@@ -42,10 +45,21 @@ class Note extends React.Component<NoteProps, NoteState> {
         this.switchboard.addActions({
             selection: (msg) => { this.showSelection(msg) }
         })
+        // make a debounced function that checks to see whether the note is dirty and needs a save
+        let i: NodeJS.Timeout | undefined
+        let f = () => this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent") })
+        this.checkSavedState = function () {
+            if (i) {
+                clearInterval(i)
+            }
+            i = setTimeout(f, 200)
+        }
     }
 
-    checkForUnsavedContent() {
-        this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent") })
+    // check to see whether any information relevant to the display of this note has changed
+    // since it was last displayed
+    checkForDeletions() {
+
     }
 
     currentCitation(): CitationRecord {
@@ -55,11 +69,18 @@ class Note extends React.Component<NoteProps, NoteState> {
     render() {
         const hasWord = !!this.currentCitation()?.phrase;
         return (
-            <div className={"note"}>
-                <span className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
-                <span className={`dot${this.state.starred ? ' filled' : ''}`} onClick={() => this.saveNote()} />
+            <div className="note">
+                <div className="note-buttons">
+                    <div className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
+                    <div className={`dot${this.state.unsavedContent ? ' filled' : ''}`} onClick={() => this.saveNote()} />
+                </div>
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
-                <Annotations note={this.state.note} handler={(e) => this.setState({ note: e.target.value})} />
+                <Annotations
+                    gist={this.state.gist}
+                    details={this.state.details}
+                    gistHandler={(e) => { this.setState({ gist: e.target.value }); this.checkSavedState() }}
+                    notesHandler={(e) => { this.setState({ details: e.target.value }); this.checkSavedState() }}
+                />
                 <Tags tags={this.state.tags} hasWord={hasWord} />
                 <Citations citations={this.state.citations} hasWord={hasWord} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
@@ -75,7 +96,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     star() {
         this.setState({ starred: !this.state.starred })
-        this.checkForUnsavedContent()
+        this.checkSavedState()
     }
 
     showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
@@ -121,7 +142,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     case "none":
                         this.setState({
                             realm: 0,
-                            note: "",
+                            details: "",
                             tags: [],
                             citations: [citation],
                             relations: {},
@@ -151,18 +172,21 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     // report the outcome of some action 
-    report(level: "error" | "info" | "warn", msg: string) {
+    report(level: "error" | "info" | "warn" | "debug", msg: string) {
         switch (level) {
             case "error":
                 console.error(msg)
                 break
             case "info":
-                console.log(msg)
+                console.info(msg)
                 break
             case "warn":
                 console.warn(msg)
                 break
-        }
+            case "debug":
+                console.debug(msg)
+                break
+            }
     }
 
     // obtain all the tags ever used
@@ -224,17 +248,35 @@ function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
     );
 }
 
-function Annotations(props: { note: string, handler: (e: ChangeEvent<HTMLTextAreaElement>) => void }) {
-    return <TextField
-        label="Annotations"
-        id="annotations"
-        multiline
-        placeholder="Add observations about this topic."
-        style={{width: "100%"}}
-        rowsMax={6}
-        value={props.note}
-        onChange={props.handler}
-    />
+function Annotations(
+    props: {
+        gist: string,
+        details: string,
+        gistHandler: (e: ChangeEvent<HTMLInputElement>) => void,
+        notesHandler: (e: ChangeEvent<HTMLTextAreaElement>) => void
+    }) {
+    return <div>
+        <TextField
+            label="Gist"
+            id="gist"
+            multiline
+            placeholder="Essential information about this topic."
+            style={{ width: "100%" }}
+            rowsMax={2}
+            value={props.gist}
+            onChange={props.gistHandler}
+        />
+        <TextField
+            label="Elaboration"
+            id="details"
+            multiline
+            placeholder="Further observations about this topic."
+            style={{ width: "100%" }}
+            rowsMax={6}
+            value={props.details}
+            onChange={props.notesHandler}
+        />
+    </div>
 }
 
 function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPair[] } }) {

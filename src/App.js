@@ -1,6 +1,7 @@
 import React from 'react'
 import './App.scss'
 import Note from './Note'
+import Config from './Config'
 import Switchboard from './modules/switchboard'
 
 import PropTypes from 'prop-types';
@@ -10,6 +11,7 @@ import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
 import Typography from '@material-ui/core/Typography';
 import Box from '@material-ui/core/Box';
+import BuildIcon from '@material-ui/icons/Build'
 
 /*global chrome*/
 class App extends React.Component {
@@ -34,6 +36,7 @@ class App extends React.Component {
             <Tab label="Note" {...a11yProps(0)} value={0} />
             <Tab label="Search" {...a11yProps(1)} value={1} />
             <Tab label="Realms" {...a11yProps(2)} value={2} />
+            <Tab icon={<BuildIcon />} {...a11yProps(3)} value={3} />
           </Tabs>
         </AppBar>
         <TabPanel value={this.state.value} index={0}>
@@ -44,6 +47,9 @@ class App extends React.Component {
         </TabPanel>
         <TabPanel value={this.state.value} index={2}>
           Item Three
+        </TabPanel>
+        <TabPanel value={this.state.value} index={3}>
+          <Config switchboard={this.switchboard} classes={classes} />
         </TabPanel>
       </div>
     );
@@ -86,8 +92,8 @@ TabPanel.propTypes = {
 
 function a11yProps(index) {
   return {
-    id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
+    id: `full-width-tab-${index}`,
+    'aria-controls': `full-width-tabpanel-${index}`,
   };
 }
 
@@ -95,5 +101,8 @@ const styles = theme => ({
   root: {
     flexGrow: 1,
     backgroundColor: theme.palette.background.paper,
+  },
+  button: {
+    margin: theme.spacing(1),
   },
 });

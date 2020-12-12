@@ -30,10 +30,11 @@ function handleContentMessage(msg) {
     switch (msg.action) {
         case 'selection':
             if (state.connected) {
-                chrome.tabs.query({active: true}, (tabs) => {
+                chrome.tabs.query({ active: true }, (tabs) => {
                     const tab = tabs[0]
                     if (tab) {
-                        state.popupPort.postMessage({...msg, tab})
+                        const { title, url } = tab
+                        state.popupPort.postMessage({ ...msg, source: { title, url } })
                     }
                 })
             }

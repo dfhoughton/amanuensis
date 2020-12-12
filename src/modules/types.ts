@@ -32,7 +32,8 @@ export interface SourceRecord {
 export type KeyPair = [realmKey: number, phraseKey: number]
 
 export interface NoteRecord {
-    note: string,                             // free-form notes on the phrase
+    gist: string,                             // essential notes about a phrase
+    details: string,                          // free-form notes on the phrase -- an elaboration on the gist
     tags: string[],                           // closed-class tags categorizing the phrase
     citations: CitationRecord[],              // all the times this phrase has been looked up
     relations: { [name: string]: KeyPair[] }, // relations of this phrase to other phrases
@@ -71,6 +72,7 @@ export interface Chrome {
         local: {
             get: (key: string[], callback: (arg: any) => void) => void,
             set: (vals: Payload, callback?: () => void) => void,
+            clear: (callback?: () => void) => void,
             getBytesInUse: (arg: null, callback: (bytes: number) => void) => void,
         }
     },

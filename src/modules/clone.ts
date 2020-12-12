@@ -21,9 +21,9 @@ export function deepClone(obj: any, ...except: string[]): any {
         } else {
             const rv: { [key: string]: any } = {}
             for (const [k, v] of Object.entries(obj)) {
-                // keep the key but not the value
-                const clone = except.indexOf(k) === -1 ? deepClone(v, ...except) : null
-                rv[k] = clone
+                if (except.indexOf(k) === -1) {
+                    rv[k] = deepClone(v, ...except)
+                }
             }
             return rv
         }

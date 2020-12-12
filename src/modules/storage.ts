@@ -30,8 +30,11 @@ export class Index {
         this.tags = tags
         if (this.realmIndices.size === 0) {
             // add the default realm
-            this.realms.set('', { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] })
+            const realm: RealmInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
+            this.realms.set('', realm)
             this.realmIndices.set(0, new Map())
+            const storable = { realms: m2a(this.realms) }
+            this.chrome.storage.local.set(storable)
         }
         this.reverseRealmIndex = new Map()
         this.realms.forEach((value, key) => this.reverseRealmIndex.set(value.pk, key))
@@ -88,8 +91,9 @@ export class Index {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
-                                this.cache.set([realmInfo.pk, index], found)
-                                resolve({ state: "found", realm: realmInfo.pk, record: found })
+                                const record = found[key as string]
+                                this.cache.set([realmInfo.pk, index], record)
+                                resolve({ state: "found", realm: realmInfo.pk, record })
                             }
                         })
                     }
@@ -99,13 +103,15 @@ export class Index {
                 if (realms) {
                     if (realms.length === 1) {
                         [, realmInfo] = this.findRealm(realms[0])
-                        this.chrome.storage.local.get([this.key(phrase, realmInfo) as string], (found) => {
+                        const key = this.key(phrase, realmInfo) as string
+                        this.chrome.storage.local.get([key], (found) => {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
                                 const index = this.realmIndex(phrase, realmInfo)
-                                this.cache.set([realmInfo.pk, index as number], found)
-                                resolve({ state: "found", realm: realmInfo.pk, record: found })
+                                const record = found[key]
+                                this.cache.set([realmInfo.pk, index as number], record)
+                                resolve({ state: "found", realm: realmInfo.pk, record })
                             }
                         })
                     } else {
@@ -123,7 +129,15 @@ export class Index {
         return new Promise((resolve, reject) => {
             const storable: { [key: string]: any } = {}
             const [, realmInfo] = this.findRealm(realm)
-            let key = this.normalize(phrase, realmInfo)
+            let key = this.defaultNormalize(phrase)
+            const realms = this.index.get(key) || []
+            if (realms.indexOf(realmInfo.pk) === -1) {
+                realms.push(realmInfo.pk)
+                storable.realms = m2a(this.realms)
+                this.index.set(key, realms)
+                storable.index = m2a(this.index)
+            }
+            key = this.normalize(phrase, realmInfo)
             let realmIndex = this.realmIndices.get(realmInfo.pk) || new Map()
             let pk = realmIndex.get(key)
             if (pk == null) {
@@ -137,10 +151,6 @@ export class Index {
                 })
                 realmIndex.set(key, pk)
                 storable[realmInfo.pk.toString()] = m2a(realmIndex)
-                key = this.defaultNormalize(phrase)
-                let realms = this.index.get(key) || []
-                realms.push(realmInfo.pk)
-                storable.index = m2a(this.index)
             }
             const keyPair: KeyPair = [realmInfo.pk, pk] // convert key to the 
             this.cache.set(keyPair, data)
@@ -182,7 +192,7 @@ export class Index {
                 }
             }
             // store the phrase itself
-            storable[`${key[0]}:${key[1]}`] = data
+            storable[`${keyPair[0]}:${keyPair[1]}`] = data
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
@@ -438,6 +448,30 @@ export class Index {
     }
     defaultNormalize(phrase: string): string {
         return normalizers[""].code(phrase)
+    }
+    // clears *everything* from local storage; if promise fails error message is provided
+    clear(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.chrome.storage.local.clear(() => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    this.cache.clear()
+                    this.index.clear()
+                    this.realmIndices.clear()
+                    this.realms.clear()
+                    this.reverseRealmIndex.clear()
+                    this.tags.clear()
+                    // restore the default realm
+                    const realm: RealmInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
+                    this.realms.set('', realm)
+                    this.realmIndices.set(0, new Map())
+                    const storable = { realms: m2a(this.realms) }
+                    this.chrome.storage.local.set(storable) // if this fails no harm done
+                    resolve()
+                }
+            })
+        })
     }
 }
 

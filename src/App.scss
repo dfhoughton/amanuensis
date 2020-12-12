@@ -6,10 +6,15 @@
   background-color: lighten(yellow, 20%);
 }
 
+.note {
+  .note-buttons {
+    display: table;
+    float: right;
+    line-height: 1.2rem;
+  }
+}
 ._watermark {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
+  text-align: center;
   font-size: larger;
   opacity: 0.5;
   z-index: 99;
@@ -29,8 +34,6 @@
 
 .dot {
   @extend ._watermark;
-  top: 2rem;
-  margin-right: 2px;
   &::before {
     color: black;
     content: '⦾'
@@ -39,4 +42,8 @@
     color: darken(red, 20%);
     content: '⦿'
   }
+}
+
+.config {
+  min-height: 400px;
 }
