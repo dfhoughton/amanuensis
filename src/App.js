@@ -32,7 +32,7 @@ class App extends React.Component {
     return (
       <div className={`App ${classes.root}`}>
         <AppBar position="static">
-          <Tabs value={this.state.value} onChange={handleChange} aria-label="Amanuensis navigation">
+          <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
             <Tab label="Note" {...a11yProps(0)} value={0} />
             <Tab label="Search" {...a11yProps(1)} value={1} />
             <Tab label="Realms" {...a11yProps(2)} value={2} />
@@ -71,8 +71,8 @@ function TabPanel(props) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
+      id={`full-width-tabpanel-${index}`}
+      aria-labelledby={`full-width-tab-${index}`}
       {...other}
     >
       {value === index && (
