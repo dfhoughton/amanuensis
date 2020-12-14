@@ -2,7 +2,10 @@ import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
+import Autocomplete from '@material-ui/lab/Autocomplete'
+import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
+
 
 interface NoteProps {
     stash: Map<string, any>,
@@ -59,15 +62,19 @@ class Note extends React.Component<NoteProps, NoteState> {
     // check to see whether any information relevant to the display of this note has changed
     // since it was last displayed
     checkForDeletions() {
-
+        // TODO
     }
 
     currentCitation(): CitationRecord {
         return this.state.citations[0]
     }
 
+    hasWord(): boolean {
+        return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
+    }
+
     render() {
-        const hasWord = !!this.currentCitation()?.phrase;
+        const hasWord = this.hasWord()
         return (
             <div className="note">
                 <div className="note-buttons">
@@ -81,7 +88,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     gistHandler={(e) => { this.setState({ gist: e.target.value }); this.checkSavedState() }}
                     notesHandler={(e) => { this.setState({ details: e.target.value }); this.checkSavedState() }}
                 />
-                <Tags tags={this.state.tags} hasWord={hasWord} />
+                <Tags note={this} />
                 <Citations citations={this.state.citations} hasWord={hasWord} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
             </div>
@@ -186,7 +193,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             case "debug":
                 console.debug(msg)
                 break
-            }
+        }
     }
 
     // obtain all the tags ever used
@@ -212,22 +219,34 @@ function Phrase(props: { hasWord: boolean; phrase: CitationRecord; }) {
     }
 }
 
-function Tags(props: { hasWord: boolean; tags: string[]; }) {
-    if (!props.hasWord) {
+function Tags(props: { note: Note }) {
+    const { note } = props
+    const { tags } = note.state
+    if (!note.hasWord()) {
         return null
     }
-    const tags = props.tags.slice(0, props.tags.length).map((step, tag) => {
-        return (
-            <li key={tag}>
-                {tag}
-            </li>
-        )
-    });
-    return (
-        <ul className="tags">
-            {tags}
-        </ul>
-    );
+    let options: string[]
+    if (note.switchboard.index?.tags) {
+        options = Array.from(note.switchboard.index.tags)
+    } else {
+        options = []
+    }
+    return <Autocomplete
+        multiple
+        id="tags"
+        options={options.sort()}
+        value={tags}
+        onChange={(_event, tags) => note.setState({tags})}
+        freeSolo
+        renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+            ))
+        }
+        renderInput={(params) => (
+            <TextField {...params} variant="filled" label="Tags" placeholder="category" />
+        )}
+    />
 }
 
 function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {

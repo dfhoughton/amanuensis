@@ -54,7 +54,9 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                 color="secondary"
                 className={this.classes.button}
                 startIcon={<ClearAllIcon />}
-            >Clear All</Button>
+            >
+                Clear All
+            </Button>
             <Dialog
                 open={this.state.clearAllConfirmOpen}
                 aria-labelledby="alert-dialog-title"
@@ -66,15 +68,15 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                         Clear all non-configuration information from Amanuensis.
                         This means all notes, all tags, all relations, and all realms will be
                         irretrievably gone.
-            </DialogContentText>
+                    </DialogContentText>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => this.setState({ clearAllConfirmOpen: false })} color="primary">
                         Cancel
-            </Button>
-                    <Button onClick={clearHandler} color="primary" autoFocus>
+                    </Button>
+                    <Button onClick={clearHandler} color="secondary" autoFocus>
                         OK
-            </Button>
+                    </Button>
                 </DialogActions>
             </Dialog>
         </div>

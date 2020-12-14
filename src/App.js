@@ -4,14 +4,15 @@ import Note from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
 
-import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
-import AppBar from '@material-ui/core/AppBar';
-import Tabs from '@material-ui/core/Tabs';
-import Tab from '@material-ui/core/Tab';
-import Typography from '@material-ui/core/Typography';
-import Box from '@material-ui/core/Box';
+import PropTypes from 'prop-types'
+import AppBar from '@material-ui/core/AppBar'
+import Box from '@material-ui/core/Box'
 import BuildIcon from '@material-ui/icons/Build'
+import SearchIcon from '@material-ui/icons/Search'
+import Tab from '@material-ui/core/Tab'
+import Tabs from '@material-ui/core/Tabs'
+import Typography from '@material-ui/core/Typography'
+import { withStyles } from '@material-ui/core/styles'
 
 /*global chrome*/
 class App extends React.Component {
@@ -34,8 +35,8 @@ class App extends React.Component {
         <AppBar position="static">
           <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
             <Tab label="Note" {...a11yProps(0)} value={0} />
-            <Tab label="Search" {...a11yProps(1)} value={1} />
             <Tab label="Realms" {...a11yProps(2)} value={2} />
+            <Tab icon={<SearchIcon />} {...a11yProps(1)} value={1} />
             <Tab icon={<BuildIcon />} {...a11yProps(3)} value={3} />
           </Tabs>
         </AppBar>
@@ -101,6 +102,9 @@ const styles = theme => ({
   root: {
     flexGrow: 1,
     backgroundColor: theme.palette.background.paper,
+    '& > * + *': {
+      marginTop: theme.spacing(3),
+    },
   },
   button: {
     margin: theme.spacing(1),
