@@ -5,7 +5,7 @@ import SwitchBoard from './modules/switchboard'
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
-
+import { makeStyles } from '@material-ui/core/styles'
 
 interface NoteProps {
     stash: Map<string, any>,
@@ -219,7 +219,17 @@ function Phrase(props: { hasWord: boolean; phrase: CitationRecord; }) {
     }
 }
 
+const tagStyles = makeStyles((theme) => ({
+    root: {
+        width: 500,
+        '& > * + *': {
+            marginTop: theme.spacing(2),
+        },
+    },
+}))
+
 function Tags(props: { note: Note }) {
+    const classes = tagStyles()
     const { note } = props
     const { tags } = note.state
     if (!note.hasWord()) {
@@ -231,22 +241,25 @@ function Tags(props: { note: Note }) {
     } else {
         options = []
     }
-    return <Autocomplete
-        multiple
-        id="tags"
-        options={options.sort()}
-        value={tags}
-        onChange={(_event, tags) => note.setState({tags})}
-        freeSolo
-        renderTags={(value, getTagProps) =>
-            value.map((option, index) => (
-                <Chip variant="outlined" label={option} {...getTagProps({ index })} />
-            ))
-        }
-        renderInput={(params) => (
-            <TextField {...params} variant="filled" label="Tags" placeholder="category" />
-        )}
-    />
+    return <div className={classes.root}>
+        <Autocomplete
+            multiple
+            id="tags"
+            options={options.sort()}
+            value={tags}
+            onChange={(_event, tags) => note.setState({ tags })}
+            freeSolo
+            size="small"
+            renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                    <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+                ))
+            }
+            renderInput={(params) => (
+                <TextField {...params} variant="filled" label="Tags" placeholder="category" />
+            )}
+        />
+    </div>
 }
 
 function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {

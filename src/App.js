@@ -9,10 +9,34 @@ import AppBar from '@material-ui/core/AppBar'
 import Box from '@material-ui/core/Box'
 import BuildIcon from '@material-ui/icons/Build'
 import SearchIcon from '@material-ui/icons/Search'
+import EditIcon from '@material-ui/icons/Edit'
+import LocalLibraryIcon from '@material-ui/icons/LocalLibrary'
 import Tab from '@material-ui/core/Tab'
 import Tabs from '@material-ui/core/Tabs'
 import Typography from '@material-ui/core/Typography'
+import Tooltip from '@material-ui/core/Tooltip'
 import { withStyles } from '@material-ui/core/styles'
+import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
+import indigo from '@material-ui/core/colors/indigo'
+import amber from '@material-ui/core/colors/amber'
+
+const theme = createMuiTheme({
+  palette: {
+    primary: indigo,
+    secondary: amber,
+  },
+  overrides: {
+    MuiFilledInput: {
+      root: {
+        backgroundColor: 'transparent',
+        '&:hover': {
+          backgroundColor: 'transparent',
+        }
+      },
+    }
+  }
+})
+
 
 /*global chrome*/
 class App extends React.Component {
@@ -31,28 +55,30 @@ class App extends React.Component {
       this.setState({ value: newValue });
     };
     return (
-      <div className={`App ${classes.root}`}>
-        <AppBar position="static">
-          <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
-            <Tab label="Note" {...a11yProps(0)} value={0} />
-            <Tab label="Realms" {...a11yProps(2)} value={2} />
-            <Tab icon={<SearchIcon />} {...a11yProps(1)} value={1} />
-            <Tab icon={<BuildIcon />} {...a11yProps(3)} value={3} />
-          </Tabs>
-        </AppBar>
-        <TabPanel value={this.state.value} index={0}>
-          <Note stash={this.stash} switchboard={this.switchboard} />
+      <ThemeProvider theme={theme}>
+        <div className={`App ${classes.root}`}>
+          <AppBar position="static">
+            <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
+              <Tab icon={tt("note", <EditIcon />)} {...a11yProps(0)} value={0} />
+              <Tab icon={tt("projects", <LocalLibraryIcon />)} {...a11yProps(2)} value={2} />
+              <Tab icon={tt("search", <SearchIcon />)} {...a11yProps(1)} value={1} />
+              <Tab icon={tt("configuration", <BuildIcon />)} {...a11yProps(3)} value={3} />
+            </Tabs>
+          </AppBar>
+          <TabPanel value={this.state.value} index={0}>
+            <Note stash={this.stash} switchboard={this.switchboard} />
+          </TabPanel>
+          <TabPanel value={this.state.value} index={1}>
+            Item Two
         </TabPanel>
-        <TabPanel value={this.state.value} index={1}>
-          Item Two
+          <TabPanel value={this.state.value} index={2}>
+            Item Three
         </TabPanel>
-        <TabPanel value={this.state.value} index={2}>
-          Item Three
-        </TabPanel>
-        <TabPanel value={this.state.value} index={3}>
-          <Config switchboard={this.switchboard} classes={classes} />
-        </TabPanel>
-      </div>
+          <TabPanel value={this.state.value} index={3}>
+            <Config switchboard={this.switchboard} classes={classes} />
+          </TabPanel>
+        </div>
+      </ThemeProvider>
     );
   }
 
@@ -85,6 +111,10 @@ function TabPanel(props) {
   );
 }
 
+function tt(msg, obj) {
+  return <Tooltip title={msg} arrow>{obj}</Tooltip>
+}
+
 TabPanel.propTypes = {
   children: PropTypes.node,
   index: PropTypes.any.isRequired,
@@ -102,9 +132,6 @@ const styles = theme => ({
   root: {
     flexGrow: 1,
     backgroundColor: theme.palette.background.paper,
-    '& > * + *': {
-      marginTop: theme.spacing(3),
-    },
   },
   button: {
     margin: theme.spacing(1),
