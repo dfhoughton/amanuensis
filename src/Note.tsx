@@ -14,7 +14,8 @@ import { grey, red } from '@material-ui/core/colors'
 
 interface NoteProps {
     stash: Map<string, any>,
-    switchboard: SwitchBoard
+    switchboard: SwitchBoard,
+    notify: (message: string, level?: "error" | "warning" | "info" | "success") => void
 }
 
 interface NoteState extends NoteRecord {
@@ -27,10 +28,12 @@ class Note extends React.Component<NoteProps, NoteState> {
     savedState: NoteState
     stash: Map<string, any>
     checkSavedState: () => void
+    notifier: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
     constructor(props: Readonly<NoteProps>) {
         super(props);
         this.stash = props.stash
         this.switchboard = props.switchboard
+        this.notifier = props.notify
         const maybeSaved: [NoteState, NoteState] | null = this.stash.get('note')
         if (maybeSaved) {
             const [current, saved] = maybeSaved
@@ -114,6 +117,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
+        this.notifier("foo")
         const citation: CitationRecord = {
             source,
             ...selection,
@@ -170,7 +174,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                 }
             })
             .catch((error) => {
-                console.error(error) // TODO improve error handling
+                this.notifier(error, "error")
             })
     }
 

@@ -3,25 +3,17 @@ import './App.scss'
 import Note from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
-import {tt} from './modules/util'
+import { tt } from './modules/util'
 
 import PropTypes from 'prop-types'
 import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
 import { withStyles } from '@material-ui/core/styles'
 
-import AppBar from '@material-ui/core/AppBar'
-import Box from '@material-ui/core/Box'
-import Tab from '@material-ui/core/Tab'
-import Tabs from '@material-ui/core/Tabs'
-import Typography from '@material-ui/core/Typography'
+import { Build, Edit, LocalLibrary, Search } from '@material-ui/icons'
 
-import BuildIcon from '@material-ui/icons/Build'
-import EditIcon from '@material-ui/icons/Edit'
-import LocalLibraryIcon from '@material-ui/icons/LocalLibrary'
-import SearchIcon from '@material-ui/icons/Search'
-
-import amber from '@material-ui/core/colors/amber'
-import indigo from '@material-ui/core/colors/indigo'
+import { amber, indigo } from '@material-ui/core/colors'
+import { AppBar, Box, Snackbar, Tab, Tabs, Typography } from '@material-ui/core'
+import { Alert } from '@material-ui/lab'
 
 const theme = createMuiTheme({
   palette: {
@@ -49,37 +41,55 @@ class App extends React.Component {
     this.stash = new Map()
     this.state = {
       value: 0,
+      message: null
     }
+  }
+  notify(message, level = "info") {
+    console.log({ message, level })
+    this.setState({ message: { text: message, level } })
+  }
+  clearMessage() {
+    this.setState({ message: null })
   }
   render() {
     const { classes } = this.props;
 
     const handleChange = (_event, newValue) => {
       this.setState({ value: newValue });
-    };
+    }
+    const closeBar = (_event, reason) => {
+      if (reason === 'clickaway') {
+        return
+      }
+      this.clearMessage()
+    }
+    const notify = this.notify.bind(this)
     return (
       <ThemeProvider theme={theme}>
         <div className={`App ${classes.root}`}>
           <AppBar position="static">
             <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
-              <Tab icon={tt("note", <EditIcon />)} {...a11yProps(0)} value={0} />
-              <Tab icon={tt("projects", <LocalLibraryIcon />)} {...a11yProps(2)} value={2} />
-              <Tab icon={tt("search", <SearchIcon />)} {...a11yProps(1)} value={1} />
-              <Tab icon={tt("configuration", <BuildIcon />)} {...a11yProps(3)} value={3} />
+              <Tab icon={tt("note", <Edit />)} {...a11yProps(0)} value={0} />
+              <Tab icon={tt("projects", <LocalLibrary />)} {...a11yProps(2)} value={2} />
+              <Tab icon={tt("search", <Search />)} {...a11yProps(1)} value={1} />
+              <Tab icon={tt("configuration", <Build />)} {...a11yProps(3)} value={3} />
             </Tabs>
           </AppBar>
           <TabPanel value={this.state.value} index={0}>
-            <Note stash={this.stash} switchboard={this.switchboard} />
+            <Note stash={this.stash} switchboard={this.switchboard} notify={notify} />
           </TabPanel>
           <TabPanel value={this.state.value} index={1}>
             Item Two
-        </TabPanel>
+          </TabPanel>
           <TabPanel value={this.state.value} index={2}>
             Item Three
-        </TabPanel>
-          <TabPanel value={this.state.value} index={3}>
-            <Config switchboard={this.switchboard} classes={classes} />
           </TabPanel>
+          <TabPanel value={this.state.value} index={3}>
+            <Config switchboard={this.switchboard} classes={classes} notify={notify} />
+          </TabPanel>
+          <Snackbar open={!!this.state.message} autoHideDuration={6000} onClose={closeBar}>
+            <Alert onClose={closeBar} severity={this.state.message?.level || 'info'}>{this.state.message?.text}</Alert>
+          </Snackbar>
         </div>
       </ThemeProvider>
     );
