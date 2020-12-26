@@ -5,20 +5,23 @@ import Config from './Config'
 import Switchboard from './modules/switchboard'
 
 import PropTypes from 'prop-types'
+import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
+import { withStyles } from '@material-ui/core/styles'
+
 import AppBar from '@material-ui/core/AppBar'
 import Box from '@material-ui/core/Box'
-import BuildIcon from '@material-ui/icons/Build'
-import SearchIcon from '@material-ui/icons/Search'
-import EditIcon from '@material-ui/icons/Edit'
-import LocalLibraryIcon from '@material-ui/icons/LocalLibrary'
 import Tab from '@material-ui/core/Tab'
 import Tabs from '@material-ui/core/Tabs'
-import Typography from '@material-ui/core/Typography'
 import Tooltip from '@material-ui/core/Tooltip'
-import { withStyles } from '@material-ui/core/styles'
-import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
-import indigo from '@material-ui/core/colors/indigo'
+import Typography from '@material-ui/core/Typography'
+
+import BuildIcon from '@material-ui/icons/Build'
+import EditIcon from '@material-ui/icons/Edit'
+import LocalLibraryIcon from '@material-ui/icons/LocalLibrary'
+import SearchIcon from '@material-ui/icons/Search'
+
 import amber from '@material-ui/core/colors/amber'
+import indigo from '@material-ui/core/colors/indigo'
 
 const theme = createMuiTheme({
   palette: {

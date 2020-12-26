@@ -156,12 +156,12 @@ export class Index {
             this.cache.set(keyPair, data)
             // check for any new tags
             const l = this.tags.size
-            for (const tag in data.tags) {
+            for (const tag of data.tags) {
                 this.tags.add(tag)
             }
             if (this.tags.size > l) {
                 const tags: string[] = []
-                for (const tag in this.tags) {
+                for (const tag of this.tags) {
                     tags.push(tag)
                 }
                 storable.tags = tags
@@ -177,8 +177,8 @@ export class Index {
                         reversedRelation ||= this.reverseRelation(realmInfo, relation) || ''
                         outer: for (const [relation2, pairs2] of Object.entries(other.relations)) {
                             if (relation2 === reversedRelation) {
-                                for (const key2 in pairs2) {
-                                    if (key2[0] === key[0] && key2[1] === key[1]) {
+                                for (const key2 of pairs2) {
+                                    if (key2[0] === keyPair[0] && key2[1] === keyPair[1]) {
                                         break outer
                                     }
                                 }
@@ -482,7 +482,9 @@ export function getIndex(chrome: Chrome): Promise<Index> {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
+                console.log(result)
                 let { realms = [], index = [], tags = [] } = result || {}
+                console.log({realms, index, tags})
                 // now that we have the realm we can fetch the realm indices
                 const indices: string[] = []
                 for (const [, realmInfo] of realms) {
