@@ -2,10 +2,15 @@ import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
+import { tt } from './modules/util'
+
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
+
+import { Star, StarBorder, Save } from '@material-ui/icons'
+import { grey, red } from '@material-ui/core/colors'
 
 interface NoteProps {
     stash: Map<string, any>,
@@ -77,10 +82,12 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
-                <div className="note-buttons">
-                    <div className={`star${this.state.starred ? ' starred' : ''}`} onClick={() => this.star()} />
-                    <div className={`dot${this.state.unsavedContent ? ' filled' : ''}`} onClick={() => this.saveNote()} />
-                </div>
+                <StarWidget
+                    starred={this.state.starred}
+                    unsaved={this.state.unsavedContent}
+                    star={() => this.star()}
+                    save={() => this.saveNote()}
+                />
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
                 <Annotations
                     gist={this.state.gist}
@@ -203,6 +210,15 @@ class Note extends React.Component<NoteProps, NoteState> {
 }
 
 export default Note;
+
+function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => void, save: () => void }) {
+    const star = props.starred ? <Star color="secondary" /> : <StarBorder style={{ color: grey[500] }} />
+    const save = props.unsaved ? <div onClick={props.save}><Save style={{ color: red[900] }} /></div> : null
+    return <div className="note-buttons">
+        <div onClick={props.star}>{star}</div>
+        {save}
+    </div>
+}
 
 function Phrase(props: { hasWord: boolean; phrase: CitationRecord; }) {
     if (props.hasWord) {

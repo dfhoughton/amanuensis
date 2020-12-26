@@ -3,6 +3,7 @@ import './App.scss'
 import Note from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
+import {tt} from './modules/util'
 
 import PropTypes from 'prop-types'
 import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
@@ -12,7 +13,6 @@ import AppBar from '@material-ui/core/AppBar'
 import Box from '@material-ui/core/Box'
 import Tab from '@material-ui/core/Tab'
 import Tabs from '@material-ui/core/Tabs'
-import Tooltip from '@material-ui/core/Tooltip'
 import Typography from '@material-ui/core/Typography'
 
 import BuildIcon from '@material-ui/icons/Build'
@@ -112,10 +112,6 @@ function TabPanel(props) {
       )}
     </div>
   );
-}
-
-function tt(msg, obj) {
-  return <Tooltip title={msg} arrow>{obj}</Tooltip>
 }
 
 TabPanel.propTypes = {
