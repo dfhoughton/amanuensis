@@ -71,10 +71,10 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => this.setState({ clearAllConfirmOpen: false })} color="primary">
+                    <Button onClick={() => this.setState({ clearAllConfirmOpen: false })} >
                         Cancel
                     </Button>
-                    <Button onClick={clearHandler} color="secondary" autoFocus>
+                    <Button onClick={clearHandler} color="primary" autoFocus>
                         OK
                     </Button>
                 </DialogActions>
