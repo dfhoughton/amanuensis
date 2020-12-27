@@ -53,7 +53,7 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
             return true
         }
         if (obj1.getTime) {
-            return obj1.getTime() === obj2.getTime()
+            return obj1.getTime() !== obj2.getTime()
         }
         if (Array.isArray(obj1)) {
             if (obj1.length !== obj2.length) {
@@ -77,6 +77,6 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
             }
         }
         return false
-    } else { return obj1 === obj2 }
+    } else { return obj1 !== obj2 }
 }
 
