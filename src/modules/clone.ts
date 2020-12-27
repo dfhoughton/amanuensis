@@ -13,7 +13,7 @@ export function deepClone(obj: any, ...except: string[]): any {
         if (obj.getTime) {
             return new Date(obj.getTime())
         } else if (Array.isArray(obj)) {
-            const rv : any[] = obj.slice()
+            const rv: any[] = obj.slice()
             for (let i = 0; i < rv.length; i++) {
                 rv[i] = deepClone(rv[i], ...except)
             }
