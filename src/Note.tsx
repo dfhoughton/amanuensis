@@ -117,7 +117,6 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
-        this.notifier("foo")
         const citation: CitationRecord = {
             source,
             ...selection,
@@ -187,24 +186,6 @@ class Note extends React.Component<NoteProps, NoteState> {
             this.savedState = deepClone(this.state)
             this.setState({ unsavedContent: false })
         })
-    }
-
-    // report the outcome of some action 
-    report(level: "error" | "info" | "warn" | "debug", msg: string) {
-        switch (level) {
-            case "error":
-                console.error(msg)
-                break
-            case "info":
-                console.info(msg)
-                break
-            case "warn":
-                console.warn(msg)
-                break
-            case "debug":
-                console.debug(msg)
-                break
-        }
     }
 
     // obtain all the tags ever used

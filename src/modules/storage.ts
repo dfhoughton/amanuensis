@@ -482,9 +482,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                console.log(result)
                 let { realms = [], index = [], tags = [] } = result || {}
-                console.log({realms, index, tags})
                 // now that we have the realm we can fetch the realm indices
                 const indices: string[] = []
                 for (const [, realmInfo] of realms) {
