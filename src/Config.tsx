@@ -22,12 +22,12 @@ interface ConfigState {
 class Config extends React.Component<ConfigProps, ConfigState> {
     switchboard: SwitchBoard
     classes: any;
-    notifier: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
+    notify: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
     constructor(props: Readonly<ConfigProps>) {
         super(props)
         this.switchboard = props.switchboard
         this.classes = props.classes
-        this.notifier = props.notify
+        this.notify = props.notify
         this.state = {
             clearAllConfirmOpen: false,
         }

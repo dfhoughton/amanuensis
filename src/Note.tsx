@@ -28,12 +28,12 @@ class Note extends React.Component<NoteProps, NoteState> {
     savedState: NoteState
     stash: Map<string, any>
     checkSavedState: () => void
-    notifier: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
+    notify: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
     constructor(props: Readonly<NoteProps>) {
         super(props);
         this.stash = props.stash
         this.switchboard = props.switchboard
-        this.notifier = props.notify
+        this.notify = props.notify
         const maybeSaved: [NoteState, NoteState] | null = this.stash.get('note')
         if (maybeSaved) {
             const [current, saved] = maybeSaved
@@ -85,6 +85,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
+                <Header time={this.currentCitation()?.when} switchboard={this.switchboard} realm={this.state.realm} />
                 <StarWidget
                     starred={this.state.starred}
                     unsaved={this.state.unsavedContent}
@@ -173,7 +174,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                 }
             })
             .catch((error) => {
-                this.notifier(error, "error")
+                this.notify(error, "error")
             })
     }
 
@@ -195,6 +196,18 @@ class Note extends React.Component<NoteProps, NoteState> {
 }
 
 export default Note;
+
+function Header(props: { time?: Date[], switchboard: SwitchBoard, realm: number }) {
+    const { time, switchboard, realm } = props
+    let t = time ? time[0] : null, date
+    const project = switchboard.index?.reverseRealmIndex.get(realm)
+    return <div className="note-header">
+        <div>{project}</div>
+        <div style={{ textAlign: 'right', fontSize: 'smaller', color: grey[500] }}>
+            {t?.toLocaleDateString()}
+        </div>
+    </div>
+}
 
 function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => void, save: () => void }) {
     const star = props.starred ? <Star color="secondary" /> : <StarBorder style={{ color: grey[500] }} />

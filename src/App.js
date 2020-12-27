@@ -3,13 +3,15 @@ import './App.scss'
 import Note from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
+import Projects from './Projects'
+import Search from './Search'
 import { tt } from './modules/util'
 
 import PropTypes from 'prop-types'
 import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
 import { withStyles } from '@material-ui/core/styles'
 
-import { Build, Edit, LocalLibrary, Search } from '@material-ui/icons'
+import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/icons'
 
 import { amber, indigo } from '@material-ui/core/colors'
 import { AppBar, Box, Snackbar, Tab, Tabs, Typography } from '@material-ui/core'
@@ -70,8 +72,8 @@ class App extends React.Component {
           <AppBar position="static">
             <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
               <Tab icon={tt("note", <Edit />)} {...a11yProps(0)} value={0} />
-              <Tab icon={tt("projects", <LocalLibrary />)} {...a11yProps(2)} value={2} />
-              <Tab icon={tt("search", <Search />)} {...a11yProps(1)} value={1} />
+              <Tab icon={tt("projects", <LocalLibrary />)} {...a11yProps(1)} value={1} />
+              <Tab icon={tt("search", <SearchIcon />)} {...a11yProps(2)} value={2} />
               <Tab icon={tt("configuration", <Build />)} {...a11yProps(3)} value={3} />
             </Tabs>
           </AppBar>
@@ -79,10 +81,10 @@ class App extends React.Component {
             <Note stash={this.stash} switchboard={this.switchboard} notify={notify} />
           </TabPanel>
           <TabPanel value={this.state.value} index={1}>
-            Item Two
+            <Projects switchboard={this.switchboard} notify={notify} />
           </TabPanel>
           <TabPanel value={this.state.value} index={2}>
-            Item Three
+            <Search switchboard={this.switchboard} notify={notify} />
           </TabPanel>
           <TabPanel value={this.state.value} index={3}>
             <Config switchboard={this.switchboard} classes={classes} notify={notify} />
