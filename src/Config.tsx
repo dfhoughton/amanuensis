@@ -1,5 +1,6 @@
 import React from 'react'
 import SwitchBoard from './modules/switchboard'
+import { Details } from './modules/util'
 
 import Button from '@material-ui/core/Button'
 import ClearAllIcon from '@material-ui/icons/ClearAll'
@@ -36,6 +37,12 @@ class Config extends React.Component<ConfigProps, ConfigState> {
     render() {
         return (
             <div className="config">
+                <Details header="Configuration">
+                    <p>
+                        This is a collection of controls that affect all your
+                        notes and projects.
+                    </p>
+                </Details>
                 {this.clearAllButton()}
             </div>
         )
@@ -69,7 +76,7 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                 <DialogContent>
                     <DialogContentText id="alert-dialog-description">
                         Clear all non-configuration information from Amanuensis.
-                        This means all notes, all tags, all relations, and all realms will be
+                        This means all notes, all tags, all relations, and all projects will be
                         irretrievably gone.
                     </DialogContentText>
                 </DialogContent>

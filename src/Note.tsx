@@ -2,7 +2,7 @@ import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
-import { tt } from './modules/util'
+import { TT } from './modules/util'
 
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
@@ -21,20 +21,23 @@ interface NoteProps {
 interface NoteState extends NoteRecord {
     unsavedContent: boolean,
     realm: number,
+    history?: CitationRecord[]
 }
 
 class Note extends React.Component<NoteProps, NoteState> {
     switchboard: SwitchBoard
     savedState: NoteState
     stash: Map<string, any>
-    checkSavedState: () => void
+    debouncedCheckSavedState: () => void
     notify: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
+    checkSavedState: () => void
     constructor(props: Readonly<NoteProps>) {
         super(props);
         this.stash = props.stash
         this.switchboard = props.switchboard
         this.notify = props.notify
         const maybeSaved: [NoteState, NoteState] | null = this.stash.get('note')
+        const history: CitationRecord[] = this.stash.get('history') || []
         if (maybeSaved) {
             const [current, saved] = maybeSaved
             this.state = current
@@ -58,12 +61,12 @@ class Note extends React.Component<NoteProps, NoteState> {
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         let i: NodeJS.Timeout | undefined
-        let f = () => this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent") })
-        this.checkSavedState = function () {
+        this.checkSavedState = () => this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "history") })
+        this.debouncedCheckSavedState = function () {
             if (i) {
                 clearInterval(i)
             }
-            i = setTimeout(f, 200)
+            i = setTimeout(this.checkSavedState, 200)
         }
     }
 
@@ -96,8 +99,8 @@ class Note extends React.Component<NoteProps, NoteState> {
                 <Annotations
                     gist={this.state.gist}
                     details={this.state.details}
-                    gistHandler={(e) => { this.setState({ gist: e.target.value }); this.checkSavedState() }}
-                    notesHandler={(e) => { this.setState({ details: e.target.value }); this.checkSavedState() }}
+                    gistHandler={(e) => { this.setState({ gist: e.target.value }); this.debouncedCheckSavedState() }}
+                    notesHandler={(e) => { this.setState({ details: e.target.value }); this.debouncedCheckSavedState() }}
                 />
                 <Tags note={this} />
                 <Citations citations={this.state.citations} hasWord={hasWord} />
@@ -211,9 +214,15 @@ function Header(props: { time?: Date[], switchboard: SwitchBoard, realm: number 
 
 function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => void, save: () => void }) {
     const star = props.starred ? <Star color="secondary" /> : <StarBorder style={{ color: grey[500] }} />
-    const save = props.unsaved ? <div onClick={props.save}><Save style={{ color: red[900] }} /></div> : null
+    const save = !props.unsaved ?
+        null :
+        <div onClick={props.save}>
+            <TT msg="save unsaved content" placement="left">
+                <Save style={{ color: red[900] }} />
+            </TT>
+        </div>
     return <div className="note-buttons">
-        <div onClick={props.star}>{star}</div>
+        <div onClick={props.star}><TT msg="bookmark" placement="left">{star}</TT></div>
         {save}
     </div>
 }
@@ -261,7 +270,7 @@ function Tags(props: { note: Note }) {
             id="tags"
             options={options.sort()}
             value={tags}
-            onChange={(_event, tags) => note.setState({ tags })}
+            onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
             freeSolo
             size="small"
             renderTags={(value, getTagProps) =>
@@ -280,7 +289,7 @@ function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
     if (!props.hasWord) {
         return null
     }
-    const citations = props.citations.slice(1, props.citations.length).map((cite) => {
+    const citations = props.citations.slice(0, props.citations.length).map((cite) => {
         return ( // should include date, and it should be possible to delete a citation
             <li key={cite.source.url}>
                 {cite.source.url}
@@ -295,7 +304,7 @@ function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
 }
 
 function Annotations(
-    props: {
+    { gist, details, gistHandler, notesHandler }: {
         gist: string,
         details: string,
         gistHandler: (e: ChangeEvent<HTMLInputElement>) => void,
@@ -309,8 +318,8 @@ function Annotations(
             placeholder="Essential information about this topic."
             style={{ width: "100%" }}
             rowsMax={2}
-            value={props.gist}
-            onChange={props.gistHandler}
+            value={gist}
+            onChange={gistHandler}
         />
         <TextField
             label="Elaboration"
@@ -319,8 +328,8 @@ function Annotations(
             placeholder="Further observations about this topic."
             style={{ width: "100%" }}
             rowsMax={6}
-            value={props.details}
-            onChange={props.notesHandler}
+            value={details}
+            onChange={notesHandler}
         />
     </div>
 }

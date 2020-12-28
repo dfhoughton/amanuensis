@@ -5,7 +5,6 @@ import Config from './Config'
 import Switchboard from './modules/switchboard'
 import Projects from './Projects'
 import Search from './Search'
-import { tt } from './modules/util'
 
 import PropTypes from 'prop-types'
 import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
@@ -71,10 +70,10 @@ class App extends React.Component {
         <div className={`App ${classes.root}`}>
           <AppBar position="static">
             <Tabs value={this.state.value} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
-              <Tab icon={tt("note", <Edit />)} {...a11yProps(0)} value={0} />
-              <Tab icon={tt("projects", <LocalLibrary />)} {...a11yProps(1)} value={1} />
-              <Tab icon={tt("search", <SearchIcon />)} {...a11yProps(2)} value={2} />
-              <Tab icon={tt("configuration", <Build />)} {...a11yProps(3)} value={3} />
+              <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
+              <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
+              <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />
+              <Tab icon={<Build />} {...a11yProps(3)} value={3} />
             </Tabs>
           </AppBar>
           <TabPanel value={this.state.value} index={0}>
