@@ -1,5 +1,4 @@
 import React from 'react'
-import SwitchBoard from './modules/switchboard'
 import { Details } from './modules/util'
 
 import Button from '@material-ui/core/Button'
@@ -9,11 +8,11 @@ import DialogActions from '@material-ui/core/DialogActions'
 import DialogContent from '@material-ui/core/DialogContent'
 import DialogContentText from '@material-ui/core/DialogContentText'
 import DialogTitle from '@material-ui/core/DialogTitle'
+import { App } from './App'
 
 interface ConfigProps {
-    switchboard: SwitchBoard,
     classes: any,
-    notify: (message: string, level?: "error" | "warning" | "info" | "success") => void
+    app: App
 }
 
 interface ConfigState {
@@ -21,14 +20,12 @@ interface ConfigState {
 }
 
 class Config extends React.Component<ConfigProps, ConfigState> {
-    switchboard: SwitchBoard
     classes: any;
-    notify: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
+    app: App
     constructor(props: Readonly<ConfigProps>) {
         super(props)
-        this.switchboard = props.switchboard
         this.classes = props.classes
-        this.notify = props.notify
+        this.app = props.app
         this.state = {
             clearAllConfirmOpen: false,
         }
@@ -51,7 +48,7 @@ class Config extends React.Component<ConfigProps, ConfigState> {
     // generates the clear all button portion of the config panel
     clearAllButton() {
         const clearHandler = () => {
-            this.switchboard.index?.clear().then(() => {
+            this.app.switchboard.index?.clear().then(() => {
                 this.setState({ clearAllConfirmOpen: false })
             }).catch((message) => {
                 console.error(message)

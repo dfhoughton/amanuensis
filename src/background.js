@@ -23,6 +23,10 @@ function handlePopupMessage(msg) {
             state.connected = true
             state.contentPort.postMessage({ action: 'getSelection' })
             break
+        case 'goto':
+        case 'select':
+            state.contentPort.postMessage(msg)
+            break
     }
 }
 
@@ -37,6 +41,23 @@ function handleContentMessage(msg) {
                         state.popupPort.postMessage({ ...msg, source: { title, url } })
                     }
                 })
+            }
+            break
+        case 'open':
+            if (state.connected) {
+                // this should be a reload, but send back the active URL to confirm it's what the popup expects
+                chrome.tabs.query({ active: true }, (tabs) => {
+                    const tab = tabs[0]
+                    if (tab) {
+                        const { url } = tab
+                        state.popupPort.postMessage({ action: 'reloaded', url })
+                    }
+                })
+            }
+            break
+        case 'error':
+            if (state.connected) {
+                state.popupPort.postMessage(msg)
             }
             break
     }

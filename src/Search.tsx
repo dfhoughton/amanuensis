@@ -1,12 +1,11 @@
-import SwitchBoard from './modules/switchboard'
+import { App } from './App'
 import { Details } from './modules/util'
 
 interface SearchProps {
-    switchboard: SwitchBoard,
-    notify: (message: string, level?: "error" | "warning" | "info" | "success") => void
+    app: App
 }
 
-function Search({ switchboard, notify }: SearchProps) {
+function Search({ app }: SearchProps) {
     return (
         <div className="search">
             <Details header="Search">

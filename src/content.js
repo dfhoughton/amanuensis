@@ -320,7 +320,9 @@ function highlightSelection(wrappedSelection) {
                 document.getSelection().addRange(range)
             }
         }
+        return true
     }
+    return false
 }
 
 // to get messages back from the background
@@ -334,6 +336,24 @@ port.onMessage.addListener(function (msg) {
             const selection = wrapSelection()
             if (selection) {
                 port.postMessage({ action: 'selection', selection })
+            }
+            break
+        case 'goto':
+            const {url} = msg
+            if (url) {
+                window.location = url
+            } else {
+                port.postMessage({ action: 'error', message: 'received no URL' })
+            }
+            break
+        case 'select':
+            const { selection } = msg
+            if (selection) {
+                if (!highlightSelection(selection)) {
+                    port.postMessage({ action: 'error', message: 'could not find citation on page' })
+                }
+            } else {
+                port.postMessage({ action: 'error', message: 'received no citation' })
             }
             break
     }

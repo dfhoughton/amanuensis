@@ -11,62 +11,63 @@ import { makeStyles } from '@material-ui/core/styles'
 
 import { Star, StarBorder, Save } from '@material-ui/icons'
 import { grey, red } from '@material-ui/core/colors'
+import { App } from './App'
+
+const hash = require('object-hash')
 
 interface NoteProps {
-    stash: Map<string, any>,
-    switchboard: SwitchBoard,
-    notify: (message: string, level?: "error" | "warning" | "info" | "success") => void
+    app: App,
 }
 
-interface NoteState extends NoteRecord {
+export interface NoteState extends NoteRecord {
     unsavedContent: boolean,
     realm: number,
-    history?: CitationRecord[]
+    citationIndex: number,
 }
 
 class Note extends React.Component<NoteProps, NoteState> {
-    switchboard: SwitchBoard
     savedState: NoteState
-    stash: Map<string, any>
     debouncedCheckSavedState: () => void
-    notify: (message: string, level?: "error" | "warning" | "info" | "success" | undefined) => void
     checkSavedState: () => void
+    app: App
     constructor(props: Readonly<NoteProps>) {
         super(props);
-        this.stash = props.stash
-        this.switchboard = props.switchboard
-        this.notify = props.notify
-        const maybeSaved: [NoteState, NoteState] | null = this.stash.get('note')
-        const history: CitationRecord[] = this.stash.get('history') || []
-        if (maybeSaved) {
-            const [current, saved] = maybeSaved
+        this.app = props.app
+        const visit = this.app.recentHistory()
+        if (visit) {
+            const { current, saved } = deepClone(visit)
             this.state = current
             this.savedState = saved
             this.checkForDeletions()
         } else {
-            this.state = {
-                realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
-                gist: "", // the most important notes about the phrase
-                details: "", // less essential notes about the phrase
-                tags: [], // tags used to categorize phrases
-                citations: [], // instances this *particular* phrase, after normalization, has been found
-                relations: {},
-                starred: false,
-                unsavedContent: false,
-            }
-            this.savedState = deepClone(this.state) // used as basis of comparison to see whether the record is dirty
+            this.state = this.nullState()
+            this.savedState = this.nullState() // used as basis of comparison to see whether the record is dirty
         }
-        this.switchboard.addActions({
+        this.app.switchboard.addActions({
             selection: (msg) => { this.showSelection(msg) }
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         let i: NodeJS.Timeout | undefined
-        this.checkSavedState = () => this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "history") })
+        this.checkSavedState = () => this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "citationIndex") })
         this.debouncedCheckSavedState = function () {
             if (i) {
                 clearInterval(i)
             }
             i = setTimeout(this.checkSavedState, 200)
+        }
+    }
+
+    nullState(): NoteState {
+        return {
+            realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
+            gist: "", // the most important notes about the phrase
+            details: "", // less essential notes about the phrase
+            tags: [], // tags used to categorize phrases
+            citations: [], // instances this *particular* phrase, after normalization, has been found
+            relations: {},
+            starred: false,
+            unsavedContent: false,
+            citationIndex: 0,
         }
     }
 
@@ -77,7 +78,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     currentCitation(): CitationRecord {
-        return this.state.citations[0]
+        return this.state.citations[this.state.citationIndex]
     }
 
     hasWord(): boolean {
@@ -88,7 +89,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
-                <Header time={this.currentCitation()?.when} switchboard={this.switchboard} realm={this.state.realm} />
+                <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} realm={this.state.realm} />
                 <StarWidget
                     starred={this.state.starred}
                     unsaved={this.state.unsavedContent}
@@ -103,16 +104,15 @@ class Note extends React.Component<NoteProps, NoteState> {
                     notesHandler={(e) => { this.setState({ details: e.target.value }); this.debouncedCheckSavedState() }}
                 />
                 <Tags note={this} />
-                <Citations citations={this.state.citations} hasWord={hasWord} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
+                <Citations citations={this.state.citations} hasWord={hasWord} />
             </div>
         );
     }
 
     componentWillUnmount() {
-        const stashedState = [this.state, this.savedState]
-        this.stash.set('note', stashedState)
-        this.switchboard.removeActions("selection")
+        this.app.makeHistory(this.state, this.savedState)
+        this.app.switchboard.removeActions("selection")
     }
 
     star() {
@@ -126,13 +126,14 @@ class Note extends React.Component<NoteProps, NoteState> {
             ...selection,
             when: [new Date()],
         }
-        this.switchboard.index?.find(selection.phrase, this.state.realm)
+        this.app.switchboard.index?.find(selection.phrase, this.state.realm)
             .then((found) => {
                 switch (found.state) {
                     case "found":
                         const foundState: NoteState = {
                             realm: found.realm,
                             unsavedContent: true,
+                            citationIndex: 0,
                             ...found.record,
                         }
                         // look for an earlier citation identical to this
@@ -177,7 +178,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                 }
             })
             .catch((error) => {
-                this.notify(error, "error")
+                this.app.notify(error, "error")
             })
     }
 
@@ -186,7 +187,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             return
         }
         const data = deepClone(this.state, "unsavedContent", "realm")
-        this.switchboard.index?.add({ phrase: this.currentCitation().phrase, realm: this.state.realm, data: data }).then(() => {
+        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, realm: this.state.realm, data: data }).then(() => {
             this.savedState = deepClone(this.state)
             this.setState({ unsavedContent: false })
         })
@@ -194,7 +195,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     // obtain all the tags ever used
     allTags() {
-        return Array.from(this.switchboard.index?.tags || []).sort()
+        return Array.from(this.app.switchboard.index?.tags || []).sort()
     }
 }
 
@@ -259,8 +260,8 @@ function Tags(props: { note: Note }) {
         return null
     }
     let options: string[]
-    if (note.switchboard.index?.tags) {
-        options = Array.from(note.switchboard.index.tags)
+    if (note.app.switchboard.index?.tags) {
+        options = Array.from(note.app.switchboard.index.tags)
     } else {
         options = []
     }
@@ -291,7 +292,7 @@ function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
     }
     const citations = props.citations.slice(0, props.citations.length).map((cite) => {
         return ( // should include date, and it should be possible to delete a citation
-            <li key={cite.source.url}>
+            <li key={hash(cite.source.url)}>
                 {cite.source.url}
             </li>
         )

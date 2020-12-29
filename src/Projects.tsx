@@ -1,13 +1,12 @@
 import React from 'react'
-import SwitchBoard from './modules/switchboard'
 import { Details } from './modules/util'
+import { App } from './App'
 
 interface ProjectsProps {
-    switchboard: SwitchBoard,
-    notify: (message: string, level?: "error" | "warning" | "info" | "success") => void
+    app: App,
 }
 
-function Projects({ switchboard, notify }: ProjectsProps) {
+function Projects({ app }: ProjectsProps) {
     return (
         <div className="projects">
             <Details header="Projects">

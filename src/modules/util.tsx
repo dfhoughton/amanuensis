@@ -32,6 +32,7 @@ const detailsStyles = makeStyles((theme) => ({
     }
 }))
 
+// a widget that displays the contents of a tab, a help button, and some expandable help text
 export function Details({ children, header, otherAccordions }: { children: ReactElement, header?: string, otherAccordions?: ReactElement[] }): ReactElement {
     const classes = detailsStyles()
     const headerElement = !header ? null :
