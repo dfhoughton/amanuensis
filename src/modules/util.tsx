@@ -27,8 +27,11 @@ const detailsStyles = makeStyles((theme) => ({
         marginBottom: '1rem'
     },
     header: {
-        fontSize: theme.typography.pxToRem(15),
+        fontSize: theme.typography.pxToRem(16),
         fontWeight: theme.typography.fontWeightBold
+    },
+    details: {
+        fontSize: theme.typography.pxToRem(14),
     }
 }))
 
@@ -47,7 +50,7 @@ export function Details({ children, header, otherAccordions }: { children: React
                 </AccordionSummary>
                 <AccordionDetails>
                     <Typography>
-                        <div className="body1">
+                        <div className={classes.details}>
                             {children}
                         </div>
                     </Typography>
