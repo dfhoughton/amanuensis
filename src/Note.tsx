@@ -21,7 +21,7 @@ interface NoteProps {
 
 export interface NoteState extends NoteRecord {
     unsavedContent: boolean,
-    realm: number,
+    project: number,
     citationIndex: number,
 }
 
@@ -59,7 +59,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     nullState(): NoteState {
         return {
-            realm: 0, // "namespace" for the note; realm indices map to names; e.g., "German"; realm 0 is the default
+            project: 0, // "namespace" for the note; project indices map to names; e.g., "German"; project 0 is the default
             gist: "", // the most important notes about the phrase
             details: "", // less essential notes about the phrase
             tags: [], // tags used to categorize phrases
@@ -89,7 +89,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
-                <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} realm={this.state.realm} />
+                <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.project} />
                 <StarWidget
                     starred={this.state.starred}
                     unsaved={this.state.unsavedContent}
@@ -126,12 +126,12 @@ class Note extends React.Component<NoteProps, NoteState> {
             ...selection,
             when: [new Date()],
         }
-        this.app.switchboard.index?.find(selection.phrase, this.state.realm)
+        this.app.switchboard.index?.find(selection.phrase, this.state.project)
             .then((found) => {
                 switch (found.state) {
                     case "found":
                         const foundState: NoteState = {
-                            realm: found.realm,
+                            project: found.project,
                             unsavedContent: true,
                             citationIndex: 0,
                             ...found.record,
@@ -163,7 +163,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         break
                     case "none":
                         this.setState({
-                            realm: 0,
+                            project: 0,
                             details: "",
                             tags: [],
                             citations: [citation],
@@ -184,8 +184,8 @@ class Note extends React.Component<NoteProps, NoteState> {
         if (!this.state.unsavedContent) {
             return
         }
-        const data = deepClone(this.state, "unsavedContent", "realm")
-        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, realm: this.state.realm, data: data }).then(() => {
+        const data = deepClone(this.state, "unsavedContent", "project")
+        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, project: this.state.project, data: data }).then(() => {
             this.savedState = deepClone(this.state)
             this.setState({ unsavedContent: false })
         })
@@ -199,10 +199,10 @@ class Note extends React.Component<NoteProps, NoteState> {
 
 export default Note;
 
-function Header(props: { time?: Date[], switchboard: SwitchBoard, realm: number }) {
-    const { time, switchboard, realm } = props
+function Header(props: { time?: Date[], switchboard: SwitchBoard, project: number }) {
+    const { time, switchboard, project: realm } = props
     let t = time ? time[0] : null, date
-    const project = switchboard.index?.reverseRealmIndex.get(realm)
+    const project = switchboard.index?.reverseProjectIndex.get(realm)
     return <div className="note-header">
         <div>{project}</div>
         <div style={{ textAlign: 'right', fontSize: 'smaller', color: grey[500] }}>
@@ -338,7 +338,7 @@ function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPa
         return null
     }
     // TODO we need to pass in a function as well that allows the modification of relations
-    // the switchboard and realm are in here to facilitate lazily loading in the instances of the relation
+    // the switchboard and project are in here to facilitate lazily loading in the instances of the relation
     const relations = Object.entries(props.relations).map(([k, v],) => <li key={k}>{k}</li>)
     return (
         <ul className="relations">

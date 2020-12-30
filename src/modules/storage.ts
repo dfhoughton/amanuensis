@@ -1,5 +1,5 @@
 import { deepClone } from './clone'
-import { Chrome, KeyPair, NoteRecord, RealmInfo, RealmIdentifier, Normalizer } from './types'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer } from './types'
 
 // utility function to convert maps into arrays for permanent storage
 function m2a(map: Map<any, any>): [any, any][] {
@@ -9,43 +9,43 @@ function m2a(map: Map<any, any>): [any, any][] {
 }
 
 type FindResponse =
-    { state: "found", realm: number, record: NoteRecord } |
-    { state: "ambiguous", realms: number[] } |
+    { state: "found", project: number, record: NoteRecord } |
+    { state: "ambiguous", projects: number[] } |
     { state: "none" }
 
 // an interface between the app and the Chrome storage mechanism
 export class Index {
-    chrome: Chrome                                 // the chrome API
-    realms: Map<string, RealmInfo>                 // an index from realm names to RealmInfo records
-    index: Map<string, number[]>                   // an index from normalized phrases to the primary keys of realms in which there are records for these phrases
-    realmIndices: Map<number, Map<string, number>> // an index from realm primary keys to indices from phrases normalized by the respective realm's normalizer to that phrase's primary key for the realm
-    tags: Set<string>                              // the set of all tags used in a phrase in any realm
-    reverseRealmIndex: Map<number, string>         // an index from RealmInfo primary keys to names
-    cache: Map<KeyPair, NoteRecord>                // a mechanism to avoid unnecessary calls to fetch things from chrome storage
-    constructor(chrome: Chrome, realms: Map<string, RealmInfo>, index: Map<string, number[]>, realmIndices: Map<number, Map<string, number>>, tags: Set<string>) {
+    chrome: Chrome                                   // the chrome API
+    projects: Map<string, ProjectInfo>               // an index from project names to ProjectInfo records
+    index: Map<string, number[]>                     // an index from normalized phrases to the primary keys of projects in which there are records for these phrases
+    projectIndices: Map<number, Map<string, number>> // an index from project primary keys to indices from phrases normalized by the respective project's normalizer to that phrase's primary key for the project
+    tags: Set<string>                                // the set of all tags used in a phrase in any project
+    reverseProjectIndex: Map<number, string>         // an index from ProjectInfo primary keys to names
+    cache: Map<KeyPair, NoteRecord>                  // a mechanism to avoid unnecessary calls to fetch things from chrome storage
+    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, index: Map<string, number[]>, projectIndices: Map<number, Map<string, number>>, tags: Set<string>) {
         this.chrome = chrome
-        this.realms = realms
+        this.projects = projects
         this.index = index
-        this.realmIndices = realmIndices
+        this.projectIndices = projectIndices
         this.tags = tags
-        if (this.realmIndices.size === 0) {
-            // add the default realm
-            const realm: RealmInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
-            this.realms.set('', realm)
-            this.realmIndices.set(0, new Map())
-            const storable = { realms: m2a(this.realms) }
+        if (this.projectIndices.size === 0) {
+            // add the default project
+            const project: ProjectInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
+            this.projects.set('', project)
+            this.projectIndices.set(0, new Map())
+            const storable = { projects: m2a(this.projects) }
             this.chrome.storage.local.set(storable)
         }
-        this.reverseRealmIndex = new Map()
-        this.realms.forEach((value, key) => this.reverseRealmIndex.set(value.pk, key))
+        this.reverseProjectIndex = new Map()
+        this.projects.forEach((value, key) => this.reverseProjectIndex.set(value.pk, key))
         this.cache = new Map()
     }
 
-    // return the set of relations known to the realm
-    relationsForRealm(realm: RealmIdentifier): Set<string> {
-        const [, realmInfo]: [string, RealmInfo] = this.findRealm(realm)
+    // return the set of relations known to the project
+    relationsForProject(project: ProjectIdentifier): Set<string> {
+        const [, projectInfo]: [string, ProjectInfo] = this.findProject(project)
         const relations: Set<string> = new Set()
-        for (const pair in realmInfo.relations) {
+        for (const pair in projectInfo.relations) {
             relations.add(pair[0])
             relations.add(pair[1])
         }
@@ -54,9 +54,9 @@ export class Index {
 
     // returns the other relation in a relation pair, e.g., "part" for "whole", "subtype" for "supertype", or "synonym" for "synonym"
     // the last is an example of a symmetric relation; the "see also" relation, the only relation available by default, is symmetric
-    reverseRelation(realm: RealmIdentifier, relation: string): string | null {
-        const [, realmInfo] = this.findRealm(realm)
-        for (const pair in realmInfo.relations) {
+    reverseRelation(project: ProjectIdentifier, relation: string): string | null {
+        const [, projectInfo] = this.findProject(project)
+        for (const pair in projectInfo.relations) {
             if (pair[0] === relation) {
                 return pair[1]
             }
@@ -67,23 +67,23 @@ export class Index {
         return null
     }
 
-    // looks in given realm for phrase, resolving it in promise as {realm, found}
-    // if no realm is given and the phrase exists only in one realm, also provides {realm, found}
-    // if no realm is given and the phrase exists in multiple realms, provides [realm...]
-    find(phrase: string, realm: RealmIdentifier): Promise<FindResponse> {
+    // looks in given project for phrase, resolving it in promise as {project, found}
+    // if no project is given and the phrase exists only in one project, also provides {project, found}
+    // if no project is given and the phrase exists in multiple projects, provides [project...]
+    find(phrase: string, project: ProjectIdentifier): Promise<FindResponse> {
         return new Promise((resolve, reject) => {
-            let key: string | null, realmInfo: RealmInfo, found: NoteRecord | null
-            if (realm) {
-                [, realmInfo] = this.findRealm(realm)
-                const index = this.realmIndex(phrase, realmInfo)
+            let key: string | null, projectInfo: ProjectInfo, found: NoteRecord | null
+            if (project) {
+                [, projectInfo] = this.findProject(project)
+                const index = this.projectIndex(phrase, projectInfo)
                 if (index == null) {
                     return resolve({ state: "none" })
                 }
-                found = this.cache.get([realmInfo.pk, index as number]) || null
+                found = this.cache.get([projectInfo.pk, index as number]) || null
                 if (found) {
-                    resolve({ state: "found", realm: realmInfo.pk, record: found })
+                    resolve({ state: "found", project: projectInfo.pk, record: found })
                 } else {
-                    key = this.key(phrase, realm)
+                    key = this.key(phrase, project)
                     if (!key) {
                         resolve({ state: "none" })
                     } else {
@@ -92,30 +92,30 @@ export class Index {
                                 reject(this.chrome.runtime.lastError)
                             } else {
                                 const record = found[key as string]
-                                this.cache.set([realmInfo.pk, index], record)
-                                resolve({ state: "found", realm: realmInfo.pk, record })
+                                this.cache.set([projectInfo.pk, index], record)
+                                resolve({ state: "found", project: projectInfo.pk, record })
                             }
                         })
                     }
                 }
             } else {
-                const realms = this.index.get(this.defaultNormalize(phrase))
-                if (realms) {
-                    if (realms.length === 1) {
-                        [, realmInfo] = this.findRealm(realms[0])
-                        const key = this.key(phrase, realmInfo) as string
+                const projects = this.index.get(this.defaultNormalize(phrase))
+                if (projects) {
+                    if (projects.length === 1) {
+                        [, projectInfo] = this.findProject(projects[0])
+                        const key = this.key(phrase, projectInfo) as string
                         this.chrome.storage.local.get([key], (found) => {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
-                                const index = this.realmIndex(phrase, realmInfo)
+                                const index = this.projectIndex(phrase, projectInfo)
                                 const record = found[key]
-                                this.cache.set([realmInfo.pk, index as number], record)
-                                resolve({ state: "found", realm: realmInfo.pk, record })
+                                this.cache.set([projectInfo.pk, index as number], record)
+                                resolve({ state: "found", project: projectInfo.pk, record })
                             }
                         })
                     } else {
-                        resolve({ state: "ambiguous", realms: realms })
+                        resolve({ state: "ambiguous", projects: projects })
                     }
                 } else {
                     resolve({ state: "none" })
@@ -125,34 +125,34 @@ export class Index {
     }
 
     // save a phrase, all the data associated with the phrase should be packed into data
-    add({ phrase, realm, data }: { phrase: string, realm: number, data: NoteRecord }): Promise<void> {
+    add({ phrase, project, data }: { phrase: string, project: number, data: NoteRecord }): Promise<void> {
         return new Promise((resolve, reject) => {
             const storable: { [key: string]: any } = {}
-            const [, realmInfo] = this.findRealm(realm)
+            const [, projectInfo] = this.findProject(project)
             let key = this.defaultNormalize(phrase)
-            const realms = this.index.get(key) || []
-            if (realms.indexOf(realmInfo.pk) === -1) {
-                realms.push(realmInfo.pk)
-                storable.realms = m2a(this.realms)
-                this.index.set(key, realms)
+            const projects = this.index.get(key) || []
+            if (projects.indexOf(projectInfo.pk) === -1) {
+                projects.push(projectInfo.pk)
+                storable.projects = m2a(this.projects)
+                this.index.set(key, projects)
                 storable.index = m2a(this.index)
             }
-            key = this.normalize(phrase, realmInfo)
-            let realmIndex = this.realmIndices.get(realmInfo.pk) || new Map()
-            let pk = realmIndex.get(key)
+            key = this.normalize(phrase, projectInfo)
+            let projectIndex = this.projectIndices.get(projectInfo.pk) || new Map()
+            let pk = projectIndex.get(key)
             if (pk == null) {
-                // this is necessarily in neither the index nor the realm index
+                // this is necessarily in neither the index nor the project index
                 // we will have to generate a primary key for this phrase and store both indices
                 pk = 0
-                realmIndex.forEach(function (v, k) {
+                projectIndex.forEach(function (v, k) {
                     if (v >= pk) {
                         pk = v + 1
                     }
                 })
-                realmIndex.set(key, pk)
-                storable[realmInfo.pk.toString()] = m2a(realmIndex)
+                projectIndex.set(key, pk)
+                storable[projectInfo.pk.toString()] = m2a(projectIndex)
             }
-            const keyPair: KeyPair = [realmInfo.pk, pk] // convert key to the 
+            const keyPair: KeyPair = [projectInfo.pk, pk] // convert key to the 
             this.cache.set(keyPair, data)
             // check for any new tags
             const l = this.tags.size
@@ -174,7 +174,7 @@ export class Index {
                     const other = this.cache.get(pair)
                     if (other) {
                         // other will necessarily be cached if a relation to it was added
-                        reversedRelation ||= this.reverseRelation(realmInfo, relation) || ''
+                        reversedRelation ||= this.reverseRelation(projectInfo, relation) || ''
                         outer: for (const [relation2, pairs2] of Object.entries(other.relations)) {
                             if (relation2 === reversedRelation) {
                                 for (const key2 of pairs2) {
@@ -203,13 +203,13 @@ export class Index {
         })
     }
 
-    delete({ phrase, realm }: { phrase: string, realm: RealmInfo }): Promise<void> {
+    delete({ phrase, project }: { phrase: string, project: ProjectInfo }): Promise<void> {
         return new Promise((resolve, reject) => {
             // TODO
-            // must delete given phrase from the given realm
-            // must delete it from the realm index
+            // must delete given phrase from the given project
+            // must delete it from the project index
             // must delete it from all the phrases to which it is related
-            // then must also iterate over *all* the phrases in the realm to see if any share its default normalization
+            // then must also iterate over *all* the phrases in the project to see if any share its default normalization
             // if so, the master index need not be altered and saved
             // otherwise, we must delete its entry from the master index as well
         })
@@ -217,21 +217,21 @@ export class Index {
 
     // delete a particular relation between two phrases
     // these two phrases will necessarily both already be saved
-    deleteRelation({ phrase, realm, relation, pair }: { phrase: string, realm: RealmInfo, relation: string, pair: KeyPair }): Promise<void> {
+    deleteRelation({ phrase, project, relation, pair }: { phrase: string, project: ProjectInfo, relation: string, pair: KeyPair }): Promise<void> {
         return new Promise((resolve, reject) => {
-            const [realmName, realmInfo] = this.findRealm(realm)
-            let key = this.normalize(phrase, realmInfo)
-            const realmIndex = this.realmIndices.get(realmInfo.pk)
-            let pk = realmIndex?.get(key)
+            const [projectName, projectInfo] = this.findProject(project)
+            let key = this.normalize(phrase, projectInfo)
+            const projectIndex = this.projectIndices.get(projectInfo.pk)
+            let pk = projectIndex?.get(key)
             if (pk == null) {
-                reject(`the phrase ${phrase} is not stored in ${realmName}`)
+                reject(`the phrase ${phrase} is not stored in ${projectName}`)
             } else {
-                let keyPair: KeyPair = [realmInfo.pk, pk]
+                let keyPair: KeyPair = [projectInfo.pk, pk]
                 const data = this.cache.get(keyPair) // the phrase in question is necessarily cached
                 if (data) {
                     const continuation = (other: NoteRecord) => {
                         // prepare other end of relation for storage
-                        const reversedRelation = this.reverseRelation(realmInfo, relation)
+                        const reversedRelation = this.reverseRelation(projectInfo, relation)
                         if (reversedRelation) {
                             const storable: { [key: string]: any } = {}
                             storable[`${pair[0]}:${pair[1]}`] = other
@@ -239,7 +239,7 @@ export class Index {
                             let pairs2 = other.relations[reversedRelation] || []
                             const pairs22: KeyPair[] = []
                             for (const [r2, pk2] of pairs2) {
-                                if (!(r2 === realmInfo.pk && pk2 === pk)) {
+                                if (!(r2 === projectInfo.pk && pk2 === pk)) {
                                     pairs22.push([r2, pk2])
                                 }
                             }
@@ -271,7 +271,7 @@ export class Index {
                                 }
                             })
                         } else {
-                            reject(`could not find the reversed relation for ${relation} in ${realmName}`)
+                            reject(`could not find the reversed relation for ${relation} in ${projectName}`)
                         }
                     }
                     let other = this.cache.get(pair)
@@ -308,52 +308,52 @@ export class Index {
             })
         })
     }
-    // convert a realm in any representation, name, index, or info, into a [name, info] pair
-    findRealm(realm: string | number | RealmInfo): [string, RealmInfo] {
-        let realmInfo: RealmInfo
-        switch (typeof realm) {
+    // convert a project in any representation, name, index, or info, into a [name, info] pair
+    findProject(project: string | number | ProjectInfo): [string, ProjectInfo] {
+        let projectInfo: ProjectInfo
+        switch (typeof project) {
             case 'number':
-                const r = this.reverseRealmIndex.get(realm)
+                const r = this.reverseProjectIndex.get(project)
                 if (r) {
-                    realm = r
-                    const ri = this.realms.get(realm)
+                    project = r
+                    const ri = this.projects.get(project)
                     if (ri) {
                         return [r, ri]
                     } else {
-                        return this.defaultRealm()
+                        return this.defaultProject()
                     }
                 } else {
-                    return this.defaultRealm()
+                    return this.defaultProject()
                 }
             case 'string':
-                const ri = this.realms.get(realm)
+                const ri = this.projects.get(project)
                 if (ri) {
-                    return [realm.toString(), ri]
+                    return [project.toString(), ri]
                 } else {
-                    return this.defaultRealm()
+                    return this.defaultProject()
                 }
             case 'object':
-                if (realm) {
-                    realmInfo = realm
-                    const r = this.reverseRealmIndex.get(realm.pk)
+                if (project) {
+                    projectInfo = project
+                    const r = this.reverseProjectIndex.get(project.pk)
                     if (r) {
-                        return [r, realmInfo]
+                        return [r, projectInfo]
                     } else {
-                        return this.defaultRealm()
+                        return this.defaultProject()
                     }
                 } else {
-                    return this.defaultRealm()
+                    return this.defaultProject()
                 }
             default:
                 throw new Error("unreachable")
         }
     }
-    defaultRealm(): [string, RealmInfo] {
-        return ['', this.realms.get('') as RealmInfo]
+    defaultProject(): [string, ProjectInfo] {
+        return ['', this.projects.get('') as ProjectInfo]
     }
-    // save a realm or create a new one
+    // save a project or create a new one
     // the optional callback receives an error message, if any
-    saveRealm(
+    saveProject(
         {
             name,
             description = '[no description]',
@@ -373,22 +373,22 @@ export class Index {
             description = description.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
             let pk: number
             const storable: { [key: string]: any } = {}
-            if (this.realms.has(name)) {
-                pk = (this.realms.get(name) as RealmInfo).pk
+            if (this.projects.has(name)) {
+                pk = (this.projects.get(name) as ProjectInfo).pk
             } else {
                 pk = 1
-                for (const [, realmInfo] of this.realms) {
-                    if (realmInfo.pk >= pk) {
-                        pk = realmInfo.pk + 1
+                for (const [, projectInfo] of this.projects) {
+                    if (projectInfo.pk >= pk) {
+                        pk = projectInfo.pk + 1
                     }
                 }
-                this.realmIndices.set(pk, new Map())
-                this.reverseRealmIndex.set(pk, name)
+                this.projectIndices.set(pk, new Map())
+                this.reverseProjectIndex.set(pk, name)
                 storable[pk.toString()] = []
             }
-            const realm: RealmInfo = { pk, description, normalizer, relations }
-            this.realms.set(name, realm)
-            storable.realms = m2a(this.realms)
+            const project: ProjectInfo = { pk, description, normalizer, relations }
+            this.projects.set(name, project)
+            storable.projects = m2a(this.projects)
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
@@ -398,37 +398,37 @@ export class Index {
             })
         })
     }
-    removeRealm(realm: RealmIdentifier): Promise<void> {
+    removeProject(project: ProjectIdentifier): Promise<void> {
         return new Promise((resolve, reject) => {
-            // const [, realmInfo] = this.findRealm(realm)
+            // const [, projectInfo] = this.findProject(project)
             // const delenda = []
             // const memoranda = []
             // TODO
-            // iterate over all phrases in realm via realm index
-            // for each phrase in realm, iterate over relations, adding relations with other realms to memoranda, adding key for phrase to delenda
-            // THE ONLY RELATION POSSIBLE BETWEEN REALMS IS "see also"
-            // remove realm from realms and reverse lookup; save realms
-            // remove realm index
-            // iterate over index, removing realm from values and deleting values as necessary
+            // iterate over all phrases in project via project index
+            // for each phrase in project, iterate over relations, adding relations with other projects to memoranda, adding key for phrase to delenda
+            // THE ONLY RELATION POSSIBLE BETWEEN PROJECTS IS "see also"
+            // remove project from projects and reverse lookup; save projects
+            // remove project index
+            // iterate over index, removing project from values and deleting values as necessary
             // save index
             // remove delenda
-            // iterate over memoranda, deleting cross-realm realtions and saving
+            // iterate over memoranda, deleting cross-project realtions and saving
             // callback
         })
     }
-    // create the key a phrase should be stored under for a given realm
-    key(phrase: string, realm: RealmIdentifier): string | null {
-        const [, realmInfo] = this.findRealm(realm)
-        const index = this.realmIndex(phrase, realmInfo)
+    // create the key a phrase should be stored under for a given project
+    key(phrase: string, project: ProjectIdentifier): string | null {
+        const [, projectInfo] = this.findProject(project)
+        const index = this.projectIndex(phrase, projectInfo)
         if (index != null) {
-            return `${realmInfo.pk}:${index}`
+            return `${projectInfo.pk}:${index}`
         }
         return null
     }
-    realmIndex(phrase: string, realm: string | number | RealmInfo): number | null {
-        const [, realmInfo] = this.findRealm(realm)
-        const idx = this.realmIndices.get(realmInfo.pk) as Map<string, number>
-        const i = idx.get(this.normalize(phrase, realmInfo))
+    projectIndex(phrase: string, project: ProjectIdentifier): number | null {
+        const [, projectInfo] = this.findProject(project)
+        const idx = this.projectIndices.get(projectInfo.pk) as Map<string, number>
+        const i = idx.get(this.normalize(phrase, projectInfo))
         if (i == null) {
             return null
         } else {
@@ -436,12 +436,12 @@ export class Index {
         }
     }
     // normalize phrase for use in retrieval and insertion
-    normalize(phrase: string, realm: string | number | RealmInfo): string {
-        let r: RealmInfo
-        if (typeof realm === 'object') {
-            r = realm
+    normalize(phrase: string, project: ProjectIdentifier): string {
+        let r: ProjectInfo
+        if (typeof project === 'object') {
+            r = project
         } else {
-            [realm, r] = this.findRealm(realm)
+            [project, r] = this.findProject(project)
         }
         const normalizer = r ? r.normalizer : ""
         return normalizers[normalizer || ""].code(phrase)
@@ -458,15 +458,15 @@ export class Index {
                 } else {
                     this.cache.clear()
                     this.index.clear()
-                    this.realmIndices.clear()
-                    this.realms.clear()
-                    this.reverseRealmIndex.clear()
+                    this.projectIndices.clear()
+                    this.projects.clear()
+                    this.reverseProjectIndex.clear()
                     this.tags.clear()
-                    // restore the default realm
-                    const realm: RealmInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
-                    this.realms.set('', realm)
-                    this.realmIndices.set(0, new Map())
-                    const storable = { realms: m2a(this.realms) }
+                    // restore the default project
+                    const project: ProjectInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
+                    this.projects.set('', project)
+                    this.projectIndices.set(0, new Map())
+                    const storable = { projects: m2a(this.projects) }
                     this.chrome.storage.local.set(storable) // if this fails no harm done
                     resolve()
                 }
@@ -478,25 +478,25 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['realms', 'index', 'tags'], (result) => {
+        chrome.storage.local.get(['projects', 'index', 'tags'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { realms = [], index = [], tags = [] } = result || {}
-                // now that we have the realm we can fetch the realm indices
+                let { projects = [], index = [], tags = [] } = result || {}
+                // now that we have the project we can fetch the project indices
                 const indices: string[] = []
-                for (const [, realmInfo] of realms) {
-                    indices.push(realmInfo.pk.toString())
+                for (const [, projectInfo] of projects) {
+                    indices.push(projectInfo.pk.toString())
                 }
-                chrome.storage.local.get(indices, (result: { [realmPk: string]: [phrase: string, pk: number][] }) => {
+                chrome.storage.local.get(indices, (result: { [projectPk: string]: [phrase: string, pk: number][] }) => {
                     if (chrome.runtime.lastError) {
                         reject(chrome.runtime.lastError)
                     } else {
-                        const realmIndices = new Map()
+                        const projectIndices = new Map()
                         for (const [idx, ridx] of Object.entries(result)) {
-                            realmIndices.set(Number.parseInt(idx), new Map(ridx))
+                            projectIndices.set(Number.parseInt(idx), new Map(ridx))
                         }
-                        resolve(new Index(chrome, new Map(realms), new Map(index), realmIndices, new Set(tags)))
+                        resolve(new Index(chrome, new Map(projects), new Map(index), projectIndices, new Set(tags)))
                     }
                 })
             }

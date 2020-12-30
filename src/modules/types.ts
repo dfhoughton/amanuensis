@@ -29,7 +29,7 @@ export interface SourceRecord {
     // TODO keep domain separate and perhaps keep a per-domain index of phrases
 }
 
-export type KeyPair = [realmKey: number, phraseKey: number]
+export type KeyPair = [projectKey: number, phraseKey: number]
 
 export interface NoteRecord {
     gist: string,                             // essential notes about a phrase
@@ -40,14 +40,14 @@ export interface NoteRecord {
     starred: boolean,                         // whether this phrase is marked as of particular interest
 }
 
-export interface RealmInfo {
-    pk: number,                    // the primary key (unique identifier) of the realm
-    description: string,           // a description of the realm's contents
-    normalizer: string,            // the name of the Normalizer the realm uses
-    relations: [string, string][], // the relations the realm recognizes
+export interface ProjectInfo {
+    pk: number,                    // the primary key (unique identifier) of the project
+    description: string,           // a description of the project's contents
+    normalizer: string,            // the name of the Normalizer the project uses
+    relations: [string, string][], // the relations the project recognizes
 }
 
-export type RealmIdentifier = string | number | RealmInfo;
+export type ProjectIdentifier = string | number | ProjectInfo;
 
 export interface Normalizer {
     name: string,
