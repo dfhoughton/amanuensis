@@ -177,9 +177,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         break
                 }
             })
-            .catch((error) => {
-                this.app.notify(error, "error")
-            })
+            .catch((error) => this.app.error(error))
     }
 
     saveNote() {

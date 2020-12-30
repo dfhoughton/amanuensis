@@ -79,6 +79,12 @@ export class App extends React.Component<AppProps, AppState> {
     console.log({ message, level })
     this.setState({ message: { text: message, level } })
   }
+  error(message: string) {
+    this.notify(message, "error")
+  }
+  warn(message: string) {
+    this.notify(message, "warning")
+  }
   clearMessage() {
     this.setState({ message: null })
   }
@@ -126,14 +132,13 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard.mounted()
     // add handlers for reloaded and error
     this.switchboard.addActions({
-      reloaded: (msg) => this.highlight(msg)
-    })
-    this.switchboard.addActions({
+      reloaded: (msg) => this.highlight(msg),
       error: ({ message }: { message: string }) => this.notify(message, 'error')
     })
   }
 
   highlight({ url }: { url: string }) {
+    // TODO
     // check to make sure the URL is what is currently in the history
     // if so, send the select action with the relevant citation
   }
@@ -167,6 +172,8 @@ export class App extends React.Component<AppProps, AppState> {
         this.setState({ historyIndex: index, tab: 2 }) // toggle tab to force a re-render of the note
         this.setState({ tab: 0 })
       }
+    } else {
+      this.warn(`could not go to citation ${index + 1} in history`)
     }
   }
 }

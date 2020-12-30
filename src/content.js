@@ -347,9 +347,9 @@ port.onMessage.addListener(function (msg) {
             }
             break
         case 'select':
-            const { selection } = msg
-            if (selection) {
-                if (!highlightSelection(selection)) {
+            const { selection : toSelect } = msg
+            if (toSelect) {
+                if (!highlightSelection(toSelect)) {
                     port.postMessage({ action: 'error', message: 'could not find citation on page' })
                 }
             } else {
