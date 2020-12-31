@@ -103,7 +103,31 @@ class Note extends React.Component<NoteProps, NoteState> {
     // check to see whether any information relevant to the display of this note has changed
     // since it was last displayed
     checkForDeletions() {
-        // TODO
+        if (this.isSaved()) {
+            this.app.switchboard.index?.find(this.currentCitation().phrase, this.state.project)
+                .then((response) => {
+                    switch (response.state) {
+                        case 'ambiguous':
+                        case 'found':
+                            break
+                        case 'none':
+                            this.savedState = this.nullState()
+                            const newState = {
+                                unsavedContent: true,
+                                relations: {},
+                                project: this.state.project,
+                                citations: deepClone(this.state.citations.slice(0,1))
+                            }
+                            if (!this.app.switchboard.index?.reverseProjectIndex.has(this.state.project)) {
+                                newState.project = 0 // set to the default project
+                            }
+                            this.setState(newState)
+                            this.app.notify("this note is no longer saved")
+                            break
+                    }
+                })
+                .catch((error) => this.app.error(error))
+        }
     }
 
     currentCitation(): CitationRecord {
@@ -112,6 +136,10 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     hasWord(): boolean {
         return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
+    }
+
+    isSaved(): boolean {
+        return !!this.savedState.citations.length
     }
 
     star() {
@@ -263,7 +291,7 @@ const phraseStyles = makeStyles((theme) => ({
     }
 }))
 
-function Phrase({hasWord, phrase}: { hasWord: boolean; phrase: CitationRecord; }) {
+function Phrase({ hasWord, phrase }: { hasWord: boolean; phrase: CitationRecord; }) {
     const classes = phraseStyles()
     if (hasWord) {
         return (

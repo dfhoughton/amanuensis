@@ -6,7 +6,7 @@ import Switchboard from './modules/switchboard'
 import Projects from './Projects'
 import Search from './Search'
 
-import { createMuiTheme, makeStyles, ThemeProvider } from '@material-ui/core/styles'
+import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles'
 import { withStyles } from '@material-ui/core/styles'
 
 import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/icons'
