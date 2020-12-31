@@ -30,7 +30,7 @@ export class Index {
         this.tags = tags
         if (this.projectIndices.size === 0) {
             // add the default project
-            const project: ProjectInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
+            const project = this.makeDefaultProject()
             this.projects.set('', project)
             this.projectIndices.set(0, new Map())
             const storable = { projects: m2a(this.projects) }
@@ -39,6 +39,16 @@ export class Index {
         this.reverseProjectIndex = new Map()
         this.projects.forEach((value, key) => this.reverseProjectIndex.set(value.pk, key))
         this.cache = new Map()
+    }
+
+    makeDefaultProject(): ProjectInfo {
+        return {
+            pk: 0,
+            name: '',
+            description: 'A project for notes that have no project.',
+            normalizer: '',
+            relations: [["see also", "see also"]]
+        }
     }
 
     // return the set of relations known to the project
@@ -353,20 +363,12 @@ export class Index {
     }
     // save a project or create a new one
     // the optional callback receives an error message, if any
-    saveProject(
-        {
-            name,
-            description = '[no description]',
-            normalizer = '',
-            relations = [["see also", "see also"]],
-        }:
-            {
-                name: string,
-                description: string,
-                normalizer: string,
-                relations: [string, string][],
-            }
-    ): Promise<void> {
+    saveProject({
+        name,
+        description = '[no description]',
+        normalizer = '',
+        relations = [["see also", "see also"]],
+    }: ProjectInfo): Promise<void> {
         return new Promise((resolve, reject) => {
             // whitespace normalization
             name = name.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
@@ -386,7 +388,7 @@ export class Index {
                 this.reverseProjectIndex.set(pk, name)
                 storable[pk.toString()] = []
             }
-            const project: ProjectInfo = { pk, description, normalizer, relations }
+            const project: ProjectInfo = { pk, name, description, normalizer, relations }
             this.projects.set(name, project)
             storable.projects = m2a(this.projects)
             this.chrome.storage.local.set(storable, () => {
@@ -463,7 +465,7 @@ export class Index {
                     this.reverseProjectIndex.clear()
                     this.tags.clear()
                     // restore the default project
-                    const project: ProjectInfo = { pk: 0, description: 'default', normalizer: "", relations: [["see also", "see also"]] }
+                    const project = this.makeDefaultProject()
                     this.projects.set('', project)
                     this.projectIndices.set(0, new Map())
                     const storable = { projects: m2a(this.projects) }

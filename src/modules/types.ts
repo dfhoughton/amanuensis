@@ -26,7 +26,6 @@ export interface Node {
 export interface SourceRecord {
     url: string,   // the URL the selection was found on
     title: string, // the chrome extension provides this, and it may be useful for display and summary
-    // TODO keep domain separate and perhaps keep a per-domain index of phrases
 }
 
 export type KeyPair = [projectKey: number, phraseKey: number]
@@ -42,6 +41,7 @@ export interface NoteRecord {
 
 export interface ProjectInfo {
     pk: number,                    // the primary key (unique identifier) of the project
+    name: string,                  // a human-readable primary key
     description: string,           // a description of the project's contents
     normalizer: string,            // the name of the Normalizer the project uses
     relations: [string, string][], // the relations the project recognizes

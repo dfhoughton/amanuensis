@@ -33,7 +33,7 @@ class Config extends React.Component<ConfigProps, ConfigState> {
 
     render() {
         return (
-            <div className="config">
+            <div className="config" style={{ minHeight: 400 }}>
                 <Details header="Configuration">
                     <p>
                         This is a collection of controls that affect all your

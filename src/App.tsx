@@ -1,5 +1,4 @@
 import React, { ReactElement, SyntheticEvent } from 'react'
-import './App.scss'
 import Note from './Note'
 import { NoteState } from './Note'
 import Config from './Config'
@@ -15,7 +14,7 @@ import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/ic
 import { amber, indigo } from '@material-ui/core/colors'
 import { AppBar, Box, Snackbar, Tab, Tabs, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { Chrome } from './modules/types'
+import { Chrome, ProjectInfo } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
 
 const theme = createMuiTheme({
@@ -42,11 +41,15 @@ interface AppProps {
   }
 }
 
+type ProjectState = { [name: string]: ProjectInfo }
+
 interface AppState {
   tab: number,
   message: Message | null,
   history: Visit[],
   historyIndex: number,
+  defaultProject: number,
+  projects: ProjectState
 }
 
 interface Message {
@@ -61,6 +64,17 @@ interface Visit {
 
 type MessageLevels = "error" | "warning" | "info" | "success"
 
+const styles = (theme: any) => ({
+  root: {
+    flexGrow: 1,
+    minWidth: '550px',
+    backgroundColor: theme.palette.background.paper,
+  },
+  button: {
+    margin: theme.spacing(1),
+  },
+});
+
 /*global chrome*/
 declare var chrome: Chrome;
 export class App extends React.Component<AppProps, AppState> {
@@ -72,22 +86,12 @@ export class App extends React.Component<AppProps, AppState> {
       tab: 0,
       message: null,
       history: [],
-      historyIndex: -1
+      historyIndex: -1,
+      defaultProject: 0,
+      projects: {}
     }
   }
-  notify(message: string, level: MessageLevels = "info") {
-    console.log({ message, level })
-    this.setState({ message: { text: message, level } })
-  }
-  error(message: string) {
-    this.notify(message, "error")
-  }
-  warn(message: string) {
-    this.notify(message, "warning")
-  }
-  clearMessage() {
-    this.setState({ message: null })
-  }
+
   render() {
     const { classes } = this.props;
 
@@ -99,7 +103,7 @@ export class App extends React.Component<AppProps, AppState> {
     }
     return (
       <ThemeProvider theme={theme}>
-        <div className={`App ${classes.root}`}>
+        <div className={classes.root}>
           <AppBar position="static">
             <Tabs value={this.state.tab} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
               <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
@@ -130,11 +134,30 @@ export class App extends React.Component<AppProps, AppState> {
 
   componentDidMount() {
     this.switchboard.mounted()
+    this.switchboard.then(() => {
+      const projects: ProjectState = {}
+      this.switchboard.index?.projects.forEach((info, name, _map) => { projects[name] = info })
+      this.setState({ projects })
+    })
     // add handlers for reloaded and error
     this.switchboard.addActions({
       reloaded: (msg) => this.highlight(msg),
       error: ({ message }: { message: string }) => this.notify(message, 'error')
     })
+  }
+
+  notify(message: string, level: MessageLevels = "info") {
+    console.log({ message, level })
+    this.setState({ message: { text: message, level } })
+  }
+  error(message: string) {
+    this.notify(message, "error")
+  }
+  warn(message: string) {
+    this.notify(message, "warning")
+  }
+  clearMessage() {
+    this.setState({ message: null })
   }
 
   highlight({ url }: { url: string }) {
@@ -177,16 +200,6 @@ export class App extends React.Component<AppProps, AppState> {
     }
   }
 }
-
-const styles = (theme: any) => ({
-  root: {
-    flexGrow: 1,
-    backgroundColor: theme.palette.background.paper,
-  },
-  button: {
-    margin: theme.spacing(1),
-  },
-});
 
 export default withStyles(styles)(App);
 

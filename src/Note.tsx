@@ -10,7 +10,6 @@ import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
 
 import { Star, StarBorder, Save } from '@material-ui/icons'
-import { grey, red } from '@material-ui/core/colors'
 import { App } from './App'
 
 const hash = require('object-hash')
@@ -57,34 +56,6 @@ class Note extends React.Component<NoteProps, NoteState> {
         }
     }
 
-    nullState(): NoteState {
-        return {
-            project: 0, // "namespace" for the note; project indices map to names; e.g., "German"; project 0 is the default
-            gist: "", // the most important notes about the phrase
-            details: "", // less essential notes about the phrase
-            tags: [], // tags used to categorize phrases
-            citations: [], // instances this *particular* phrase, after normalization, has been found
-            relations: {},
-            starred: false,
-            unsavedContent: false,
-            citationIndex: 0,
-        }
-    }
-
-    // check to see whether any information relevant to the display of this note has changed
-    // since it was last displayed
-    checkForDeletions() {
-        // TODO
-    }
-
-    currentCitation(): CitationRecord {
-        return this.state.citations[this.state.citationIndex]
-    }
-
-    hasWord(): boolean {
-        return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
-    }
-
     render() {
         const hasWord = this.hasWord()
         return (
@@ -113,6 +84,34 @@ class Note extends React.Component<NoteProps, NoteState> {
     componentWillUnmount() {
         this.app.makeHistory(this.state, this.savedState)
         this.app.switchboard.removeActions("selection")
+    }
+
+    nullState(): NoteState {
+        return {
+            project: 0, // "namespace" for the note; project indices map to names; e.g., "German"; project 0 is the default
+            gist: "", // the most important notes about the phrase
+            details: "", // less essential notes about the phrase
+            tags: [], // tags used to categorize phrases
+            citations: [], // instances this *particular* phrase, after normalization, has been found
+            relations: {},
+            starred: false,
+            unsavedContent: false,
+            citationIndex: 0,
+        }
+    }
+
+    // check to see whether any information relevant to the display of this note has changed
+    // since it was last displayed
+    checkForDeletions() {
+        // TODO
+    }
+
+    currentCitation(): CitationRecord {
+        return this.state.citations[this.state.citationIndex]
+    }
+
+    hasWord(): boolean {
+        return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
     }
 
     star() {
@@ -199,45 +198,83 @@ class Note extends React.Component<NoteProps, NoteState> {
 
 export default Note;
 
+const headerStyles = makeStyles((theme) => ({
+    root: {
+
+    },
+    date: {
+        textAlign: 'right',
+        fontSize: 'smaller',
+        color: theme.palette.grey[500],
+    }
+}))
+
 function Header(props: { time?: Date[], switchboard: SwitchBoard, project: number }) {
     const { time, switchboard, project: realm } = props
+    const classes = headerStyles()
     let t = time ? time[0] : null, date
     const project = switchboard.index?.reverseProjectIndex.get(realm)
-    return <div className="note-header">
+    return <div className={classes.root}>
         <div>{project}</div>
-        <div style={{ textAlign: 'right', fontSize: 'smaller', color: grey[500] }}>
+        <div className={classes.date}>
             {t?.toLocaleDateString()}
         </div>
     </div>
 }
 
+const widgetStyles = makeStyles((theme) => ({
+    root: {
+        display: 'table',
+        float: 'right',
+        lineHeight: '1.2rem',
+        fontSize: 'small',
+        textAlign: 'center',
+    },
+    save: {
+        color: theme.palette.warning.dark
+    },
+    unstarred: {
+        color: theme.palette.grey[500]
+    },
+}))
+
 function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => void, save: () => void }) {
-    const star = props.starred ? <Star color="secondary" /> : <StarBorder style={{ color: grey[500] }} />
+    const classes = widgetStyles()
+    const star = props.starred ? <Star color="secondary" /> : <StarBorder className={classes.unstarred} />
     const save = !props.unsaved ?
         null :
         <div onClick={props.save}>
             <TT msg="save unsaved content" placement="left">
-                <Save style={{ color: red[900] }} />
+                <Save className={classes.save} />
             </TT>
         </div>
-    return <div className="note-buttons">
+    return <div className={classes.root}>
         <div onClick={props.star}><TT msg="bookmark" placement="left">{star}</TT></div>
         {save}
     </div>
 }
 
-function Phrase(props: { hasWord: boolean; phrase: CitationRecord; }) {
-    if (props.hasWord) {
-        const phrase = { ...props.phrase };
+const phraseStyles = makeStyles((theme) => ({
+    root: {
+
+    },
+    word: {
+        backgroundColor: theme.palette.secondary.light,
+    }
+}))
+
+function Phrase({hasWord, phrase}: { hasWord: boolean; phrase: CitationRecord; }) {
+    const classes = phraseStyles()
+    if (hasWord) {
         return (
-            <div className="phrase">
-                <span className="before">{phrase.before}</span>
-                <span className="word">{phrase.phrase}</span>
-                <span className="after">{phrase.after}</span>
+            <div className={classes.root}>
+                <span>{phrase.before}</span>
+                <span className={classes.word}>{phrase.phrase}</span>
+                <span>{phrase.after}</span>
             </div>
         )
     } else {
-        return <div className="phrase no-phrase">No phrase</div>
+        return <div className={classes.root}>No phrase</div>
     }
 }
 
