@@ -1,6 +1,5 @@
 import React, { ReactElement, SyntheticEvent } from 'react'
-import Note from './Note'
-import { NoteState } from './Note'
+import Note, { NoteState } from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
 import Projects from './Projects'
@@ -14,8 +13,10 @@ import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/ic
 import { amber, indigo } from '@material-ui/core/colors'
 import { AppBar, Box, Snackbar, Tab, Tabs, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { Chrome, ProjectInfo } from './modules/types'
+import { Chrome } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
+
+export const projectName = "Notorious"
 
 const theme = createMuiTheme({
   palette: {
@@ -101,7 +102,7 @@ export class App extends React.Component<AppProps, AppState> {
       <ThemeProvider theme={theme}>
         <div className={classes.root}>
           <AppBar position="static">
-            <Tabs value={this.state.tab} onChange={handleChange} variant="fullWidth" aria-label="Amanuensis navigation">
+            <Tabs value={this.state.tab} onChange={handleChange} variant="fullWidth" aria-label={`${projectName} navigation`}>
               <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
               <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
               <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />

@@ -56,14 +56,14 @@ interface ProjectProps {
 interface ProjectState {
     cloning: ProjectInfo | null, // the project currently being cloned
     destroying: string | null,   // the project currently being destroyed
-    editing: number[],           // the projects currently being edited
+    editing: ProjectInfo | null, // the project currently being edited
     projects: { [name: string]: ProjectInfo }
 }
 
 class Projects extends React.Component<ProjectProps, ProjectState> {
     constructor(props: ProjectsProps) {
         super(props)
-        this.state = { cloning: null, destroying: null, editing: [], projects: {} }
+        this.state = { cloning: null, destroying: null, editing: null, projects: {} }
         props.app.switchboard.then(() => {
             const p: { [name: string]: ProjectInfo } = {}
             props.app.switchboard.index?.projects.forEach((info, name, _map) => { p[name] = info })
@@ -77,16 +77,9 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                 <ProjectDetails />
                 {Object.entries(this.state.projects).map(([name, info]) => {
                     const defaultProject = info.pk === 0
-                    const editing = !defaultProject && this.state.editing.includes(info.pk)
                     const startEditing = () => {
                         if (defaultProject) return
-                        const e = deepClone(this.state.editing)
-                        e.push(info.pk)
-                        this.setState({ editing: e })
-                    }
-                    const stopEditing = () => {
-                        const e = this.state.editing.filter((n) => n !== info.pk)
-                        this.setState({ editing: e })
+                        this.setState({ editing: deepClone(info) })
                     }
                     const startCloning = () => {
                         this.setState({ cloning: deepClone(info) })
@@ -118,7 +111,7 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                         </CardContent>
                         <CardActions style={{ paddingTop: 0, flexDirection: "row-reverse" }}>
                             {
-                                !name ? null :
+                                defaultProject ? null :
                                     <span>
                                         <Button size="small" onClick={startEditing}><Edit /></Button>
                                         <Button size="small" color="primary" onClick={startDestroying}><Clear /></Button>
@@ -128,9 +121,40 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                         </CardActions>
                     </Card>
                 })}
+                {this.editModal()}
                 {this.cloneModal()}
                 {this.destroyModal()}
             </div>
+        )
+    }
+
+    editModal() {
+        const cloneHandler = function () {
+
+        }
+        return (
+            <Dialog
+                open={this.state.editing != null}
+                aria-labelledby="edit-dialog-title"
+                aria-describedby="edit-dialog-description"
+            >
+                <DialogTitle id="edit-dialog-title">{"Clear all stored notes?"}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="edit-dialog-description">
+                        Clear all non-configuration information from Amanuensis.
+                        This means all notes, all tags, all relations, and all projects will be
+                        irretrievably gone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => this.setState({ editing: null })} >
+                        Cancel
+                    </Button>
+                    <Button onClick={cloneHandler} color="primary" autoFocus>
+                        Clone
+                    </Button>
+                </DialogActions>
+            </Dialog>
         )
     }
 
@@ -141,16 +165,16 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
         return (
             <Dialog
                 open={this.state.cloning != null}
-                aria-labelledby="alert-dialog-title"
-                aria-describedby="alert-dialog-description"
+                aria-labelledby="clone-dialog-title"
+                aria-describedby="clone-dialog-description"
             >
-                <DialogTitle id="alert-dialog-title">{"Clear all stored notes?"}</DialogTitle>
+                <DialogTitle id="clone-dialog-title">{"Clear all stored notes?"}</DialogTitle>
                 <DialogContent>
-                    <DialogContentText id="alert-dialog-description">
+                    <DialogContentText id="clone-dialog-description">
                         Clear all non-configuration information from Amanuensis.
                         This means all notes, all tags, all relations, and all projects will be
                         irretrievably gone.
-                </DialogContentText>
+                    </DialogContentText>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => this.setState({ cloning: null })} >

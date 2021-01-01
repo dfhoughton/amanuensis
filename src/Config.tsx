@@ -8,7 +8,7 @@ import DialogActions from '@material-ui/core/DialogActions'
 import DialogContent from '@material-ui/core/DialogContent'
 import DialogContentText from '@material-ui/core/DialogContentText'
 import DialogTitle from '@material-ui/core/DialogTitle'
-import { App } from './App'
+import { App, projectName } from './App'
 
 interface ConfigProps {
     classes: any,
@@ -72,7 +72,7 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                 <DialogTitle id="alert-dialog-title">{"Clear all stored notes?"}</DialogTitle>
                 <DialogContent>
                     <DialogContentText id="alert-dialog-description">
-                        Clear all non-configuration information from Amanuensis.
+                        Clear all non-configuration information from {projectName}.
                         This means all notes, all tags, all relations, and all projects will be
                         irretrievably gone.
                     </DialogContentText>
