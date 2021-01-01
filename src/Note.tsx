@@ -108,7 +108,32 @@ class Note extends React.Component<NoteProps, NoteState> {
                 .then((response) => {
                     switch (response.state) {
                         case 'ambiguous':
+                            // this should be unreachable since we have a project at this point
+                            this.app.warn("unexpected state found in checkForDeletions") // TODO we probably don't want this in the wild
+                            break
                         case 'found':
+                            // check to see whether any of the citations are missing
+                            const keys = new Set(Object.values(this.state.relations).reduce((acc, pairs) => acc.concat(pairs), []))
+                            this.app.switchboard.index?.missing(keys)
+                                .then((missing) => {
+                                    if (missing.size) {
+                                        this.savedState = { project: this.state.project, unsavedContent: false, citationIndex: 0, ...response.record }
+                                        const relations = deepClone(this.state.relations)
+                                        for (let [k, v] of Object.entries(relations)) {
+                                            let ar = v as KeyPair[]
+                                            ar = ar.filter((p) => !missing.has(p))
+                                            if (ar.length) {
+                                                relations[k] = ar
+                                            } else {
+                                                delete relations[k]
+                                            }
+                                        }
+                                        this.setState({ relations })
+                                        this.checkSavedState()
+                                        this.app.notify("some relations have been deleted")
+                                    }
+                                })
+                                .catch((error) => this.app.error(`Error when looking for missing relations: ${error}`))
                             break
                         case 'none':
                             this.savedState = this.nullState()
@@ -116,7 +141,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                                 unsavedContent: true,
                                 relations: {},
                                 project: this.state.project,
-                                citations: deepClone(this.state.citations.slice(0,1))
+                                citations: deepClone(this.state.citations.slice(0, 1))
                             }
                             if (!this.app.switchboard.index?.reverseProjectIndex.has(this.state.project)) {
                                 newState.project = 0 // set to the default project

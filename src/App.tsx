@@ -41,15 +41,12 @@ interface AppProps {
   }
 }
 
-type ProjectState = { [name: string]: ProjectInfo }
-
 interface AppState {
   tab: number,
   message: Message | null,
   history: Visit[],
   historyIndex: number,
   defaultProject: number,
-  projects: ProjectState
 }
 
 interface Message {
@@ -88,7 +85,6 @@ export class App extends React.Component<AppProps, AppState> {
       history: [],
       historyIndex: -1,
       defaultProject: 0,
-      projects: {}
     }
   }
 
@@ -134,11 +130,6 @@ export class App extends React.Component<AppProps, AppState> {
 
   componentDidMount() {
     this.switchboard.mounted()
-    this.switchboard.then(() => {
-      const projects: ProjectState = {}
-      this.switchboard.index?.projects.forEach((info, name, _map) => { projects[name] = info })
-      this.setState({ projects })
-    })
     // add handlers for reloaded and error
     this.switchboard.addActions({
       reloaded: (msg) => this.highlight(msg),

@@ -77,6 +77,34 @@ export class Index {
         return null
     }
 
+    // returns the subset of the keypairs which are now missing from storage
+    missing(maybeMissing: Set<KeyPair>): Promise<Set<KeyPair>> {
+        // first get rid of the things in the cache
+        const pairs = Array.from(maybeMissing).filter((p) => !this.cache.has(p))
+        return new Promise((resolve, reject) => {
+            if (pairs.length) {
+                const missing = new Set(pairs)
+                const map = new Map(pairs.map(([v1, v2]) => [`${v1}:${v2}`, [v1, v2]]))
+                const keys = Array.from(map.keys())
+                this.chrome.storage.local.get(keys, (found) => {
+                    if (this.chrome.runtime.lastError) {
+                        reject(this.chrome.runtime.lastError)
+                    } else {
+                        for (const key of Object.keys(found)) {
+                            const p = map.get(key)
+                            if (p) {
+                                missing.delete(p as KeyPair)
+                            }
+                        }
+                        resolve(missing)
+                    }
+                })
+            } else {
+                resolve(new Set())
+            }
+        })
+    }
+
     // looks in given project for phrase, resolving it in promise as {project, found}
     // if no project is given and the phrase exists only in one project, also provides {project, found}
     // if no project is given and the phrase exists in multiple projects, provides [project...]
