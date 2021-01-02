@@ -1,7 +1,7 @@
 import React from 'react'
-import { Details, TT } from './modules/util'
-import { App } from './App'
-import { Button, Card, CardActions, CardContent, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, makeStyles, Typography as T } from '@material-ui/core'
+import { Details, Mark, TT } from './modules/util'
+import { App, projectName } from './App'
+import { Button, Card, CardActions, CardContent, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, makeStyles, Typography as T } from '@material-ui/core'
 import { Clear, Edit, FileCopy } from '@material-ui/icons'
 import { ProjectInfo } from './modules/types'
 import { deepClone } from './modules/clone'
@@ -10,46 +10,7 @@ interface ProjectsProps {
     app: App,
 }
 
-const projectStyles = (theme: { spacing: (arg0: number) => any }) => ({
-    projects: {
-
-    },
-    card: {
-
-    },
-    title: {
-        fontSize: 14,
-    },
-    separator: {
-        display: 'inline-block',
-        margin: '0 2px',
-        transform: 'scale(0.8)'
-    },
-    description: {
-        margin: theme.spacing(1),
-    },
-    relations: {
-        margin: 0,
-        listStyleType: "none",
-    },
-    header: {
-        fontSize: 14,
-        fontWeight: "bold",
-    }
-})
-
 interface ProjectProps {
-    // injected style props
-    classes?: {
-        root: string,
-        projects: string,
-        card: string,
-        title: string,
-        separator: string,
-        description: string,
-        relations: string,
-        header: string,
-    }
     app: App
 }
 
@@ -64,158 +25,25 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
     constructor(props: ProjectsProps) {
         super(props)
         this.state = { cloning: null, destroying: null, editing: null, projects: {} }
-        props.app.switchboard.then(() => {
+    }
+    componentDidMount() {
+        this.props.app.switchboard.then(() => {
             const p: { [name: string]: ProjectInfo } = {}
-            props.app.switchboard.index?.projects.forEach((info, name, _map) => { p[name] = info })
+            this.props.app.switchboard.index?.projects.forEach((info, name, _map) => { p[name] = info })
             this.setState({ projects: p })
         })
     }
     render(): React.ReactNode {
-        const { classes } = this.props
         return (
-            <div className={classes?.projects}>
+            <div className="projects">
                 <ProjectDetails />
-                {Object.entries(this.state.projects).map(([name, info]) => {
-                    const defaultProject = info.pk === 0
-                    const startEditing = () => {
-                        if (defaultProject) return
-                        this.setState({ editing: deepClone(info) })
-                    }
-                    const startCloning = () => {
-                        this.setState({ cloning: deepClone(info) })
-                    }
-                    const startDestroying = () => {
-                        if (defaultProject) return
-                        this.setState({ destroying: name })
-                    }
-                    return <Card className={classes?.card} variant="outlined" key={info.pk}>
-                        <CardContent style={{ paddingBottom: 0 }}>
-                            <T className={classes?.title} component="h2" gutterBottom>
-                                {name || <i color="secondary">no name</i>}
-                            </T>
-                            <T variant="body2" className={classes?.description} gutterBottom>
-                                {info.description}
-                            </T>
-                            <span className={classes?.header}>Normalizer</span>
-                            <span style={{ marginLeft: '1rem' }}>{info.normalizer || <i>default</i>}</span>
-                            <br />
-                            <T className={classes?.header}>Relations</T>
-                            <ul className={classes?.relations}>
-                                {info.relations.map(([left, right]) => {
-                                    console.log({ left, right })
-                                    const n = left === right ? left :
-                                        <span>{left}<span className={classes?.separator}>/</span>{right}</span>;
-                                    return <li key={`${left}/${right}`}>{n}</li>
-                                })}
-                            </ul>
-                        </CardContent>
-                        <CardActions style={{ paddingTop: 0, flexDirection: "row-reverse" }}>
-                            {
-                                defaultProject ? null :
-                                    <span>
-                                        <Button size="small" onClick={startEditing}><Edit /></Button>
-                                        <Button size="small" color="primary" onClick={startDestroying}><Clear /></Button>
-                                    </span>
-                            }
-                            <Button size="small" onClick={startCloning}><TT msg="clone this project"><FileCopy /></TT></Button>
-                        </CardActions>
-                    </Card>
-                })}
-                {this.editModal()}
-                {this.cloneModal()}
-                {this.destroyModal()}
+                <Grid container spacing={2}>
+                    {Object.entries(this.state.projects).map(([name, info]) => <ProjectCard proj={this} name={name} info={info} />)}
+                </Grid>
+                <EditModal proj={this} />
+                <CloneModal proj={this} />
+                <DestroyModal proj={this} />
             </div>
-        )
-    }
-
-    editModal() {
-        const cloneHandler = function () {
-
-        }
-        return (
-            <Dialog
-                open={this.state.editing != null}
-                aria-labelledby="edit-dialog-title"
-                aria-describedby="edit-dialog-description"
-            >
-                <DialogTitle id="edit-dialog-title">{"Clear all stored notes?"}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText id="edit-dialog-description">
-                        Clear all non-configuration information from Amanuensis.
-                        This means all notes, all tags, all relations, and all projects will be
-                        irretrievably gone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => this.setState({ editing: null })} >
-                        Cancel
-                    </Button>
-                    <Button onClick={cloneHandler} color="primary" autoFocus>
-                        Clone
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        )
-    }
-
-    cloneModal() {
-        const cloneHandler = function () {
-
-        }
-        return (
-            <Dialog
-                open={this.state.cloning != null}
-                aria-labelledby="clone-dialog-title"
-                aria-describedby="clone-dialog-description"
-            >
-                <DialogTitle id="clone-dialog-title">{"Clear all stored notes?"}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText id="clone-dialog-description">
-                        Clear all non-configuration information from Amanuensis.
-                        This means all notes, all tags, all relations, and all projects will be
-                        irretrievably gone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => this.setState({ cloning: null })} >
-                        Cancel
-                    </Button>
-                    <Button onClick={cloneHandler} color="primary" autoFocus>
-                        Clone
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        )
-    }
-
-    destroyModal() {
-        const cloneHandler = function () {
-
-        }
-        return (
-            <Dialog
-                open={!!this.state.destroying}
-                aria-labelledby="destroy-dialog-title"
-                aria-describedby="destroy-dialog-description"
-            >
-                <DialogTitle id="destroy-dialog-title">
-                    Clear all notes in the {this.state.destroying} project?
-                </DialogTitle>
-                <DialogContent>
-                    <DialogContentText id="destroy-dialog-description">
-                        This will remove all records of the {this.state.destroying}
-                        project.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => this.setState({ destroying: null })} >
-                        Cancel
-                    </Button>
-                    <Button onClick={() => this.destroy()} color="primary" autoFocus>
-                        Continue
-                    </Button>
-                </DialogActions>
-            </Dialog>
         )
     }
 
@@ -245,6 +73,191 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
 }
 
 export default Projects
+
+const projectStyles = makeStyles((theme) => ({
+    projects: {
+
+    },
+    card: {
+
+    },
+    title: {
+        fontSize: 14,
+    },
+    separator: {
+        display: 'inline-block',
+        margin: '0 2px',
+        transform: 'scale(0.8)'
+    },
+    description: {
+        margin: theme.spacing(1),
+    },
+    relations: {
+        margin: 0,
+        listStyleType: "none",
+    },
+    header: {
+        fontSize: 14,
+        fontWeight: "bold",
+    },
+}))
+
+function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info: ProjectInfo }) {
+    const classes = projectStyles()
+    const defaultProject = info.pk === 0
+    const appDefault = info.pk === proj.props.app.state.defaultProject
+    const startEditing = function () {
+        if (defaultProject) return
+        proj.setState({ editing: deepClone(info) })
+    }
+    const startCloning = function () {
+        proj.setState({ cloning: deepClone(info) })
+    }
+    const startDestroying = function () {
+        if (defaultProject) return
+        proj.setState({ destroying: name })
+    }
+    const makeDefaultProject = appDefault ? undefined : function () { proj.props.app.setState({ defaultProject: info.pk }) }
+    return (
+        <Grid item xs={12} key={info.pk}>
+            <Card className={classes.card} variant="outlined">
+                <CardContent style={{ paddingBottom: 0 }}>
+                    <Grid container spacing={1}>
+                        <Grid container item xs>
+                            <T className={classes?.title} component="h2">
+                                {name || <i color="secondary">no name</i>}
+                            </T>
+                        </Grid>
+                        <Grid container item xs>
+                            <T align="right" style={{ width: '100%' }}>
+                                <TT wrap msg="default project">
+                                    <Mark starred={appDefault} onClick={makeDefaultProject} />
+                                </TT>
+                            </T>
+                        </Grid>
+                    </Grid>
+                    <T variant="body2" className={classes.description} gutterBottom>
+                        {info.description}
+                    </T>
+                    <span className={classes.header}>Normalizer</span>
+                    <span style={{ marginLeft: '1rem' }}>{info.normalizer || <i>default</i>}</span>
+                    <br />
+                    <T className={classes.header}>Relations</T>
+                    <ul className={classes.relations}>
+                        {info.relations.map(([left, right]) => {
+                            console.log({ left, right })
+                            const n = left === right ? left :
+                                <span>{left}<span className={classes.separator}>/</span>{right}</span>;
+                            return <li key={`${left}/${right}`}>{n}</li>
+                        })}
+                    </ul>
+                </CardContent>
+                <CardActions style={{ paddingTop: 0, flexDirection: "row-reverse" }}>
+                    {
+                        defaultProject ? null :
+                            <span>
+                                <Button size="small" onClick={startEditing}><Edit /></Button>
+                                <Button size="small" color="primary" onClick={startDestroying}><Clear /></Button>
+                            </span>
+                    }
+                    <Button size="small" onClick={startCloning}><TT msg="clone this project"><FileCopy /></TT></Button>
+                </CardActions>
+            </Card>
+        </Grid>
+    )
+}
+
+function EditModal({ proj }: { proj: Projects }) {
+    const name = proj.state.editing?.pk ? proj.props.app.switchboard.index?.reverseProjectIndex.get(proj.state.editing?.pk) : null
+    const editHandler = () => {
+
+    }
+    return (
+        <Dialog
+            open={proj.state.editing != null}
+            aria-labelledby="edit-dialog-title"
+            aria-describedby="edit-dialog-description"
+        >
+            <DialogTitle id="edit-dialog-title">Edit project {name}</DialogTitle>
+            <DialogContent>
+                <DialogContentText id="edit-dialog-description">
+                    Clear all non-configuration information from {projectName}.
+                    This means all notes, all tags, all relations, and all projects will be
+                    irretrievably gone.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => proj.setState({ editing: null })} >
+                    Cancel
+                </Button>
+                <Button onClick={editHandler} color="primary" autoFocus>
+                    Clone
+                </Button>
+            </DialogActions>
+        </Dialog>
+    )
+}
+
+function CloneModal({ proj }: { proj: Projects }) {
+    const cloneHandler = function () {
+
+    }
+    return (
+        <Dialog
+            open={proj.state.cloning != null}
+            aria-labelledby="clone-dialog-title"
+            aria-describedby="clone-dialog-description"
+        >
+            <DialogTitle id="clone-dialog-title">{"Clear all stored notes?"}</DialogTitle>
+            <DialogContent>
+                <DialogContentText id="clone-dialog-description">
+                    Clear all non-configuration information from {projectName}.
+                    This means all notes, all tags, all relations, and all projects will be
+                    irretrievably gone.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => proj.setState({ cloning: null })} >
+                    Cancel
+                </Button>
+                <Button onClick={cloneHandler} color="primary" autoFocus>
+                    Clone
+                </Button>
+            </DialogActions>
+        </Dialog>
+    )
+}
+
+function DestroyModal({ proj }: { proj: Projects }) {
+    const cloneHandler = function () {
+
+    }
+    return (
+        <Dialog
+            open={!!proj.state.destroying}
+            aria-labelledby="destroy-dialog-title"
+            aria-describedby="destroy-dialog-description"
+        >
+            <DialogTitle id="destroy-dialog-title">
+                Clear all notes in the {proj.state.destroying} project?
+            </DialogTitle>
+            <DialogContent>
+                <DialogContentText id="destroy-dialog-description">
+                    This will remove all records of the {proj.state.destroying}
+                    project.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => proj.setState({ destroying: null })} >
+                    Cancel
+                </Button>
+                <Button onClick={() => proj.destroy()} color="primary" autoFocus>
+                    Continue
+                </Button>
+            </DialogActions>
+        </Dialog>
+    )
+}
 
 function ProjectDetails() {
     return (

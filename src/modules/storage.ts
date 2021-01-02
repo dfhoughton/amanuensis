@@ -31,8 +31,8 @@ export class Index {
         if (this.projectIndices.size === 0) {
             // add the default project
             const project = this.makeDefaultProject()
-            this.projects.set('', project)
-            this.projectIndices.set(0, new Map())
+            this.projects.set(project.name, project)
+            this.projectIndices.set(project.pk, new Map())
             const storable = { projects: m2a(this.projects) }
             this.chrome.storage.local.set(storable)
         }
@@ -494,8 +494,8 @@ export class Index {
                     this.tags.clear()
                     // restore the default project
                     const project = this.makeDefaultProject()
-                    this.projects.set('', project)
-                    this.projectIndices.set(0, new Map())
+                    this.projects.set(project.name, project)
+                    this.projectIndices.set(project.pk, new Map())
                     const storable = { projects: m2a(this.projects) }
                     this.chrome.storage.local.set(storable) // if this fails no harm done
                     resolve()

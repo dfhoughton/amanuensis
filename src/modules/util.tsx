@@ -1,23 +1,25 @@
 import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Typography } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
-import { Help } from '@material-ui/icons'
+import { Help, Star, StarBorder } from '@material-ui/icons'
 import { ReactElement } from 'react'
 
 interface TTProps {
     children: ReactElement,
     msg: string,
+    wrap?: boolean,
     placement?: "top-start" | "top" | "top-end" | "right-start" | "right" | "right-end" | "bottom-start" | "bottom" | "bottom-end" | "left-start" | "left" | "left-end"
 }
 
 // decorate an element with a tooltip
-export function TT({ children, msg, placement }: TTProps): ReactElement {
+export function TT({ children, msg, placement, wrap }: TTProps): ReactElement {
+    const child = wrap ? <span>{children}</span> : children
     if (placement) {
         return (
-            <Tooltip title={msg} placement={placement} arrow>{children}</Tooltip>
+            <Tooltip title={msg} placement={placement} arrow>{child}</Tooltip>
         )
     } else {
         return (
-            <Tooltip title={msg} arrow>{children}</Tooltip>
+            <Tooltip title={msg} arrow>{child}</Tooltip>
         )
     }
 }
@@ -59,4 +61,20 @@ export function Details({ children, header, otherAccordions }: { children: React
             </Accordion>
         </div>
     )
+}
+
+const starStyles = makeStyles((theme) => ({
+    unstarred: {
+        color: theme.palette.grey[500]
+    },
+    pointy: {
+        cursor: 'pointer',
+    }
+}))
+
+// for making a gold/grey-bordered star for bookmarks and such
+export function Mark({ starred, onClick }: { starred: boolean, onClick?: () => void }) {
+    const classes = starStyles()
+    const cz = onClick ? ( starred ? classes.pointy : `${classes.unstarred} ${classes.pointy}`) : ( starred ? '' : classes.unstarred )
+    return starred ? <Star color="secondary" onClick={onClick} className={cz}/> : <StarBorder className={cz} onClick={onClick} />
 }

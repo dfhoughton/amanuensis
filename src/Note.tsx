@@ -2,15 +2,16 @@ import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
-import { TT } from './modules/util'
+import { Mark, TT } from './modules/util'
 
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
 
-import { Star, StarBorder, Save } from '@material-ui/icons'
+import { Save } from '@material-ui/icons'
 import { App } from './App'
+import { Grid, Typography as T } from '@material-ui/core'
 
 const hash = require('object-hash')
 
@@ -256,8 +257,8 @@ const headerStyles = makeStyles((theme) => ({
 
     },
     date: {
-        textAlign: 'right',
         fontSize: 'smaller',
+        width: '100%',
         color: theme.palette.grey[500],
     }
 }))
@@ -267,12 +268,18 @@ function Header(props: { time?: Date[], switchboard: SwitchBoard, project: numbe
     const classes = headerStyles()
     let t = time ? time[0] : null, date
     const project = switchboard.index?.reverseProjectIndex.get(realm)
-    return <div className={classes.root}>
-        <div>{project}</div>
-        <div className={classes.date}>
-            {t?.toLocaleDateString()}
-        </div>
-    </div>
+    return (
+        <Grid container spacing={1}>
+            <Grid container item xs>
+                <T>{project}</T> // TODO make this a selector
+            </Grid>
+            <Grid container item xs>
+                <T align="right" className={classes.date}>
+                    {t?.toLocaleDateString()} // TODO make this a list of dates
+                </T>
+            </Grid>
+        </Grid>
+    )
 }
 
 const widgetStyles = makeStyles((theme) => ({
@@ -286,14 +293,10 @@ const widgetStyles = makeStyles((theme) => ({
     save: {
         color: theme.palette.warning.dark
     },
-    unstarred: {
-        color: theme.palette.grey[500]
-    },
 }))
 
 function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => void, save: () => void }) {
     const classes = widgetStyles()
-    const star = props.starred ? <Star color="secondary" /> : <StarBorder className={classes.unstarred} />
     const save = !props.unsaved ?
         null :
         <div onClick={props.save}>
@@ -302,7 +305,7 @@ function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => voi
             </TT>
         </div>
     return <div className={classes.root}>
-        <div onClick={props.star}><TT msg="bookmark" placement="left">{star}</TT></div>
+        <div onClick={props.star}><TT msg="bookmark" placement="left"><Mark starred={props.starred}/></TT></div>
         {save}
     </div>
 }
