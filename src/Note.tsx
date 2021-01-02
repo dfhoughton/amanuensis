@@ -2,7 +2,7 @@ import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
 import SwitchBoard from './modules/switchboard'
-import { Mark, TT } from './modules/util'
+import { debounce, Mark, TT } from './modules/util'
 
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
@@ -27,9 +27,8 @@ export interface NoteState extends NoteRecord {
 
 class Note extends React.Component<NoteProps, NoteState> {
     savedState: NoteState
-    debouncedCheckSavedState: () => void
-    checkSavedState: () => void
     app: App
+    debouncedCheckSavedState: () => void
     constructor(props: Readonly<NoteProps>) {
         super(props);
         this.app = props.app
@@ -47,14 +46,8 @@ class Note extends React.Component<NoteProps, NoteState> {
             selection: (msg) => { this.showSelection(msg) }
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
+        this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
         let i: NodeJS.Timeout | undefined
-        this.checkSavedState = () => this.setState({ unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "citationIndex") })
-        this.debouncedCheckSavedState = function () {
-            if (i) {
-                clearInterval(i)
-            }
-            i = setTimeout(this.checkSavedState, 200)
-        }
     }
 
     render() {
@@ -85,6 +78,12 @@ class Note extends React.Component<NoteProps, NoteState> {
     componentWillUnmount() {
         this.app.makeHistory(this.state, this.savedState)
         this.app.switchboard.removeActions("selection")
+    }
+
+    checkSavedState() {
+        this.setState({
+            unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "citationIndex")
+        })
     }
 
     nullState(): NoteState {
@@ -271,11 +270,11 @@ function Header(props: { time?: Date[], switchboard: SwitchBoard, project: numbe
     return (
         <Grid container spacing={1}>
             <Grid container item xs>
-                <T>{project}</T> // TODO make this a selector
+                <T>{project}</T> {/* TODO make this a selector */}
             </Grid>
             <Grid container item xs>
                 <T align="right" className={classes.date}>
-                    {t?.toLocaleDateString()} // TODO make this a list of dates
+                    {t?.toLocaleDateString()} {/* TODO make this a list of dates */}
                 </T>
             </Grid>
         </Grid>
@@ -305,7 +304,7 @@ function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => voi
             </TT>
         </div>
     return <div className={classes.root}>
-        <div onClick={props.star}><TT msg="bookmark" placement="left"><Mark starred={props.starred}/></TT></div>
+        <div onClick={props.star}><TT msg="bookmark" placement="left"><Mark starred={props.starred} /></TT></div>
         {save}
     </div>
 }

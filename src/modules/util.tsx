@@ -75,6 +75,20 @@ const starStyles = makeStyles((theme) => ({
 // for making a gold/grey-bordered star for bookmarks and such
 export function Mark({ starred, onClick }: { starred: boolean, onClick?: () => void }) {
     const classes = starStyles()
-    const cz = onClick ? ( starred ? classes.pointy : `${classes.unstarred} ${classes.pointy}`) : ( starred ? '' : classes.unstarred )
-    return starred ? <Star color="secondary" onClick={onClick} className={cz}/> : <StarBorder className={cz} onClick={onClick} />
+    const cz = onClick ? (starred ? classes.pointy : `${classes.unstarred} ${classes.pointy}`) : (starred ? '' : classes.unstarred)
+    return starred ? <Star color="secondary" onClick={onClick} className={cz} /> : <StarBorder className={cz} onClick={onClick} />
+}
+
+// create a debounced version of a function
+//   debounce()(() => this.setState({ foo: 1 }))
+export function debounce(interval: number = 200): (f: () => void) => () => void {
+    let i: NodeJS.Timeout | undefined
+    return function (f: () => void) {
+        return function () {
+            if (i) {
+                clearInterval(i)
+            }
+            i = setTimeout(f, interval)
+        }
+    }
 }

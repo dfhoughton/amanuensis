@@ -1,7 +1,7 @@
 import React from 'react'
 import { Details, Mark, TT } from './modules/util'
 import { App, projectName } from './App'
-import { Button, Card, CardActions, CardContent, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, makeStyles, Typography as T } from '@material-ui/core'
+import { Button, Card, CardActions, CardContent, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, makeStyles, TextField, Typography as T } from '@material-ui/core'
 import { Clear, Edit, FileCopy } from '@material-ui/icons'
 import { ProjectInfo } from './modules/types'
 import { deepClone } from './modules/clone'
@@ -199,6 +199,8 @@ function EditModal({ proj }: { proj: Projects }) {
 }
 
 function CloneModal({ proj }: { proj: Projects }) {
+    // the name needs to change but the primary key won't
+    const name = proj.state.cloning == null ? null : proj.props.app.switchboard.index?.reverseProjectIndex.get(proj.state.cloning.pk)
     const cloneHandler = function () {
 
     }
@@ -208,13 +210,18 @@ function CloneModal({ proj }: { proj: Projects }) {
             aria-labelledby="clone-dialog-title"
             aria-describedby="clone-dialog-description"
         >
-            <DialogTitle id="clone-dialog-title">{"Clear all stored notes?"}</DialogTitle>
+            <DialogTitle id="clone-dialog-title">
+                Duplicating {name} to create a new project
+            </DialogTitle>
             <DialogContent>
                 <DialogContentText id="clone-dialog-description">
                     Clear all non-configuration information from {projectName}.
                     This means all notes, all tags, all relations, and all projects will be
                     irretrievably gone.
                 </DialogContentText>
+                <form>
+                    <TextField id="clone-form-name" label="name" />
+                </form>
             </DialogContent>
             <DialogActions>
                 <Button onClick={() => proj.setState({ cloning: null })} >
@@ -229,9 +236,6 @@ function CloneModal({ proj }: { proj: Projects }) {
 }
 
 function DestroyModal({ proj }: { proj: Projects }) {
-    const cloneHandler = function () {
-
-    }
     return (
         <Dialog
             open={!!proj.state.destroying}
