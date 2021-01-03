@@ -18,16 +18,14 @@ export class Index {
     chrome: Chrome                                   // the chrome API
     projects: Map<string, ProjectInfo>               // an index from project names to ProjectInfo records
     currentProject: number                           // the primary key of the project the user set as the default (as opposed to the catch-all default project)
-    index: Map<string, number[]>                     // an index from normalized phrases to the primary keys of projects in which there are records for these phrases
     projectIndices: Map<number, Map<string, number>> // an index from project primary keys to indices from phrases normalized by the respective project's normalizer to that phrase's primary key for the project
     tags: Set<string>                                // the set of all tags used in a phrase in any project
     reverseProjectIndex: Map<number, string>         // an index from ProjectInfo primary keys to names
     cache: Map<KeyPair, NoteRecord>                  // a mechanism to avoid unnecessary calls to fetch things from chrome storage
-    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, index: Map<string, number[]>, projectIndices: Map<number, Map<string, number>>, tags: Set<string>) {
+    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, projectIndices: Map<number, Map<string, number>>, tags: Set<string>) {
         this.chrome = chrome
         this.projects = projects
         this.currentProject = currentProject
-        this.index = index // TODO repace this -- there can be no master index, only per-normalizer indices
         this.projectIndices = projectIndices
         this.tags = tags
         if (this.projectIndices.size === 0) {
@@ -139,8 +137,13 @@ export class Index {
                     }
                 }
             } else {
-                const projects = this.index.get(this.defaultNormalize(phrase))
-                if (projects) {
+                const projects: number[] = []
+                this.projectIndices.forEach((map, pk, _map) => {
+                    if (this.projectIndex(phrase, pk) != null) {
+                        projects.push(pk)
+                    }
+                })
+                if (projects.length) {
                     if (projects.length === 1) {
                         [, projectInfo] = this.findProject(projects[0])
                         const key = this.key(phrase, projectInfo) as string
@@ -169,15 +172,7 @@ export class Index {
         return new Promise((resolve, reject) => {
             const storable: { [key: string]: any } = {}
             const [, projectInfo] = this.findProject(project)
-            let key = this.defaultNormalize(phrase)
-            const projects = this.index.get(key) || []
-            if (projects.indexOf(projectInfo.pk) === -1) {
-                projects.push(projectInfo.pk)
-                storable.projects = m2a(this.projects)
-                this.index.set(key, projects)
-                storable.index = m2a(this.index)
-            }
-            key = this.normalize(phrase, projectInfo)
+            const key = this.normalize(phrase, projectInfo)
             let projectIndex = this.projectIndices.get(projectInfo.pk) || new Map()
             let pk = projectIndex.get(key)
             if (pk == null) {
@@ -474,6 +469,7 @@ export class Index {
         }
         return null
     }
+    // return the pk, if any, of a phrase within a project
     projectIndex(phrase: string, project: ProjectIdentifier): number | null {
         const [, projectInfo] = this.findProject(project)
         const idx = this.projectIndices.get(projectInfo.pk) as Map<string, number>
@@ -506,7 +502,6 @@ export class Index {
                     reject(this.chrome.runtime.lastError)
                 } else {
                     this.cache.clear()
-                    this.index.clear()
                     this.projectIndices.clear()
                     this.projects.clear()
                     this.reverseProjectIndex.clear()
@@ -527,11 +522,11 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['projects', 'currentProject', 'index', 'tags'], (result) => {
+        chrome.storage.local.get(['projects', 'currentProject', 'tags'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { projects = [], currentProject = 0, index = [], tags = [] } = result || {}
+                let { projects = [], currentProject = 0, tags = [] } = result || {}
                 // now that we have the project we can fetch the project indices
                 const indices: string[] = []
                 for (const [, projectInfo] of projects) {
@@ -545,7 +540,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         for (const [idx, ridx] of Object.entries(result)) {
                             projectIndices.set(Number.parseInt(idx), new Map(ridx))
                         }
-                        resolve(new Index(chrome, new Map(projects), currentProject, new Map(index), projectIndices, new Set(tags)))
+                        resolve(new Index(chrome, new Map(projects), currentProject, projectIndices, new Set(tags)))
                     }
                 })
             }

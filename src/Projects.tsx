@@ -56,13 +56,13 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
     destroy() {
         if (this.state.action === 'destroying') {
             const name = this.state.modifying!.name
-            this.props.app.switchboard.index!.removeProject(name)
+            this.props.app.switchboard.index!.removeProject(this.state.modifying!.pk)
                 .then(() => {
-                    const projects = this.initProjects()
+                    this.initProjects()
                     this.setState({ action: null, modifying: null })
                     this.props.app.success(`Removed project ${name}`)
                 })
-                .catch((error) => this.props.app.error(`Could not remove project ${this.state.modifying!.name}: ${error}`))
+                .catch((error) => this.props.app.error(`Could not remove project ${name}: ${error}`))
         } else {
             this.props.app.warn("No project to remove")
         }
@@ -382,7 +382,9 @@ function DestroyModal({ proj }: { proj: Projects }) {
             </DialogTitle>
             <DialogContent>
                 <DialogContentText id="destroy-dialog-description">
-                    This will remove all records of the {name} project.
+                    This will remove all records of the {name} project, both the notes and the records
+                    of the project itself. Any note in another project related via the "see also" relation
+                    to a note in this project will lose that relation.
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
