@@ -1,11 +1,15 @@
 import React from 'react'
 import { Details, Mark, TT } from './modules/util'
-import { App, projectName } from './App'
-import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, makeStyles, TextField, Typography as T } from '@material-ui/core'
+import { App } from './App'
+import {
+    Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+    FormControl, Grid, InputLabel, makeStyles, MenuItem, Select, TextField, Typography as T
+} from '@material-ui/core'
 import { Clear, Edit, FileCopy } from '@material-ui/icons'
 import { ProjectInfo } from './modules/types'
 import { deepClone } from './modules/clone'
 import { Autocomplete, createFilterOptions } from '@material-ui/lab'
+import { normalizers } from './modules/storage'
 
 interface ProjectsProps {
     app: App,
@@ -178,7 +182,7 @@ const changeStyles = makeStyles((theme) => ({
         '&:first-child': {
             marginTop: 0,
         }
-    }
+    },
 }))
 
 const relationFilterOptions = createFilterOptions({
@@ -232,9 +236,6 @@ function ChangeModal({ proj }: { proj: Projects }) {
             </DialogTitle>
             <DialogContent>
                 <DialogContentText>
-                    <T>
-                        Currently all projects must use the default normalizer.
-                    </T>
                     <form>
                         <TextField
                             id="clone-form-name"
@@ -264,6 +265,21 @@ function ChangeModal({ proj }: { proj: Projects }) {
                             defaultValue={proj.state.modifying!.description}
                             placeholder="Describe what this project is for"
                         />
+                        <FormControl className={classes.text}>
+                            <InputLabel id="change-form-normalizer-label">Normalizer</InputLabel>
+                            <Select
+                                labelId="change-form-normalizer-label"
+                                id="change-form-normalizer"
+                                value={proj.state.modifying!.normalizer}
+                                onChange={(event) => {
+                                    const modifying = deepClone(proj.state.modifying)
+                                    modifying.normalizer = event.target.value
+                                    proj.setState({ modifying })
+                                }}
+                            >
+                                {Object.entries(normalizers).map(([name, n], i) => <MenuItem value={name}>{n.name}</MenuItem>)}
+                            </Select>
+                        </FormControl>
                         <Autocomplete
                             id="clone-form-relations"
                             className={classes.text}
@@ -278,7 +294,6 @@ function ChangeModal({ proj }: { proj: Projects }) {
                                 <TextField
                                     {...params}
                                     label="Relations"
-                                    variant="outlined"
                                     error={!!relationError}
                                     helperText={
                                         relationError || <T>
@@ -382,7 +397,15 @@ function DestroyModal({ proj }: { proj: Projects }) {
     )
 }
 
+const detailsStyle = makeStyles((theme) => ({
+    name: {
+        verticalAlign: 'top',
+        fontWeight: 'bold',
+    }
+}))
+
 function ProjectDetails() {
+    const classes = detailsStyle()
     return (
         <Details header="Projects">
             <div>
@@ -422,6 +445,15 @@ function ProjectDetails() {
                     the same, all capitalization as the same, disregards all diacrictics (so <i>coöperate</i> and <i>cooperate</i> are
                     treated as equivalent), and ignores anything other than a letter or a number.
                 </p>
+                <p>The normalizers currently defined:</p>
+                <table>
+                    <thead>
+                        <tr><th>Name</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        {Object.values(normalizers).map((n) => <tr><td className={classes.name}>{n.name}</td><td>{n.description}</td></tr>)}
+                    </tbody>
+                </table>
                 <h3>Relations</h3>
                 <p>
                     Relations are a way to tie one note to another. The default relation every project has is "see also".
