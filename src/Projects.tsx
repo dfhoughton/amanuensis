@@ -16,16 +16,15 @@ interface ProjectProps {
 }
 
 interface ProjectState {
-    cloning: ProjectInfo | null, // the project currently being cloned
-    destroying: string | null,   // the project currently being destroyed
-    editing: ProjectInfo | null, // the project currently being edited
+    action: 'cloning' | 'editing' | 'destroying' | null,
+    modifying: ProjectInfo | null, // the project currently being modified
     projects: { [name: string]: ProjectInfo }
 }
 
 class Projects extends React.Component<ProjectProps, ProjectState> {
     constructor(props: ProjectsProps) {
         super(props)
-        this.state = { cloning: null, destroying: null, editing: null, projects: {} }
+        this.state = { action: null, modifying: null, projects: {} }
     }
     componentDidMount() {
         this.props.app.switchboard.then(() => this.initProjects())
@@ -37,8 +36,7 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                 <Grid container spacing={2}>
                     {Object.entries(this.state.projects).map(([name, info]) => <ProjectCard proj={this} name={name} info={info} />)}
                 </Grid>
-                <EditModal proj={this} />
-                <CloneModal proj={this} />
+                <ChangeModal proj={this} />
                 <DestroyModal proj={this} />
             </div>
         )
@@ -52,40 +50,34 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
 
     // destroy the project marked for destruction
     destroy() {
-        if (this.state.destroying) {
-            this.props.app.switchboard.index?.removeProject(this.state.destroying)
+        if (this.state.action === 'destroying') {
+            const name = this.state.modifying!.name
+            this.props.app.switchboard.index!.removeProject(name)
                 .then(() => {
-                    const destroyed = this.state.destroying
-                    const projects = deepClone(this.state.projects)
-                    let pk
-                    if (destroyed != null) {
-                        pk = projects[destroyed].pk
-                        delete projects[destroyed]
-                        if (this.props.app.state.defaultProject === pk) {
-                            this.props.app.setState({ defaultProject: 0 })
-                        }
-                    }
-                    this.setState({ destroying: null, projects })
-                    this.props.app.notify(`Removed project ${destroyed}`)
+                    const projects = this.initProjects()
+                    this.setState({ action: null, modifying: null })
+                    this.props.app.success(`Removed project ${name}`)
                 })
-                .catch((error) => this.props.app.error(`Could not remove project ${this.state.destroying}: ${error}`))
+                .catch((error) => this.props.app.error(`Could not remove project ${this.state.modifying!.name}: ${error}`))
         } else {
             this.props.app.warn("No project to remove")
         }
     }
 
     // turn state.cloning into a new project
-    makeProject() {
-        if (this.state.cloning) {
-            const proj = deepClone(this.state.cloning) || {}
+    alterProject() {
+        const action = this.state.action
+        if (action === 'cloning' || action === 'editing') {
+            const proj = deepClone(this.state.modifying) || {}
             delete proj.pk
             this.props.app.switchboard.index!.saveProject(proj)
                 .then((pk) => {
-                    this.setState({ cloning: null })
                     this.initProjects()
-                    this.props.app.notify(`Created project ${proj.name} (primary key: ${pk})`, 'success')
+                    this.setState({ action: null, modifying: null })
+                    const verb = action === 'cloning' ? 'Created' : 'Edited'
+                    this.props.app.success(`${verb} project ${proj.name} (primary key: ${pk})`)
                 })
-                .catch((error) => this.props.app.error(`Could not create new project ${proj.name}: ${error}`))
+                .catch((error) => this.props.app.error(`Could not ${action === 'cloning' ? 'create new' : 'edit'} project ${proj.name}: ${error}`))
         } else {
             // should be unreachable
             this.props.app.error("makeProject called when none is staged")
@@ -98,11 +90,6 @@ export default Projects
 const projectStyles = makeStyles((theme) => ({
     title: {
         fontSize: 14,
-    },
-    separator: {
-        display: 'inline-block',
-        margin: '0 2px',
-        transform: 'scale(0.8)'
     },
     description: {
         margin: theme.spacing(1),
@@ -123,16 +110,20 @@ function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info:
     const appDefault = info.pk === proj.props.app.state.defaultProject
     const startEditing = function () {
         if (defaultProject) return
-        proj.setState({ editing: deepClone(info) })
+        proj.setState({ action: 'editing', modifying: deepClone(info) })
     }
     const startCloning = function () {
-        proj.setState({ cloning: deepClone(info) })
+        proj.setState({ action: 'cloning', modifying: deepClone(info) })
     }
     const startDestroying = function () {
         if (defaultProject) return
-        proj.setState({ destroying: name })
+        proj.setState({ action: 'destroying', modifying: deepClone(info) })
     }
-    const makeDefaultProject = appDefault ? undefined : function () { proj.props.app.setState({ defaultProject: info.pk }) }
+    const makeDefaultProject = appDefault ? undefined : function () {
+        proj.props.app.switchboard.index?.setCurrentProject(info.pk)
+            .then(() => proj.props.app.setState({ defaultProject: info.pk }))
+            .catch((error) => proj.props.app.error(`Could not change default project: ${error}`))
+    }
     return (
         <Grid item xs={12} key={info.pk}>
             <Card variant="outlined">
@@ -160,8 +151,7 @@ function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info:
                     <T className={classes.header}>Relations</T>
                     <ul className={classes.relations}>
                         {info.relations.map(([left, right]) => {
-                            const n = left === right ? left :
-                                <span>{left}<span className={classes.separator}>/</span>{right}</span>;
+                            const n = left === right ? left : <PairedRelation left={left} right={right} />
                             return <li key={`${left}/${right}`}>{n}</li>
                         })}
                     </ul>
@@ -181,40 +171,7 @@ function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info:
     )
 }
 
-function EditModal({ proj }: { proj: Projects }) {
-    if (proj.state.editing == null) {
-        return null
-    }
-    const name = proj.state.editing?.pk ? proj.props.app.switchboard.index?.reverseProjectIndex.get(proj.state.editing?.pk) : null
-    const editHandler = () => {
-
-    }
-    return (
-        <Dialog
-            open={proj.state.editing != null}
-            aria-labelledby="edit-dialog-title"
-            aria-describedby="edit-dialog-description"
-        >
-            <DialogTitle id="edit-dialog-title">Edit project {name}</DialogTitle>
-            <DialogContent>
-                <DialogContentText id="edit-dialog-description">
-                    Clear all non-configuration information from {projectName}.
-                    This means all notes, all tags, all relations, and all projects will be
-                    irretrievably gone.
-                </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={() => proj.setState({ editing: null })} >
-                    Cancel
-                </Button>
-                <Button onClick={editHandler} color="primary" autoFocus>
-                    Clone
-                </Button>
-            </DialogActions>
-        </Dialog>
-    )
-}
-const cloneStyles = makeStyles((theme) => ({
+const changeStyles = makeStyles((theme) => ({
     text: {
         width: '100%',
         marginTop: theme.spacing(1),
@@ -231,26 +188,28 @@ const relationFilterOptions = createFilterOptions({
     },
 })
 
-function CloneModal({ proj }: { proj: Projects }) {
-    if (proj.state.cloning == null) {
+function ChangeModal({ proj }: { proj: Projects }) {
+    const action = proj.state.action
+    if (!(action === 'cloning' || action === 'editing')) {
         return null
     }
-    const classes = cloneStyles()
-    // the name will change but the primary key will not
-    const name = proj.props.app.switchboard.index!.reverseProjectIndex.get(proj.state.cloning!.pk)
+    const classes = changeStyles()
+    // the name may change but the primary key will not
+    const name = proj.props.app.switchboard.index!.reverseProjectIndex.get(proj.state.modifying!.pk)
+    const modifyingName = proj.state.modifying!.name
     let allRelations: [string, string][] = []
     for (const p of Object.values(proj.state.projects)) {
         allRelations = allRelations.concat(p.relations)
     }
-    allRelations = Array.from(new Set(allRelations))
+    allRelations = Array.from(new Set(allRelations.map((r) => JSON.stringify(r)))).map((r) => JSON.parse(r))
     let nameError: string | undefined
-    if (!/\S/.test(proj.state.cloning?.name || '')) {
+    if (!/\S/.test(proj.state.modifying!.name)) {
         nameError = "required"
-    } else if (proj.state.projects[proj.state.cloning!.name]) {
-        nameError = "not unique"
+    } else if (proj.state.projects[modifyingName] && (action !== 'editing' || name !== modifyingName)) {
+        nameError = 'already in use'
     }
     let relationError: string | undefined
-    for (const [left, right] of proj.state.cloning!.relations) {
+    for (const [left, right] of proj.state.modifying!.relations) {
         if (relationError) {
             break
         }
@@ -258,16 +217,18 @@ function CloneModal({ proj }: { proj: Projects }) {
             relationError = '"see also" can only be symmetric'
         } else if (right.indexOf('/') >= 0) {
             relationError = 'the character "/" can only be used to separate non-symmetric relations'
+        } else if (!(/\S/.test(left) && /\S/.test(right))) {
+            relationError = 'relation names must not be blank'
         }
     }
     return (
         <Dialog
-            open={proj.state.cloning != null}
+            open
             aria-labelledby="clone-dialog-title"
             aria-describedby="clone-dialog-description"
         >
             <DialogTitle id="clone-dialog-title">
-                Duplicating {name || 'the default project'}
+                {action === 'editing' ? 'Editing' : 'Duplicationg'} {name || 'the default project'}
             </DialogTitle>
             <DialogContent>
                 <DialogContentText>
@@ -280,27 +241,27 @@ function CloneModal({ proj }: { proj: Projects }) {
                             label="Name"
                             className={classes.text}
                             onChange={(e) => {
-                                const newCloning = deepClone(proj.state.cloning)
-                                newCloning.name = e.target.value
-                                proj.setState({ cloning: newCloning })
+                                const modifying = deepClone(proj.state.modifying)
+                                modifying.name = e.target.value
+                                proj.setState({ modifying })
                             }}
                             error={!!nameError}
                             helperText={nameError}
                             spellCheck={false}
-                            defaultValue={proj.state.cloning?.name}
+                            defaultValue={proj.state.modifying!.name}
                         />
                         <TextField
                             id="clone-form-descriptiomn"
                             label="Description"
                             className={classes.text}
                             onChange={(e) => {
-                                const newCloning = deepClone(proj.state.cloning)
-                                newCloning.description = e.target.value
-                                proj.setState({ cloning: newCloning })
+                                const modifying = deepClone(proj.state.modifying)
+                                modifying.description = e.target.value
+                                proj.setState({ modifying })
                             }}
                             multiline
                             error={false}
-                            defaultValue={proj.state.cloning?.description}
+                            defaultValue={proj.state.modifying!.description}
                             placeholder="Describe what this project is for"
                         />
                         <Autocomplete
@@ -312,7 +273,7 @@ function CloneModal({ proj }: { proj: Projects }) {
                             autoComplete
                             limitTags={3}
                             size="small"
-                            defaultValue={proj.state.cloning!.relations}
+                            defaultValue={proj.state.modifying!.relations}
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
@@ -329,23 +290,17 @@ function CloneModal({ proj }: { proj: Projects }) {
                             renderTags={
                                 (value, getTagProps) =>
                                     value.map(
-                                        (obj, index) =>
-                                            {
-                                                let left, right
-                                                if (Array.isArray(obj)) {
-                                                    [ left, right ] = obj
-                                                } else {
-                                                    left = right = obj
-                                                }
-                                                return <Chip
-                                                    variant="outlined"
-                                                    label={left === right ? left : `${left} / ${right}`}
-                                                    {...getTagProps({index})}
-                                                />
-                                            }
-                                        )
+                                        (obj, index) => {
+                                            const [left, right] = Array.isArray(obj) ? obj : stringToRelation(obj)
+                                            return <Chip
+                                                variant="outlined"
+                                                label={left === right ? left : <PairedRelation left={left} right={right} />}
+                                                {...getTagProps({ index })}
+                                            />
+                                        }
+                                    )
                             }
-                            renderOption={([left, right]) => left === right ? left : `${left} / ${right}`}
+                            renderOption={([left, right]) => left === right ? left : <PairedRelation left={left} right={right} />}
                             filterOptions={relationFilterOptions}
                             onChange={(_event, value, _reason) => {
                                 const relations = []
@@ -353,52 +308,70 @@ function CloneModal({ proj }: { proj: Projects }) {
                                     if (Array.isArray(r)) {
                                         relations.push(r)
                                     } else {
-                                        const [left, ...right] = r.split('/').map((s) => s.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' '))
-                                        const other = right.join('/')
-                                        relations.push([left, other ? other : left])
+                                        relations.push(stringToRelation(r))
                                     }
                                 }
-                                const cloning = deepClone(proj.state.cloning)
-                                cloning.relations = relations
-                                proj.setState({ cloning })
+                                const modifying = deepClone(proj.state.modifying)
+                                modifying.relations = Array.from(new Set(relations.map((r) => JSON.stringify(r)))).map((r) => JSON.parse(r))
+                                proj.setState({ modifying })
                             }}
                         />
                     </form>
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={() => proj.setState({ cloning: null })} >
+                <Button onClick={() => proj.setState({ action: null, modifying: null })} >
                     Cancel
                 </Button>
-                <Button onClick={() => proj.makeProject()} color="primary" autoFocus disabled={!!(nameError || relationError)}>
-                    Clone
+                <Button onClick={() => proj.alterProject()} color="primary" autoFocus disabled={!!(nameError || relationError)}>
+                    Save
                 </Button>
             </DialogActions>
         </Dialog>
     )
 }
 
+function stringToRelation(r: string) {
+    const [left, ...right] = r.split('/').map((s) => s.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' '))
+    const other = right.join('/')
+    return [left, other ? other : left]
+}
+
+const separatorStyle = makeStyles((theme) => ({
+    sep: {
+        marginLeft: theme.spacing(1),
+        marginRight: theme.spacing(1),
+        color: theme.palette.grey[500],
+        fontWeight: 'bold',
+    }
+}))
+
+function PairedRelation({ left, right }: { left: string, right: string }) {
+    const classes = separatorStyle()
+    return <span>{left}<span className={classes.sep}>/</span>{right}</span>
+}
+
 function DestroyModal({ proj }: { proj: Projects }) {
-    if (proj.state.destroying == null) {
+    if (proj.state.action !== 'destroying') {
         return null
     }
+    const name = proj.state.modifying!.name
     return (
         <Dialog
-            open={!!proj.state.destroying}
+            open
             aria-labelledby="destroy-dialog-title"
             aria-describedby="destroy-dialog-description"
         >
             <DialogTitle id="destroy-dialog-title">
-                Clear all notes in the {proj.state.destroying} project?
+                Clear all notes in the {name} project?
             </DialogTitle>
             <DialogContent>
                 <DialogContentText id="destroy-dialog-description">
-                    This will remove all records of the {proj.state.destroying}
-                    project.
+                    This will remove all records of the {name} project.
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={() => proj.setState({ destroying: null })} >
+                <Button onClick={() => proj.setState({ action: null, modifying: null })} >
                     Cancel
                 </Button>
                 <Button onClick={() => proj.destroy()} color="primary" autoFocus>

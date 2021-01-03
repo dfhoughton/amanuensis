@@ -50,6 +50,7 @@ export interface ProjectInfo {
 export type ProjectIdentifier = string | number | ProjectInfo;
 
 export interface Normalizer {
+    pk: number,
     name: string,
     description: string,
     code: (phrase: string) => string,

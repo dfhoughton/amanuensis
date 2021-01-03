@@ -75,6 +75,14 @@ class Note extends React.Component<NoteProps, NoteState> {
         );
     }
 
+    componentDidMount() {
+        if (!this.isSaved()) {
+            this.app.switchboard.then(() => {
+                this.setState({ project: this.app.switchboard.index!.currentProject })
+            })
+        }
+    }
+
     componentWillUnmount() {
         this.app.makeHistory(this.state, this.savedState)
         this.app.switchboard.removeActions("selection")
@@ -113,6 +121,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                             break
                         case 'found':
                             // check to see whether any of the citations are missing
+                            // TODO make sure this works
                             const keys = new Set(Object.values(this.state.relations).reduce((acc, pairs) => acc.concat(pairs), []))
                             this.app.switchboard.index?.missing(keys)
                                 .then((missing) => {
@@ -215,7 +224,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         break
                     case "none":
                         this.setState({
-                            project: 0,
+                            project: this.app.switchboard.index!.currentProject,
                             details: "",
                             tags: [],
                             citations: [citation],
@@ -252,8 +261,10 @@ class Note extends React.Component<NoteProps, NoteState> {
 export default Note;
 
 const headerStyles = makeStyles((theme) => ({
-    root: {
-
+    project: {
+        fontSize: 'smaller',
+        fontWeight: 'bold',
+        color: theme.palette.grey[500],
     },
     date: {
         fontSize: 'smaller',
@@ -270,7 +281,7 @@ function Header(props: { time?: Date[], switchboard: SwitchBoard, project: numbe
     return (
         <Grid container spacing={1}>
             <Grid container item xs>
-                <T>{project}</T> {/* TODO make this a selector */}
+                <TT msg="project"><T className={classes.project}>{project}</T></TT> {/* TODO make this a selector */}
             </Grid>
             <Grid container item xs>
                 <T align="right" className={classes.date}>
@@ -352,25 +363,25 @@ function Tags(props: { note: Note }) {
         options = []
     }
     return (
-    <div>
-        <Autocomplete
-            multiple
-            id="tags"
-            options={options.sort()}
-            value={tags}
-            onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
-            freeSolo
-            size="small"
-            renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                    <Chip variant="outlined" label={option} {...getTagProps({ index })} />
-                ))
-            }
-            renderInput={(params) => (
-                <TextField {...params} variant="filled" label="Tags" placeholder="category" />
-            )}
-        />
-    </div>
+        <div>
+            <Autocomplete
+                multiple
+                id="tags"
+                options={options.sort()}
+                value={tags}
+                onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
+                freeSolo
+                size="small"
+                renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                        <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+                    ))
+                }
+                renderInput={(params) => (
+                    <TextField {...params} variant="filled" label="Tags" placeholder="category" />
+                )}
+            />
+        </div>
     )
 }
 

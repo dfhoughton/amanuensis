@@ -131,16 +131,32 @@ export class App extends React.Component<AppProps, AppState> {
 
   componentDidMount() {
     this.switchboard.mounted()
-    // add handlers for reloaded and error
+    this.switchboard.then(() => this.setState({ defaultProject: this.switchboard.index!.currentProject }))
     this.switchboard.addActions({
       reloaded: (msg) => this.highlight(msg),
-      error: ({ message }: { message: string }) => this.notify(message, 'error')
+      error: ({ message }: { message: string }) => this.error(`There was an error in the currently active page: ${message}`)
     })
   }
 
-  notify(message: string, level: MessageLevels = "info") {
-    console.log({ message, level })
-    this.setState({ message: { text: message, level } })
+  notify(text: string, level: MessageLevels = "info") {
+    switch (level) {
+      case 'error':
+        console.error(text)
+        break
+      case 'warning':
+        console.warn(text)
+        break
+      case 'info':
+        console.info(level, text)
+        break
+      case 'success':
+        console.log(level, text)
+        break
+    }
+    this.setState({ message: { text, level } })
+  }
+  success(message: string) {
+    this.notify(message, 'success')
   }
   error(message: string) {
     this.notify(message, "error")

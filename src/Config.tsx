@@ -16,6 +16,7 @@ interface ConfigProps {
 }
 
 interface ConfigState {
+    initialized: boolean,
     clearAllConfirmOpen: boolean,
 }
 
@@ -27,8 +28,13 @@ class Config extends React.Component<ConfigProps, ConfigState> {
         this.classes = props.classes
         this.app = props.app
         this.state = {
+            initialized: false,
             clearAllConfirmOpen: false,
         }
+    }
+
+    componentDidMount() {
+        this.app.switchboard.then(() => this.setState({ initialized: true }))
     }
 
     render() {
@@ -47,8 +53,12 @@ class Config extends React.Component<ConfigProps, ConfigState> {
 
     // generates the clear all button portion of the config panel
     clearAllButton() {
+        if (!this.state.initialized) {
+            return null
+        }
         const clearHandler = () => {
-            this.app.switchboard.index?.clear().then(() => {
+            this.app.switchboard.index!.clear().then(() => {
+                this.app.setState({ defaultProject: 0 })
                 this.setState({ clearAllConfirmOpen: false })
             }).catch((message) => {
                 console.error(message)

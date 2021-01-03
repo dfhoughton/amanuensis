@@ -17,15 +17,17 @@ type FindResponse =
 export class Index {
     chrome: Chrome                                   // the chrome API
     projects: Map<string, ProjectInfo>               // an index from project names to ProjectInfo records
+    currentProject: number                           // the primary key of the project the user set as the default (as opposed to the catch-all default project)
     index: Map<string, number[]>                     // an index from normalized phrases to the primary keys of projects in which there are records for these phrases
     projectIndices: Map<number, Map<string, number>> // an index from project primary keys to indices from phrases normalized by the respective project's normalizer to that phrase's primary key for the project
     tags: Set<string>                                // the set of all tags used in a phrase in any project
     reverseProjectIndex: Map<number, string>         // an index from ProjectInfo primary keys to names
     cache: Map<KeyPair, NoteRecord>                  // a mechanism to avoid unnecessary calls to fetch things from chrome storage
-    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, index: Map<string, number[]>, projectIndices: Map<number, Map<string, number>>, tags: Set<string>) {
+    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, index: Map<string, number[]>, projectIndices: Map<number, Map<string, number>>, tags: Set<string>) {
         this.chrome = chrome
         this.projects = projects
-        this.index = index
+        this.currentProject = currentProject
+        this.index = index // TODO repace this -- there can be no master index, only per-normalizer indices
         this.projectIndices = projectIndices
         this.tags = tags
         if (this.projectIndices.size === 0) {
@@ -38,7 +40,7 @@ export class Index {
         }
         this.reverseProjectIndex = new Map()
         this.projects.forEach((value, key) => this.reverseProjectIndex.set(value.pk, key))
-        this.cache = new Map()
+        this.cache = new Map() // TODO fix this -- structs don't work as keys
     }
 
     makeDefaultProject(): ProjectInfo {
@@ -78,7 +80,7 @@ export class Index {
     }
 
     // returns the subset of the keypairs which are now missing from storage
-    missing(maybeMissing: Set<KeyPair>): Promise<Set<KeyPair>> {
+    missing(maybeMissing: Set<KeyPair>): Promise<Set<KeyPair>> { // TODO fix this -- sets can't have structs as members
         // first get rid of the things in the cache
         const pairs = Array.from(maybeMissing).filter((p) => !this.cache.has(p))
         return new Promise((resolve, reject) => {
@@ -389,6 +391,22 @@ export class Index {
     defaultProject(): [string, ProjectInfo] {
         return ['', this.projects.get('') as ProjectInfo]
     }
+    setCurrentProject(pk: number): Promise<void> {  
+        return new Promise((resolve, reject) => {
+            if (this.reverseProjectIndex.get(pk) != null) {
+                this.chrome.storage.local.set({ currentProject: pk }, () => {
+                    if (this.chrome.runtime.lastError) {
+                        reject(this.chrome.runtime.lastError)
+                    } else {
+                        this.currentProject = pk
+                        resolve()
+                    }
+                })
+            } else {
+                reject(`${pk} is not the primary key of a known project`)
+            }
+        })
+    }
     // save a project or create a new one
     // the optional callback receives an error message, if any
     saveProject({
@@ -399,6 +417,7 @@ export class Index {
     }: ProjectInfo): Promise<number> {
         return new Promise((resolve, reject) => {
             // whitespace normalization
+            // TODO detect normalizer changes AND RENORMALIZE AND RE-INSERT EVERYTHING!!!
             name = name.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
             description = description.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
             let pk: number
@@ -508,11 +527,11 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['projects', 'index', 'tags'], (result) => {
+        chrome.storage.local.get(['projects', 'currentProject', 'index', 'tags'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { projects = [], index = [], tags = [] } = result || {}
+                let { projects = [], currentProject = 0, index = [], tags = [] } = result || {}
                 // now that we have the project we can fetch the project indices
                 const indices: string[] = []
                 for (const [, projectInfo] of projects) {
@@ -526,7 +545,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         for (const [idx, ridx] of Object.entries(result)) {
                             projectIndices.set(Number.parseInt(idx), new Map(ridx))
                         }
-                        resolve(new Index(chrome, new Map(projects), new Map(index), projectIndices, new Set(tags)))
+                        resolve(new Index(chrome, new Map(projects), currentProject, new Map(index), projectIndices, new Set(tags)))
                     }
                 })
             }
@@ -539,8 +558,9 @@ function stripDiacrics(s: string): string {
 }
 
 // a collection of string normalization functions with metadata for use in display
-const normalizers: { [key: string]: Normalizer } = {
+export const normalizers: { [key: string]: Normalizer } = {
     "": {
+        pk: 0,
         name: 'default', // by default the name of a normalizer will be its key
         description: `
             Strips marginal whitespace, replaces any internal spaces with a singe whitespace,
@@ -548,6 +568,23 @@ const normalizers: { [key: string]: Normalizer } = {
         `,
         code: function (phrase) {
             return stripDiacrics(phrase.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')).replace(/[^\p{L}\p{N} _'-]+/ug, '').toLowerCase()
+        }
+    },
+    "German": {
+        pk: 1,
+        name: 'German',
+        description: `
+            Identical to the default normalizer but it also converts ß, ä, ö, and ü to ss, ae, oe, and ue, respectively.
+        `,
+        code: function (phrase) {
+            phrase = phrase.replace(/^\s+|\s+$/g, '')
+                .replace(/\s+/g, ' ')
+                .toLocaleLowerCase()
+                .replace(/ß/g, 'ss')
+                .replace(/ä/g, 'ae')
+                .replace(/ö/g, 'oe')
+                .replace(/ü/g, 'ue')
+            return stripDiacrics(phrase).replace(/[^\p{L}\p{N} _'-]+/ug, '')
         }
     },
 }
