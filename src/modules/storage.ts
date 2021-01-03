@@ -396,7 +396,7 @@ export class Index {
         description = '[no description]',
         normalizer = '',
         relations = [["see also", "see also"]],
-    }: ProjectInfo): Promise<void> {
+    }: ProjectInfo): Promise<number> {
         return new Promise((resolve, reject) => {
             // whitespace normalization
             name = name.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
@@ -423,7 +423,7 @@ export class Index {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
-                    resolve()
+                    resolve(pk)
                 }
             })
         })

@@ -335,10 +335,6 @@ function Phrase({ hasWord, phrase }: { hasWord: boolean; phrase: CitationRecord;
 
 const tagStyles = makeStyles((theme) => ({
     root: {
-        width: 500,
-        '& > * + *': {
-            marginTop: theme.spacing(2),
-        },
     },
 }))
 
@@ -355,7 +351,8 @@ function Tags(props: { note: Note }) {
     } else {
         options = []
     }
-    return <div className={classes.root}>
+    return (
+    <div>
         <Autocomplete
             multiple
             id="tags"
@@ -374,6 +371,7 @@ function Tags(props: { note: Note }) {
             )}
         />
     </div>
+    )
 }
 
 function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {

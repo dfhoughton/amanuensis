@@ -1,10 +1,11 @@
 import React from 'react'
 import { Details, Mark, TT } from './modules/util'
 import { App, projectName } from './App'
-import { Button, Card, CardActions, CardContent, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, makeStyles, TextField, Typography as T } from '@material-ui/core'
+import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, makeStyles, TextField, Typography as T } from '@material-ui/core'
 import { Clear, Edit, FileCopy } from '@material-ui/icons'
 import { ProjectInfo } from './modules/types'
 import { deepClone } from './modules/clone'
+import { Autocomplete, createFilterOptions } from '@material-ui/lab'
 
 interface ProjectsProps {
     app: App,
@@ -27,15 +28,11 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
         this.state = { cloning: null, destroying: null, editing: null, projects: {} }
     }
     componentDidMount() {
-        this.props.app.switchboard.then(() => {
-            const p: { [name: string]: ProjectInfo } = {}
-            this.props.app.switchboard.index?.projects.forEach((info, name, _map) => { p[name] = info })
-            this.setState({ projects: p })
-        })
+        this.props.app.switchboard.then(() => this.initProjects())
     }
     render(): React.ReactNode {
         return (
-            <div className="projects">
+            <div className="projects" style={{ minHeight: 400 }}>
                 <ProjectDetails />
                 <Grid container spacing={2}>
                     {Object.entries(this.state.projects).map(([name, info]) => <ProjectCard proj={this} name={name} info={info} />)}
@@ -45,6 +42,12 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                 <DestroyModal proj={this} />
             </div>
         )
+    }
+
+    initProjects() {
+        const p: { [name: string]: ProjectInfo } = {}
+        this.props.app.switchboard.index!.projects.forEach((info, name, _map) => { p[name] = info })
+        this.setState({ projects: p })
     }
 
     // destroy the project marked for destruction
@@ -70,17 +73,29 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
             this.props.app.warn("No project to remove")
         }
     }
+
+    // turn state.cloning into a new project
+    makeProject() {
+        if (this.state.cloning) {
+            const proj = deepClone(this.state.cloning) || {}
+            delete proj.pk
+            this.props.app.switchboard.index!.saveProject(proj)
+                .then((pk) => {
+                    this.setState({ cloning: null })
+                    this.initProjects()
+                    this.props.app.notify(`Created project ${proj.name} (primary key: ${pk})`, 'success')
+                })
+                .catch((error) => this.props.app.error(`Could not create new project ${proj.name}: ${error}`))
+        } else {
+            // should be unreachable
+            this.props.app.error("makeProject called when none is staged")
+        }
+    }
 }
 
 export default Projects
 
 const projectStyles = makeStyles((theme) => ({
-    projects: {
-
-    },
-    card: {
-
-    },
     title: {
         fontSize: 14,
     },
@@ -120,7 +135,7 @@ function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info:
     const makeDefaultProject = appDefault ? undefined : function () { proj.props.app.setState({ defaultProject: info.pk }) }
     return (
         <Grid item xs={12} key={info.pk}>
-            <Card className={classes.card} variant="outlined">
+            <Card variant="outlined">
                 <CardContent style={{ paddingBottom: 0 }}>
                     <Grid container spacing={1}>
                         <Grid container item xs>
@@ -145,7 +160,6 @@ function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info:
                     <T className={classes.header}>Relations</T>
                     <ul className={classes.relations}>
                         {info.relations.map(([left, right]) => {
-                            console.log({ left, right })
                             const n = left === right ? left :
                                 <span>{left}<span className={classes.separator}>/</span>{right}</span>;
                             return <li key={`${left}/${right}`}>{n}</li>
@@ -168,6 +182,9 @@ function ProjectCard({ proj, name, info }: { proj: Projects, name: string, info:
 }
 
 function EditModal({ proj }: { proj: Projects }) {
+    if (proj.state.editing == null) {
+        return null
+    }
     const name = proj.state.editing?.pk ? proj.props.app.switchboard.index?.reverseProjectIndex.get(proj.state.editing?.pk) : null
     const editHandler = () => {
 
@@ -197,12 +214,51 @@ function EditModal({ proj }: { proj: Projects }) {
         </Dialog>
     )
 }
+const cloneStyles = makeStyles((theme) => ({
+    text: {
+        width: '100%',
+        marginTop: theme.spacing(1),
+        '&:first-child': {
+            marginTop: 0,
+        }
+    }
+}))
+
+const relationFilterOptions = createFilterOptions({
+    stringify: (option: [string, string]) => {
+        const [left, right] = option
+        return left === right ? left : `${left}/${right}`
+    },
+})
 
 function CloneModal({ proj }: { proj: Projects }) {
-    // the name needs to change but the primary key won't
-    const name = proj.state.cloning == null ? null : proj.props.app.switchboard.index?.reverseProjectIndex.get(proj.state.cloning.pk)
-    const cloneHandler = function () {
-
+    if (proj.state.cloning == null) {
+        return null
+    }
+    const classes = cloneStyles()
+    // the name will change but the primary key will not
+    const name = proj.props.app.switchboard.index!.reverseProjectIndex.get(proj.state.cloning!.pk)
+    let allRelations: [string, string][] = []
+    for (const p of Object.values(proj.state.projects)) {
+        allRelations = allRelations.concat(p.relations)
+    }
+    allRelations = Array.from(new Set(allRelations))
+    let nameError: string | undefined
+    if (!/\S/.test(proj.state.cloning?.name || '')) {
+        nameError = "required"
+    } else if (proj.state.projects[proj.state.cloning!.name]) {
+        nameError = "not unique"
+    }
+    let relationError: string | undefined
+    for (const [left, right] of proj.state.cloning!.relations) {
+        if (relationError) {
+            break
+        }
+        if ((left === 'see also') !== (right === 'see also')) {
+            relationError = '"see also" can only be symmetric'
+        } else if (right.indexOf('/') >= 0) {
+            relationError = 'the character "/" can only be used to separate non-symmetric relations'
+        }
     }
     return (
         <Dialog
@@ -211,23 +267,110 @@ function CloneModal({ proj }: { proj: Projects }) {
             aria-describedby="clone-dialog-description"
         >
             <DialogTitle id="clone-dialog-title">
-                Duplicating {name} to create a new project
+                Duplicating {name || 'the default project'}
             </DialogTitle>
             <DialogContent>
-                <DialogContentText id="clone-dialog-description">
-                    Clear all non-configuration information from {projectName}.
-                    This means all notes, all tags, all relations, and all projects will be
-                    irretrievably gone.
+                <DialogContentText>
+                    <T>
+                        Currently all projects must use the default normalizer.
+                    </T>
+                    <form>
+                        <TextField
+                            id="clone-form-name"
+                            label="Name"
+                            className={classes.text}
+                            onChange={(e) => {
+                                const newCloning = deepClone(proj.state.cloning)
+                                newCloning.name = e.target.value
+                                proj.setState({ cloning: newCloning })
+                            }}
+                            error={!!nameError}
+                            helperText={nameError}
+                            spellCheck={false}
+                            defaultValue={proj.state.cloning?.name}
+                        />
+                        <TextField
+                            id="clone-form-descriptiomn"
+                            label="Description"
+                            className={classes.text}
+                            onChange={(e) => {
+                                const newCloning = deepClone(proj.state.cloning)
+                                newCloning.description = e.target.value
+                                proj.setState({ cloning: newCloning })
+                            }}
+                            multiline
+                            error={false}
+                            defaultValue={proj.state.cloning?.description}
+                            placeholder="Describe what this project is for"
+                        />
+                        <Autocomplete
+                            id="clone-form-relations"
+                            className={classes.text}
+                            options={allRelations}
+                            multiple
+                            freeSolo
+                            autoComplete
+                            limitTags={3}
+                            size="small"
+                            defaultValue={proj.state.cloning!.relations}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Relations"
+                                    variant="outlined"
+                                    error={!!relationError}
+                                    helperText={
+                                        relationError || <T>
+                                            separate left and right relations with a /; e.g., <i>whole/part</i>
+                                        </T>
+                                    }
+                                />
+                            )}
+                            renderTags={
+                                (value, getTagProps) =>
+                                    value.map(
+                                        (obj, index) =>
+                                            {
+                                                let left, right
+                                                if (Array.isArray(obj)) {
+                                                    [ left, right ] = obj
+                                                } else {
+                                                    left = right = obj
+                                                }
+                                                return <Chip
+                                                    variant="outlined"
+                                                    label={left === right ? left : `${left} / ${right}`}
+                                                    {...getTagProps({index})}
+                                                />
+                                            }
+                                        )
+                            }
+                            renderOption={([left, right]) => left === right ? left : `${left} / ${right}`}
+                            filterOptions={relationFilterOptions}
+                            onChange={(_event, value, _reason) => {
+                                const relations = []
+                                for (const r of value) {
+                                    if (Array.isArray(r)) {
+                                        relations.push(r)
+                                    } else {
+                                        const [left, ...right] = r.split('/').map((s) => s.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' '))
+                                        const other = right.join('/')
+                                        relations.push([left, other ? other : left])
+                                    }
+                                }
+                                const cloning = deepClone(proj.state.cloning)
+                                cloning.relations = relations
+                                proj.setState({ cloning })
+                            }}
+                        />
+                    </form>
                 </DialogContentText>
-                <form>
-                    <TextField id="clone-form-name" label="name" />
-                </form>
             </DialogContent>
             <DialogActions>
                 <Button onClick={() => proj.setState({ cloning: null })} >
                     Cancel
                 </Button>
-                <Button onClick={cloneHandler} color="primary" autoFocus>
+                <Button onClick={() => proj.makeProject()} color="primary" autoFocus disabled={!!(nameError || relationError)}>
                     Clone
                 </Button>
             </DialogActions>
@@ -236,6 +379,9 @@ function CloneModal({ proj }: { proj: Projects }) {
 }
 
 function DestroyModal({ proj }: { proj: Projects }) {
+    if (proj.state.destroying == null) {
+        return null
+    }
     return (
         <Dialog
             open={!!proj.state.destroying}
@@ -300,7 +446,8 @@ function ProjectDetails() {
                     In English, Thai, and Chinese, this doesn't do that much for you. In Finnish, on the other hand, you
                     might want the normalizer to say <i>haluaisitteko</i> and <i>haluamme</i> are the same. That being said,
                     there isn't currently a way to define new normalizers. The default normalizer treats all whitespace as
-                    the same, all capitalization as the same, and ignores anything other than a letter or a number.
+                    the same, all capitalization as the same, disregards all diacrictics (so <i>coöperate</i> and <i>cooperate</i> are
+                    treated as equivalent), and ignores anything other than a letter or a number.
                 </p>
                 <h3>Relations</h3>
                 <p>
