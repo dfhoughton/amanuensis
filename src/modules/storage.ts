@@ -484,6 +484,7 @@ export class Index {
                             this.reverseProjectIndex.delete(projectInfo.pk)
                             if (this.currentProject === projectInfo.pk) {
                                 this.currentProject = 0
+                                memoranda.currentProject = 0
                             }
                             memoranda.projects = m2a(this.projects)
                             // now we need to save the changes
