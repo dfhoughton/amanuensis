@@ -75,6 +75,7 @@ export interface Chrome {
             set: (vals: Payload, callback?: () => void) => void,
             clear: (callback?: () => void) => void,
             getBytesInUse: (arg: null, callback: (bytes: number) => void) => void,
+            remove: (delenda: string | string[], callback?: () => void) => void,
         }
     },
     extension: {
