@@ -90,3 +90,16 @@ export interface ContentSelection {
     after: string,
     selection: Selection
 }
+
+export type Query = { type: "lookup", phrase: string, project?: number } | {
+    type: "ad hoc",
+    phrase?: string,
+    strictness?: "exact" | "substring" | "fuzzy",
+    project?: number[],
+    tagRequired?: string[],
+    tagForbidden?: string[],
+    after?: Date,
+    before?: Date,
+    url?: string,
+    starred?: boolean,
+}

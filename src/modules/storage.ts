@@ -1,5 +1,5 @@
 import { deepClone } from './clone'
-import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer } from './types'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord } from './types'
 
 // utility function to convert maps into arrays for permanent storage
 function m2a(map: Map<any, any>): [any, any][] {
@@ -8,9 +8,11 @@ function m2a(map: Map<any, any>): [any, any][] {
     return ar
 }
 
+type Match = [project: number, record: NoteRecord]
+
 type FindResponse =
-    { state: "found", project: number, record: NoteRecord } |
-    { state: "ambiguous", projects: number[] } |
+    { state: "found", match: Match } |
+    { state: "ambiguous", matches: Match[] } |
     { state: "none" }
 
 // an interface between the app and the Chrome storage mechanism
@@ -38,7 +40,7 @@ export class Index {
         }
         this.reverseProjectIndex = new Map()
         this.projects.forEach((value, key) => this.reverseProjectIndex.set(value.pk, key))
-        this.cache = new Map() // TODO fix this -- structs don't work as keys
+        this.cache = new Map()
     }
 
     makeDefaultProject(): ProjectInfo {
@@ -108,63 +110,225 @@ export class Index {
     // looks in given project for phrase, resolving it in promise as {project, found}
     // if no project is given and the phrase exists only in one project, also provides {project, found}
     // if no project is given and the phrase exists in multiple projects, provides [project...]
-    find(phrase: string, project: ProjectIdentifier): Promise<FindResponse> {
-        return new Promise((resolve, reject) => {
-            let key: string | null, projectInfo: ProjectInfo, found: NoteRecord | null
-            if (project) {
-                [, projectInfo] = this.findProject(project)
-                const index = this.projectIndex(phrase, projectInfo)
-                if (index == null) {
-                    return resolve({ state: "none" })
-                }
-                found = this.cache.get(`${projectInfo.pk}:${index as number}`) || null
-                if (found) {
-                    resolve({ state: "found", project: projectInfo.pk, record: found })
-                } else {
-                    key = this.key(phrase, project)
-                    if (!key) {
-                        resolve({ state: "none" })
-                    } else {
-                        this.chrome.storage.local.get([key], (found) => {
-                            if (this.chrome.runtime.lastError) {
-                                reject(this.chrome.runtime.lastError)
-                            } else {
-                                const record = found[key as string]
-                                this.cache.set(`${projectInfo.pk}:${index}`, record)
-                                resolve({ state: "found", project: projectInfo.pk, record })
-                            }
-                        })
+    find(query: Query): Promise<FindResponse> {
+        switch (query.type) {
+            case "lookup":
+                const { phrase, project } = query
+                const projects = project == null ? this.allProjects() : [project]
+                return new Promise((resolve, reject) => {
+                    const keys: [project: number, note: number][] = []
+                    for (const pk of projects) {
+                        const i = this.projectIndex(phrase, pk)
+                        if (i != null) {
+                            keys.push([pk, i])
+                        }
                     }
-                }
-            } else {
-                const projects: number[] = []
-                this.projectIndices.forEach((map, pk, _map) => {
-                    if (this.projectIndex(phrase, pk) != null) {
-                        projects.push(pk)
+                    if (keys.length) {
+                        const stringKeys = keys.map(([p, n]) => `${p}:${n}`)
+                        const rv: Match[] = []
+                        const continuation = () => {
+                            if (rv.length > 1) {
+                                resolve({ state: "ambiguous", matches: rv })
+                            } else {
+                                resolve({ state: "found", match: rv[0] })
+                            }
+                        }
+                        // first search the cache
+                        for (let i = keys.length - 1; i >= 0; i--) {
+                            const key = stringKeys[i]
+                            const note = this.cache.get(key)
+                            if (note != null) {
+                                rv.push([keys[i][0], note])
+                                keys.splice(i, 1)
+                                stringKeys.splice(i, 1)
+                            }
+                        }
+                        if (keys.length) {
+                            // we have to get some out of storage as well
+                            this.chrome.storage.local.get(stringKeys, (found) => {
+                                if (this.chrome.runtime.lastError) {
+                                    reject(this.chrome.runtime.lastError)
+                                } else {
+                                    for (let i = 0; i < keys.length; i++) {
+                                        const key = stringKeys[i]
+                                        const note = found[key]
+                                        this.cache.set(key, deepClone(note)) // cache it so we don't have to look it up next time
+                                        rv.push([keys[i][0], note])
+                                    }
+                                    continuation()
+                                }
+                            })
+                        } else {
+                            continuation()
+                        }
+                    } else {
+                        resolve({ state: "none" })
                     }
                 })
-                if (projects.length) {
-                    if (projects.length === 1) {
-                        [, projectInfo] = this.findProject(projects[0])
-                        const key = this.key(phrase, projectInfo) as string
-                        this.chrome.storage.local.get([key], (found) => {
-                            if (this.chrome.runtime.lastError) {
-                                reject(this.chrome.runtime.lastError)
-                            } else {
-                                const index = this.projectIndex(phrase, projectInfo)
-                                const record = found[key]
-                                this.cache.set(`${projectInfo.pk}:${index as number}`, record)
-                                resolve({ state: "found", project: projectInfo.pk, record })
+            case "ad hoc":
+                const requirements: { [key: string]: any } = query
+                delete requirements.type
+                return new Promise((resolve, reject) => {
+                    if (Object.keys(requirements)) {
+                        if (!query.project) {
+                            query.project = this.allProjects()
+                        }
+                        let normalized: Map<number, string> | undefined
+                        let fuzzyMatchers: Map<number, RegExp> | undefined
+                        if (query.phrase != null) {
+                            normalized = new Map()
+                            if (query.strictness == null || query.strictness === "fuzzy") {
+                                fuzzyMatchers = new Map()
                             }
-                        })
+                            for (const pk of query.project) {
+                                const key = this.normalize(query.phrase, pk)
+                                normalized.set(pk, key)
+                                fuzzyMatchers?.set(
+                                    pk,
+                                    new RegExp(
+                                        key.split('').map((c) => c.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join(".*?")
+                                    )
+                                )
+                            }
+                        }
+                        let candidates: Match[] = []
+                        const continuation = () => { // what to do once we've got our matches
+                            const any = (ar: any[], f: (arg: any) => boolean): boolean => {
+                                for (const o of ar) {
+                                    if (f(o)) {
+                                        return true
+                                    }
+                                }
+                                return false
+                            }
+                            const all = (ar: any[], f: (arg: any) => boolean): boolean => {
+                                for (const o of ar) {
+                                    if (!f(o)) {
+                                        return false
+                                    }
+                                }
+                                return true
+                            }
+                            candidates = candidates.filter(([, note]) => {
+                                // phrase/strictness filtering is necessarily already done at this point
+                                // progress from easy to hard
+                                const { starred, url, tagRequired, tagForbidden, before, after } = query
+                                if (starred != null) {
+                                    if (starred) {
+                                        if (!note.starred) {
+                                            return false
+                                        }
+                                    } else {
+                                        if (note.starred) {
+                                            return false
+                                        }
+                                    }
+                                    if (tagRequired?.length) {
+                                        if (any(tagRequired, (t) => note.tags.indexOf(t) === -1)) {
+                                            return false
+                                        }
+                                    }
+                                    if (tagForbidden?.length) {
+                                        if (any(tagForbidden, (t) => note.tags.indexOf(t) > -1)) {
+                                            return false
+                                        }
+                                    }
+                                    if (url != null) {
+                                        if (all(note.citations, (c) => c.source.url.indexOf(url) === -1)) {
+                                            return false
+                                        }
+                                    }
+                                    if (before != null) {
+                                        if (all(note.citations, (c) => all(c.when, (w) => w > before))) {
+                                            return false
+                                        }
+                                    }
+                                    if (after != null) {
+                                        if (all(note.citations, (c) => all(c.when, (w) => w < after))) {
+                                            return false
+                                        }
+                                    }
+                                    return true
+                                }
+                            })
+                            if (candidates.length) {
+                                if (candidates.length === 1) {
+                                    resolve({ state: "found", match: candidates[0] })
+                                } else {
+                                    resolve({ state: "ambiguous", matches: candidates })
+                                }
+                            } else {
+                                resolve({ state: "none" })
+                            }
+                        }
+                        const toLookUp: string[] = []
+                        if (query.phrase != null && query.strictness === "exact") {
+                            // we don't have to iterate over all keys!!
+                            for (let [pk, key] of normalized || []) {
+                                const i = this.projectIndices.get(pk)!.get(key)
+                                if (i != null) {
+                                    key = `${pk}:${i}`
+                                    const note = this.cache.get(key)
+                                    if (note) {
+                                        candidates.push([pk, note])
+                                    } else {
+                                        toLookUp.push(key)
+                                    }
+                                }
+                            }
+                        } else {
+                            for (const pk of query.project) {
+                                const index: Map<string, number> = this.projectIndices.get(pk) || new Map()
+                                for (const [normed, i] of index.entries()) {
+                                    if (query.phrase) {
+                                        if (query.strictness === "substring") {
+                                            const norm = normalized!.get(pk)
+                                            if (norm) {
+                                                if (normed.indexOf(norm) == -1) {
+                                                    continue
+                                                }
+                                            }
+                                        } else {
+                                            if (!fuzzyMatchers?.get(pk)?.test(normed)) {
+                                                continue
+                                            }
+                                        }
+                                    }
+                                    const key = `${pk}:${i}`
+                                    const note = this.cache.get(key)
+                                    if (note) {
+                                        candidates.push([pk, note])
+                                    } else {
+                                        toLookUp.push(key)
+                                    }
+                                }
+                            }
+                        }
+                        if (toLookUp.length) {
+                            this.chrome.storage.local.get(toLookUp, (found) => {
+                                if (this.chrome.runtime.lastError) {
+                                    reject(this.chrome.runtime.lastError)
+                                } else {
+                                    for (const [key, note] of Object.entries(found)) {
+                                        const pk: number = Number.parseInt(key.split(":")[0])
+                                        candidates.push([pk, note as NoteRecord])
+                                    }
+                                    continuation()
+                                }
+                            })
+                        } else {
+                            continuation()
+                        }
                     } else {
-                        resolve({ state: "ambiguous", projects: projects })
+                        // no filters means no results 
+                        resolve({ state: "none" })
                     }
-                } else {
-                    resolve({ state: "none" })
-                }
-            }
-        })
+                })
+        }
+    }
+
+    allProjects(): number[] {
+        return Array.from(this.projectIndices.keys())
     }
 
     // save a phrase, all the data associated with the phrase should be packed into data
@@ -449,11 +613,13 @@ export class Index {
             const memoranda: { [name: string]: any } = {}
             const notes: NoteRecord[] = []
             const missing: string[] = []
+            const found: string[] = []
             for (const pk of this.projectIndices.get(projectInfo.pk)!.values()) {
                 const key = `${projectInfo.pk}:${pk}`
                 const note = this.cache.get(key)
                 if (note) {
                     notes.push(note)
+                    found.push(key)
                 } else {
                     missing.push(key)
                 }
@@ -492,6 +658,9 @@ export class Index {
                                 if (this.chrome.runtime.lastError) {
                                     reject(`all the notes in ${projectInfo.name} have been deleted, but some changes could not be saved: ${this.chrome.runtime.lastError}`)
                                 } else {
+                                    for (const key of found) {
+                                        this.cache.delete(key)
+                                    }
                                     resolve()
                                 }
                             })

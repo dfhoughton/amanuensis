@@ -1,6 +1,6 @@
 import React, { ChangeEvent } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
-import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair } from './modules/types'
+import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
 import SwitchBoard from './modules/switchboard'
 import { debounce, Mark, TT } from './modules/util'
 
@@ -112,7 +112,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     // since it was last displayed
     checkForDeletions() {
         if (this.isSaved()) {
-            this.app.switchboard.index?.find(this.currentCitation().phrase, this.state.project)
+            this.app.switchboard.index?.find({ type: "lookup", phrase: this.currentCitation().phrase, project: this.state.project })
                 .then((response) => {
                     switch (response.state) {
                         case 'ambiguous':
@@ -126,7 +126,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                             this.app.switchboard.index?.missing(keys)
                                 .then((missing) => {
                                     if (missing.size) {
-                                        this.savedState = { project: this.state.project, unsavedContent: false, citationIndex: 0, ...response.record }
+                                        this.savedState = { project: this.state.project, unsavedContent: false, citationIndex: 0, ...response.match[1] }
                                         const relations = deepClone(this.state.relations)
                                         for (let [k, v] of Object.entries(relations)) {
                                             let ar = v as KeyPair[]
@@ -187,15 +187,16 @@ class Note extends React.Component<NoteProps, NoteState> {
             ...selection,
             when: [new Date()],
         }
-        this.app.switchboard.index?.find(selection.phrase, this.state.project)
+        const query: Query = { type: "lookup", phrase: selection.phrase, project: this.state.project }
+        this.app.switchboard.index!.find(query)
             .then((found) => {
                 switch (found.state) {
                     case "found":
                         const foundState: NoteState = {
-                            project: found.project,
+                            project: found.match[0],
                             unsavedContent: true,
                             citationIndex: 0,
-                            ...found.record,
+                            ...found.match[1],
                         }
                         // look for an earlier citation identical to this
                         let match: CitationRecord | null = null
@@ -234,7 +235,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         })
                         break
                     case "ambiguous":
-                        // TODO ask user to choose the realm
+                        this.app.setState({ tab: 2, search: query })
                         break
                 }
             })

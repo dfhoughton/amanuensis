@@ -13,7 +13,7 @@ import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/ic
 import { amber, indigo } from '@material-ui/core/colors'
 import { AppBar, Box, Snackbar, Tab, Tabs, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { Chrome } from './modules/types'
+import { Chrome, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
 
 export const projectName = "Notorious"
@@ -48,6 +48,7 @@ interface AppState {
   history: Visit[],
   historyIndex: number,
   defaultProject: number,
+  search: Query,
 }
 
 interface Message {
@@ -86,6 +87,7 @@ export class App extends React.Component<AppProps, AppState> {
       history: [],
       historyIndex: -1,
       defaultProject: 0,
+      search: { type: "ad hoc"},
     }
   }
 
