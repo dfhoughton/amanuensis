@@ -68,7 +68,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     citationNote={this.currentCitation()?.note || ''}
                     citationNoteHandler={(e) => {
                         const citations = deepClone(this.state.citations)
-                        citations[this.state.citationIndex] = e.target.value
+                        citations[this.state.citationIndex].note = e.target.value
                         this.setState({citations})
                         this.debouncedCheckSavedState()
                     }}
@@ -354,7 +354,12 @@ function Phrase({ hasWord, phrase }: { hasWord: boolean; phrase: CitationRecord;
 }
 
 const tagStyles = makeStyles((theme) => ({
-    note: {
+    text: {
+        width: '100%',
+        marginTop: theme.spacing(1),
+        '&:first-child': {
+            marginTop: 0,
+        }
     },
 }))
 
@@ -374,12 +379,14 @@ function Tags(props: { note: Note }) {
     return (
         <div>
             <Autocomplete
-                multiple
                 id="tags"
+                className={classes.text}
                 options={options.sort()}
                 value={tags}
                 onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
+                multiple
                 freeSolo
+                autoComplete
                 size="small"
                 renderTags={(value, getTagProps) =>
                     value.map((option, index) => (
