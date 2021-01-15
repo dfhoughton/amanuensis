@@ -65,6 +65,13 @@ class Note extends React.Component<NoteProps, NoteState> {
                 <Annotations
                     gist={this.state.gist}
                     details={this.state.details}
+                    citationNote={this.currentCitation()?.note || ''}
+                    citationNoteHandler={(e) => {
+                        const citations = deepClone(this.state.citations)
+                        citations[this.state.citationIndex] = e.target.value
+                        this.setState({citations})
+                        this.debouncedCheckSavedState()
+                    }}
                     gistHandler={(e) => { this.setState({ gist: e.target.value }); this.debouncedCheckSavedState() }}
                     notesHandler={(e) => { this.setState({ details: e.target.value }); this.debouncedCheckSavedState() }}
                 />
@@ -184,6 +191,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
         const citation: CitationRecord = {
             source,
+            note: '',
             ...selection,
             when: [new Date()],
         }
@@ -346,7 +354,7 @@ function Phrase({ hasWord, phrase }: { hasWord: boolean; phrase: CitationRecord;
 }
 
 const tagStyles = makeStyles((theme) => ({
-    root: {
+    note: {
     },
 }))
 
@@ -404,20 +412,38 @@ function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
     );
 }
 
+const annotationStyles = makeStyles((theme) => ({
+    note: {
+        width: "100%"
+    }
+}))
+
 function Annotations(
-    { gist, details, gistHandler, notesHandler }: {
+    { gist, details, citationNote, gistHandler, notesHandler, citationNoteHandler }: {
         gist: string,
+        citationNote: string,
         details: string,
+        citationNoteHandler: (e: ChangeEvent<HTMLInputElement>) => void,
         gistHandler: (e: ChangeEvent<HTMLInputElement>) => void,
         notesHandler: (e: ChangeEvent<HTMLTextAreaElement>) => void
     }) {
+    const classes = annotationStyles();
     return <div>
+        <TextField
+            label="Note on Citation"
+            id="citation-note"
+            placeholder="Notes on the citation above"
+            className={classes.note}
+            rowsMax={2}
+            value={citationNote}
+            onChange={citationNoteHandler}
+        />
         <TextField
             label="Gist"
             id="gist"
             multiline
-            placeholder="Essential information about this topic."
-            style={{ width: "100%" }}
+            placeholder="Essential information about this topic"
+            className={classes.note}
             rowsMax={2}
             value={gist}
             onChange={gistHandler}
@@ -426,8 +452,8 @@ function Annotations(
             label="Elaboration"
             id="details"
             multiline
-            placeholder="Further observations about this topic."
-            style={{ width: "100%" }}
+            placeholder="Further observations about this topic"
+            className={classes.note}
             rowsMax={6}
             value={details}
             onChange={notesHandler}

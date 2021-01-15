@@ -4,6 +4,7 @@ export interface CitationRecord {
     phrase: string,       // the text selected
     before: string,       // the context preceding the selection
     after: string,        // the context following the selection
+    note: string,
     when: Date[],         // the times that this selection was looked up *on the same page*
     selection: Selection  // where the text was found on the page
     source: SourceRecord, // the page where the text was found

@@ -106,8 +106,8 @@ export class App extends React.Component<AppProps, AppState> {
           <AppBar position="static">
             <Tabs value={this.state.tab} onChange={handleChange} variant="fullWidth" aria-label={`${projectName} navigation`}>
               <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
-              <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
               <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />
+              <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
               <Tab icon={<Build />} {...a11yProps(3)} value={3} />
             </Tabs>
           </AppBar>
