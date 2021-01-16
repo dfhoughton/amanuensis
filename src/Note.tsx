@@ -229,9 +229,11 @@ class Note extends React.Component<NoteProps, NoteState> {
                         } else {
                             foundState.citations.unshift(citation)
                         }
+                        this.app.setState({ search: query, searchResults: [found.match] })
                         this.setState(foundState)
                         break
                     case "none":
+                        this.app.setState({ search: query, searchResults: [] })
                         this.setState({
                             project: this.app.switchboard.index!.currentProject,
                             details: "",
@@ -243,7 +245,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         })
                         break
                     case "ambiguous":
-                        this.app.setState({ tab: 2, search: query })
+                        this.app.setState({ tab: 2, search: query, searchResults: found.matches })
                         break
                 }
             })

@@ -1,5 +1,5 @@
 import { deepClone } from './clone'
-import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord } from './types'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Match } from './types'
 
 // utility function to convert maps into arrays for permanent storage
 function m2a(map: Map<any, any>): [any, any][] {
@@ -8,12 +8,15 @@ function m2a(map: Map<any, any>): [any, any][] {
     return ar
 }
 
-type Match = [project: number, record: NoteRecord]
-
 type FindResponse =
     { state: "found", match: Match } |
     { state: "ambiguous", matches: Match[] } |
     { state: "none" }
+
+// how to take a KeyPair and make a local storage/cache key
+function enkey(key: KeyPair): string {
+    return `${key[0]}:${key[1]}`
+}
 
 // an interface between the app and the Chrome storage mechanism
 export class Index {
@@ -82,11 +85,11 @@ export class Index {
     // returns the subset of the keypairs which are now missing from storage
     missing(maybeMissing: Set<KeyPair>): Promise<Set<KeyPair>> { // TODO fix this -- sets can't have structs as members
         // first get rid of the things in the cache
-        const pairs = Array.from(maybeMissing).filter(([proj, note]) => !this.cache.has(`${proj}:${note}`))
+        const pairs = Array.from(maybeMissing).filter((pair) => !this.cache.has(enkey(pair)))
         return new Promise((resolve, reject) => {
             if (pairs.length) {
                 const missing = new Set(pairs)
-                const map = new Map(pairs.map(([v1, v2]) => [`${v1}:${v2}`, [v1, v2]]))
+                const map = new Map(pairs.map((pair) => [enkey(pair), pair]))
                 const keys = Array.from(map.keys())
                 this.chrome.storage.local.get(keys, (found) => {
                     if (this.chrome.runtime.lastError) {
@@ -124,7 +127,7 @@ export class Index {
                         }
                     }
                     if (keys.length) {
-                        const stringKeys = keys.map(([p, n]) => `${p}:${n}`)
+                        const stringKeys = keys.map((pair) => enkey(pair))
                         const rv: Match[] = []
                         const continuation = () => {
                             if (rv.length > 1) {
@@ -267,7 +270,7 @@ export class Index {
                             for (let [pk, key] of normalized || []) {
                                 const i = this.projectIndices.get(pk)!.get(key)
                                 if (i != null) {
-                                    key = `${pk}:${i}`
+                                    key = enkey([pk, i])
                                     const note = this.cache.get(key)
                                     if (note) {
                                         candidates.push([pk, note])
@@ -294,7 +297,7 @@ export class Index {
                                             }
                                         }
                                     }
-                                    const key = `${pk}:${i}`
+                                    const key = enkey([pk, i])
                                     const note = this.cache.get(key)
                                     if (note) {
                                         candidates.push([pk, note])
@@ -352,7 +355,7 @@ export class Index {
                 storable[projectInfo.pk.toString()] = m2a(projectIndex)
             }
             const keyPair: KeyPair = [projectInfo.pk, pk] // convert key to the 
-            this.cache.set(`${keyPair[0]}:${keyPair[1]}`, data)
+            this.cache.set(enkey(keyPair), data)
             // check for any new tags
             const l = this.tags.size
             for (const tag of data.tags) {
@@ -370,7 +373,7 @@ export class Index {
             for (const [relation, pairs] of Object.entries(data.relations)) {
                 let reversedRelation: string = ''
                 for (const pair of pairs) {
-                    const other = this.cache.get(`${pair[0]}:${pair[1]}`)
+                    const other = this.cache.get(enkey(pair))
                     if (other) {
                         // other will necessarily be cached if a relation to it was added
                         reversedRelation ||= this.reverseRelation(projectInfo, relation) || ''
@@ -383,7 +386,7 @@ export class Index {
                                 }
                                 // this is a new relation for other, so we'll need to store other
                                 pairs2.push(keyPair)
-                                storable[`${pair[0]}:${pair[1]}`] = other
+                                storable[enkey(pair)] = other
                                 break // we found the reversed relation, so we're done with this pair/relation
                             }
                         }
@@ -391,7 +394,7 @@ export class Index {
                 }
             }
             // store the phrase itself
-            storable[`${keyPair[0]}:${keyPair[1]}`] = data
+            storable[enkey(keyPair)] = data
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
@@ -404,13 +407,103 @@ export class Index {
 
     delete({ phrase, project }: { phrase: string, project: ProjectInfo }): Promise<void> {
         return new Promise((resolve, reject) => {
-            // TODO
-            // must delete given phrase from the given project
-            // must delete it from the project index
-            // must delete it from all the phrases to which it is related
-            // then must also iterate over *all* the phrases in the project to see if any share its default normalization
-            // if so, the master index need not be altered and saved
-            // otherwise, we must delete its entry from the master index as well
+            const key = this.key(phrase, project)
+            if (key === null) {
+                reject(`could not find "${phrase}" in project ${project.name}`)
+            } else {
+                const norm = this.normalize(phrase, project)
+                const phrasePk = this.projectIndices.get(project.pk)?.get(norm)
+                if (phrasePk === undefined) {
+                    reject(`the index for project ${project.name} does not contain the phrase "${phrase}"`)
+                } else {
+                    const continuation1 = (note: NoteRecord) => {
+                        const memoranda: { [key: string]: NoteRecord } = {}
+                        const continuation2 = () => {
+                            this.chrome.storage.local.remove(key, () => {
+                                if (this.chrome.runtime.lastError) {
+                                    reject(`failed to delete "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`)
+                                } else {
+                                    this.projectIndices.get(project.pk)?.delete(norm)
+                                    resolve()
+                                }
+                            })
+                        }
+                        // remove from any related notes the relations concerning this note
+                        const continuation3 = () => {
+                            if (Object.keys(memoranda).length) {
+                                this.chrome.storage.local.set(memoranda, () => {
+                                    if (this.chrome.runtime.lastError) {
+                                        reject(`could not store changes to notes affected by the deletion of "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`)
+                                    } else {
+                                        continuation2()
+                                    }
+                                })
+                            } else {
+                                continuation2()
+                            }
+                        }
+                        // now construct memoranda
+                        const sought: { [key: string]: [end: string, pair: KeyPair] } = {}
+                        const removeRelation = (end1: string, key: KeyPair, note: NoteRecord) => {
+                            const end2 = this.reverseRelation(project, end1)
+                            if (end2 !== null) {
+                                const pairs = note.relations[end2]
+                                for (let i = pairs.length - 1; i >= 0; i--) {
+                                    const p = pairs[i]
+                                    if (p[0] === project.pk && p[1] === phrasePk) {
+                                        pairs.splice(i, 1)
+                                        break // keypair is necessarily unique in the relation for the given note
+                                    }
+                                }
+                                if (!pairs.length) {
+                                    delete note.relations[end2]
+                                }
+                                memoranda[enkey(key)] = note
+                            }
+                        }
+                        for (const [end1, pairs] of Object.entries(note.relations)) {
+                            for (const pair of pairs) {
+                                const key = enkey(pair)
+                                const note = this.cache.get(key)
+                                if (note === undefined) {
+                                    sought[key] = [end1, pair]
+                                } else {
+                                    removeRelation(end1, pair, note)
+                                }
+                            }
+                        }
+                        if (Object.keys(sought).length) {
+                            this.chrome.storage.local.get(Array.from(Object.keys(sought)), (found) => {
+                                if (this.chrome.runtime.lastError) {
+                                    reject(`could not obtain some objects whose relations needed to be modified after the deletion of "${phrase}" from project ${project.name}: ${this.chrome.runtime.lastError}`)
+                                } else {
+                                    for (const [key, note] of found) {
+                                        const [end, pair] = sought[key]
+                                        removeRelation(end, pair, note)
+                                    }
+                                    continuation3()
+                                }
+                            })
+                        } else {
+                            continuation3()
+                        }
+                    }
+                    let note = this.cache.get(key)
+                    if (note) {
+                        this.cache.delete(key)
+                        continuation1(note)
+                    } else {
+                        this.chrome.storage.local.get([key], (found) => {
+                            if (this.chrome.runtime.lastError) {
+                                reject(`could not retrieve note to be deleted for ${phrase} in ${project.name}: ${this.chrome.runtime.lastError}`)
+                            } else {
+                                note = found[key] as NoteRecord
+                                continuation1(note)
+                            }
+                        })
+                    }
+                }
+            }
         })
     }
 
@@ -425,14 +518,15 @@ export class Index {
             if (pk == null) {
                 reject(`the phrase ${phrase} is not stored in ${projectName}`)
             } else {
-                const data = this.cache.get(`${projectInfo.pk}:${pk}`) // the phrase in question is necessarily cached
+                const nearKey = enkey([projectInfo.pk, pk])
+                const data = this.cache.get(nearKey) // the phrase in question is necessarily cached
                 if (data) {
                     const continuation = (other: NoteRecord) => {
                         // prepare other end of relation for storage
                         const reversedRelation = this.reverseRelation(projectInfo, relation)
                         if (reversedRelation) {
                             const storable: { [key: string]: any } = {}
-                            storable[`${pair[0]}:${pair[1]}`] = other
+                            storable[enkey(pair)] = other
                             // remove other end of relation from other's relations
                             let pairs2 = other.relations[reversedRelation] || []
                             const pairs22: KeyPair[] = []
@@ -448,7 +542,7 @@ export class Index {
                             }
                             // remove near end of relation from data's relations
                             const data2 = deepClone(data) // don't modify the original so React can use if for diffing
-                            storable[`${key[0]}:${key[1]}`] = data2
+                            storable[nearKey] = data2
                             let pairs: KeyPair[] = data2.relations[relation] || []
                             pairs2 = []
                             for (const [r2, pk2] of pairs) {
@@ -472,12 +566,12 @@ export class Index {
                             reject(`could not find the reversed relation for ${relation} in ${projectName}`)
                         }
                     }
-                    const otherKey = `${pair[0]}:${pair[1]}`
+                    const otherKey = enkey(pair)
                     const other = this.cache.get(otherKey)
                     if (other) {
                         continuation(other)
                     } else {
-                        this.chrome.storage.local.get([`${pair[0]}:${pair[1]}`], (found) => {
+                        this.chrome.storage.local.get([enkey(pair)], (found) => {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
@@ -615,7 +709,7 @@ export class Index {
             const missing: string[] = []
             const found: string[] = []
             for (const pk of this.projectIndices.get(projectInfo.pk)!.values()) {
-                const key = `${projectInfo.pk}:${pk}`
+                const key = enkey([projectInfo.pk, pk])
                 const note = this.cache.get(key)
                 if (note) {
                     notes.push(note)
@@ -669,7 +763,7 @@ export class Index {
                 }
                 for (const note of notes) {
                     for (const [k, v] of (note.relations["see also"] || []).filter(([k, v]) => k !== projectInfo.pk)) {
-                        const key = `${k}:${v}`
+                        const key = enkey([k, v])
                         const adjustable = this.cache.get(key)
                         if (adjustable) {
                             adjustables.push([key, adjustable])
@@ -714,7 +808,7 @@ export class Index {
         const [, projectInfo] = this.findProject(project)
         const index = this.projectIndex(phrase, projectInfo)
         if (index != null) {
-            return `${projectInfo.pk}:${index}`
+            return enkey([projectInfo.pk, index])
         }
         return null
     }

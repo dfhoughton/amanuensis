@@ -104,3 +104,6 @@ export type Query = { type: "lookup", phrase: string, project?: number } | {
     url?: string,
     starred?: boolean,
 }
+
+// a result returned for a search
+export type Match = [project: number, record: NoteRecord]
