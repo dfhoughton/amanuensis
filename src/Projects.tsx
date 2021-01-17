@@ -54,21 +54,27 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
 
     // destroy the project marked for destruction
     destroy() {
+        const { app } = this.props
         if (this.state.action === 'destroying') {
             const name = this.state.modifying!.name
-            const changeToDefault = this.state.modifying!.pk = this.props.app.switchboard.index!.currentProject
-            this.props.app.switchboard.index!.removeProject(this.state.modifying!.pk)
+            const changeToDefault = this.state.modifying!.pk = app.switchboard.index!.currentProject
+            app.switchboard.index!.removeProject(this.state.modifying!.pk)
                 .then(() => {
                     this.initProjects()
                     this.setState({ action: null, modifying: null })
-                    if (changeToDefault) {
-                        this.props.app.setState({defaultProject: 0})
-                    }
-                    this.props.app.success(`Removed project ${name}`)
+                    // TODO clean app search and search results as well
+                    app.cleanHistory(true)
+                        .then(() => {
+                            if (changeToDefault) {
+                                app.setState({ defaultProject: 0 })
+                            }
+                            app.success(`Removed project ${name}`)
+                        })
+                        .catch((e) => app.error(e))
                 })
-                .catch((error) => this.props.app.error(`Could not remove project ${name}: ${error}`))
+                .catch((error) => app.error(`Could not remove project ${name}: ${error}`))
         } else {
-            this.props.app.warn("No project to remove")
+            app.warn("No project to remove")
         }
     }
 

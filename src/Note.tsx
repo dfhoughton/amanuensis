@@ -9,7 +9,7 @@ import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
 
-import { Save } from '@material-ui/icons'
+import { Delete, Save } from '@material-ui/icons'
 import { App } from './App'
 import { Grid, Typography as T } from '@material-ui/core'
 
@@ -21,7 +21,7 @@ interface NoteProps {
 
 export interface NoteState extends NoteRecord {
     unsavedContent: boolean,
-    project: number,
+    everSaved: boolean,
     citationIndex: number,
 }
 
@@ -54,12 +54,20 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
-                <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.project} />
+                <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />
                 <StarWidget
                     starred={this.state.starred}
-                    unsaved={this.state.unsavedContent}
+                    anyUnsaved={this.state.unsavedContent}
+                    everSaved={this.state.everSaved}
                     star={() => this.star()}
                     save={() => this.saveNote()}
+                    trash={() => {
+                        this.app.confirm({
+                            title: `Delete this note?`,
+                            text: `Delete this note concerning "${this.state.citations[0].phrase}"?`,
+                            callback: () => this.app.removeNote(this.state)
+                        })
+                    }}
                 />
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
                 <Annotations
@@ -69,7 +77,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     citationNoteHandler={(e) => {
                         const citations = deepClone(this.state.citations)
                         citations[this.state.citationIndex].note = e.target.value
-                        this.setState({citations})
+                        this.setState({ citations })
                         this.debouncedCheckSavedState()
                     }}
                     gistHandler={(e) => { this.setState({ gist: e.target.value }); this.debouncedCheckSavedState() }}
@@ -83,9 +91,11 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     componentDidMount() {
-        if (!this.isSaved()) {
+        if (!this.state.everSaved) {
             this.app.switchboard.then(() => {
-                this.setState({ project: this.app.switchboard.index!.currentProject })
+                const key = deepClone(this.state.key)
+                key[0] = this.app.switchboard.index!.currentProject
+                this.setState({ key })
             })
         }
     }
@@ -103,7 +113,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     nullState(): NoteState {
         return {
-            project: 0, // "namespace" for the note; project indices map to names; e.g., "German"; project 0 is the default
+            key: [0, -1], // "namespace" and primary key for the note; project indices map to names; e.g., "German"; project 0 is the default; -1 represents an unsaved note
             gist: "", // the most important notes about the phrase
             details: "", // less essential notes about the phrase
             tags: [], // tags used to categorize phrases
@@ -111,6 +121,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             relations: {},
             starred: false,
             unsavedContent: false,
+            everSaved: false,
             citationIndex: 0,
         }
     }
@@ -118,10 +129,10 @@ class Note extends React.Component<NoteProps, NoteState> {
     // check to see whether any information relevant to the display of this note has changed
     // since it was last displayed
     checkForDeletions() {
-        if (this.isSaved()) {
-            this.app.switchboard.index?.find({ type: "lookup", phrase: this.currentCitation().phrase, project: this.state.project })
+        if (this.state.everSaved) {
+            this.app.switchboard.index?.find({ type: "lookup", phrase: this.currentCitation().phrase, project: this.state.key[0] })
                 .then((response) => {
-                    switch (response.state) {
+                    switch (response.type) {
                         case 'ambiguous':
                             // this should be unreachable since we have a project at this point
                             this.app.warn("unexpected state found in checkForDeletions") // TODO we probably don't want this in the wild
@@ -133,7 +144,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                             this.app.switchboard.index?.missing(keys)
                                 .then((missing) => {
                                     if (missing.size) {
-                                        this.savedState = { project: this.state.project, unsavedContent: false, citationIndex: 0, ...response.match[1] }
+                                        this.savedState = { unsavedContent: false, everSaved: true, citationIndex: 0, ...response.match }
                                         const relations = deepClone(this.state.relations)
                                         for (let [k, v] of Object.entries(relations)) {
                                             let ar = v as KeyPair[]
@@ -154,13 +165,13 @@ class Note extends React.Component<NoteProps, NoteState> {
                         case 'none':
                             this.savedState = this.nullState()
                             const newState = {
+                                key: deepClone(this.state.key),
                                 unsavedContent: true,
                                 relations: {},
-                                project: this.state.project,
                                 citations: deepClone(this.state.citations.slice(0, 1))
                             }
-                            if (!this.app.switchboard.index?.reverseProjectIndex.has(this.state.project)) {
-                                newState.project = 0 // set to the default project
+                            if (!this.app.switchboard.index?.reverseProjectIndex.has(this.state.key[0])) {
+                                newState.key[0] = 0 // set to the default project
                             }
                             this.setState(newState)
                             this.app.notify("this note is no longer saved")
@@ -179,10 +190,6 @@ class Note extends React.Component<NoteProps, NoteState> {
         return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
     }
 
-    isSaved(): boolean {
-        return !!this.savedState.citations.length
-    }
-
     star() {
         this.setState({ starred: !this.state.starred })
         this.checkSavedState()
@@ -195,16 +202,16 @@ class Note extends React.Component<NoteProps, NoteState> {
             ...selection,
             when: [new Date()],
         }
-        const query: Query = { type: "lookup", phrase: selection.phrase, project: this.state.project }
+        const query: Query = { type: "lookup", phrase: selection.phrase, project: this.state.key[0] }
         this.app.switchboard.index!.find(query)
             .then((found) => {
-                switch (found.state) {
+                switch (found.type) {
                     case "found":
                         const foundState: NoteState = {
-                            project: found.match[0],
                             unsavedContent: true,
+                            everSaved: true,
                             citationIndex: 0,
-                            ...found.match[1],
+                            ...found.match,
                         }
                         // look for an earlier citation identical to this
                         let match: CitationRecord | null = null
@@ -234,15 +241,10 @@ class Note extends React.Component<NoteProps, NoteState> {
                         break
                     case "none":
                         this.app.setState({ search: query, searchResults: [] })
-                        this.setState({
-                            project: this.app.switchboard.index!.currentProject,
-                            details: "",
-                            tags: [],
-                            citations: [citation],
-                            relations: {},
-                            starred: false,
-                            unsavedContent: true,
-                        })
+                        const newState = this.nullState()
+                        newState.unsavedContent = true
+                        newState.citations.push(citation)
+                        this.setState(newState)
                         break
                     case "ambiguous":
                         this.app.setState({ tab: 2, search: query, searchResults: found.matches })
@@ -257,9 +259,9 @@ class Note extends React.Component<NoteProps, NoteState> {
             return
         }
         const data = deepClone(this.state, "unsavedContent", "project")
-        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, project: this.state.project, data: data }).then(() => {
+        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, project: this.state.key[0], data: data }).then(() => {
             this.savedState = deepClone(this.state)
-            this.setState({ unsavedContent: false })
+            this.setState({ unsavedContent: false, everSaved: true })
         })
     }
 
@@ -314,21 +316,31 @@ const widgetStyles = makeStyles((theme) => ({
     save: {
         color: theme.palette.warning.dark
     },
+    delete: {
+        color: theme.palette.error.dark
+    }
 }))
 
-function StarWidget(props: { starred: boolean, unsaved: boolean, star: () => void, save: () => void }) {
+function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash }:
+    { starred: boolean, anyUnsaved: boolean, everSaved: boolean, star: () => void, save: () => void, trash: () => void }) {
     const classes = widgetStyles()
-    const save = !props.unsaved ?
+    const saveWidget = !anyUnsaved ?
         null :
-        <div onClick={props.save}>
+        <div onClick={save}>
             <TT msg="save unsaved content" placement="left">
                 <Save className={classes.save} />
             </TT>
         </div>
-    return <div className={classes.root}>
-        <div onClick={props.star}><TT msg="bookmark" placement="left"><Mark starred={props.starred} /></TT></div>
-        {save}
-    </div>
+    const deleteWidget = !everSaved ?
+        null :
+        <div onClick={trash}><Delete className={classes.delete} /></div>
+    return (
+        <div className={classes.root}>
+            <div onClick={star}><TT msg="bookmark" placement="left"><Mark starred={starred} /></TT></div>
+            {saveWidget}
+            {deleteWidget}
+        </div>
+    )
 }
 
 const phraseStyles = makeStyles((theme) => ({
@@ -379,28 +391,24 @@ function Tags(props: { note: Note }) {
         options = []
     }
     return (
-        <div>
-            <Autocomplete
-                id="tags"
-                className={classes.text}
-                options={options.sort()}
-                value={tags}
-                onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
-                multiple
-                freeSolo
-                autoComplete
-                size="small"
-                renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                        <Chip variant="outlined" label={option} {...getTagProps({ index })} />
-                    ))
-                }
-                renderInput={(params) => (
-                    <TextField {...params} variant="filled" label="Tags" placeholder="category" />
-                )}
-            />
-        </div>
+        <Autocomplete
+            id="clone-form-relations"
+            className={classes.text}
+            options={options}
+            value={tags}
+            onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
+            multiple
+            freeSolo
+            autoComplete
+            size="small"
+            renderInput={(params) => <TextField {...params} label="Tags" placeholder="category" />}
+            renderTags={
+                (value, getTagProps) =>
+                    value.map((obj, index) => <Chip variant="outlined" label={obj} {...getTagProps({ index })} />)
+            }
+        />
     )
+
 }
 
 function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {

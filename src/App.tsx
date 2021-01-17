@@ -11,10 +11,14 @@ import { withStyles } from '@material-ui/core/styles'
 import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/icons'
 
 import { amber, indigo } from '@material-ui/core/colors'
-import { AppBar, Box, Snackbar, Tab, Tabs, Typography } from '@material-ui/core'
+import {
+  AppBar, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText,
+  DialogTitle, Snackbar, Tab, Tabs, Typography
+} from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { Chrome, Match, Query } from './modules/types'
+import { Chrome, NoteRecord, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
+import { enkey } from './modules/storage'
 
 export const projectName = "Notorious"
 
@@ -23,16 +27,16 @@ const theme = createMuiTheme({
     primary: indigo,
     secondary: amber,
   },
-  overrides: {
-    MuiFilledInput: {
-      root: {
-        backgroundColor: 'transparent',
-        '&:hover': {
-          backgroundColor: 'transparent',
-        }
-      },
-    }
-  }
+  // overrides: {
+  //   MuiFilledInput: {
+  //     root: {
+  //       backgroundColor: 'transparent',
+  //       '&:hover': {
+  //         backgroundColor: 'transparent',
+  //       }
+  //     },
+  //   }
+  // }
 })
 
 interface AppProps {
@@ -42,6 +46,13 @@ interface AppProps {
   }
 }
 
+interface ConfirmationState {
+  callback?: () => void,
+  title?: string,
+  text?: string | ReactElement,
+  ok?: string,
+}
+
 interface AppState {
   tab: number,
   message: Message | null,
@@ -49,7 +60,8 @@ interface AppState {
   historyIndex: number,
   defaultProject: number,
   search: Query,
-  searchResults: Match[],
+  searchResults: NoteRecord[],
+  confirmation: ConfirmationState,
 }
 
 interface Message {
@@ -68,7 +80,7 @@ const styles = (theme: any) => ({
   root: {
     flexGrow: 1,
     minWidth: '550px',
-    backgroundColor: theme.palette.background.paper,
+    // backgroundColor: theme.palette.background.paper,
   },
   button: {
     margin: theme.spacing(1),
@@ -88,8 +100,9 @@ export class App extends React.Component<AppProps, AppState> {
       history: [],
       historyIndex: -1,
       defaultProject: 0,
-      search: { type: "ad hoc"},
+      search: { type: "ad hoc" },
       searchResults: [],
+      confirmation: {},
     }
   }
 
@@ -128,6 +141,7 @@ export class App extends React.Component<AppProps, AppState> {
           <Snackbar open={!!this.state.message} autoHideDuration={6000} onClose={closeBar}>
             <Alert onClose={closeBar} severity={this.state.message?.level || 'info'}>{this.state.message?.text}</Alert>
           </Snackbar>
+          <ConfirmationModal confOps={this.state.confirmation} cancel={() => this.setState({ confirmation: {} })} />
         </div>
       </ThemeProvider>
     );
@@ -172,6 +186,11 @@ export class App extends React.Component<AppProps, AppState> {
     this.setState({ message: null })
   }
 
+  // pop open the confirmation modal
+  confirm(confirmation: ConfirmationState) {
+    this.setState({ confirmation })
+  }
+
   highlight({ url }: { url: string }) {
     // TODO
     // check to make sure the URL is what is currently in the history
@@ -211,6 +230,113 @@ export class App extends React.Component<AppProps, AppState> {
       this.warn(`could not go to citation ${index + 1} in history`)
     }
   }
+
+  removeNote(note: NoteState) {
+    const [, project] = this.switchboard.index!.findProject(note.key[0])
+    this.switchboard.index?.delete({ phrase: note.citations[0].phrase, project })
+      .then((otherNotesModified) => {
+        const done = () => this.success(`The note regarding "${note.citations[0].phrase}" has been deleted from the ${project.name} project.`)
+        let search: Query
+        switch (this.state.search.type) {
+          case "lookup":
+            search = { type: "ad hoc" }
+            this.switchboard.index?.find(search)
+              .then((found) => {
+                switch (found.type) {
+                  case "none":
+                    this.setState({
+                      historyIndex: 0,
+                      history: [],
+                      searchResults: [],
+                      tab: 2,
+                      search
+                    })
+                    done()
+                    break
+                  case "found":
+                    this.error(`the "found" state should be unreachable when deleting a note found by lookup`)
+                    break
+                  case "ambiguous":
+                    this.error(`the "ambiguous" state should be unreachable when deleting a note found by lookup`)
+                    break
+                }
+              })
+              .catch((e) => this.error(e))
+            break
+          case "ad hoc":
+            // TODO
+            this.cleanHistory(otherNotesModified).catch(e => this.error(e)).then(() => { })
+            break
+        }
+      })
+      .catch((e) => this.error(e))
+  }
+  // remove deleted notes from navigational history
+  cleanHistory(otherNotesModified: boolean): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const keys: string[] = this.state.history.map((v) => enkey(v.current.key))
+      const missing: string[] = []
+      const foundNotes: Map<string, NoteRecord> = new Map()
+      for (const key of keys) {
+        const note = this.switchboard.index?.cache.get(key)
+        if (note) {
+          foundNotes.set(key, note)
+        } else {
+          missing.push(key)
+        }
+      }
+      const continuation = () => {
+        const history: Visit[] = deepClone(this.state.history)
+        let indexChanged = false
+        let historyIndex = this.state.historyIndex
+        for (let i = history.length - 1; i >= 0; i--) {
+          const key = keys[i]
+          const note = foundNotes.get(key)
+          if (note) {
+            const oldHistory = this.state.history[i]
+            const ns = {
+              unsavedContent: oldHistory.current.unsavedContent,
+              citationIndex: oldHistory.current.citationIndex,
+              ...note
+            }
+            let v: Visit
+            if (otherNotesModified) {
+              v = deepClone(oldHistory)
+              v.current.unsavedContent = false
+              v.current.relations = note.relations
+              v.saved = deepClone(v.current)
+              history[i] = v
+            }
+          } else {
+            history.splice(i, 1)
+            if (i === this.state.historyIndex) {
+              indexChanged = true
+            } else if (!indexChanged && i < historyIndex) {
+              historyIndex--
+            }
+          }
+          if (indexChanged) {
+            historyIndex = history.length - 1
+          }
+          this.setState({ historyIndex, history })
+        }
+      }
+      if (missing.length) {
+        chrome.storage.local.get(missing, (found) => {
+          if (chrome.runtime.lastError) {
+            reject(`could not obtain all information required to clean history: ${chrome.runtime.lastError}`)
+          } else {
+            for (const [key, note] of Object.entries(found)) {
+              foundNotes.set(key, note as NoteRecord)
+            }
+            continuation()
+          }
+        })
+      } else {
+        continuation()
+      }
+    })
+  }
 }
 
 export default withStyles(styles)(App);
@@ -240,4 +366,29 @@ function a11yProps(index: number) {
     id: `full-width-tab-${index}`,
     'aria-controls': `full-width-tabpanel-${index}`,
   };
+}
+
+function ConfirmationModal({ confOps, cancel }: { confOps: ConfirmationState, cancel: () => void }) {
+  const { text, callback, title = "Confirm", ok = "Ok" } = confOps
+  if (!(text && callback)) {
+    return null
+  }
+  return (
+    <Dialog
+      open
+      aria-labelledby="confirm-dialog-title"
+      aria-describedby="confirm-dialog-description"
+    >
+      <DialogTitle id="confirm-dialog-title">{title}</DialogTitle>
+      <DialogContent>
+        <DialogContentText id="confirm-dialog-description">{text}</DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={cancel} >
+          Cancel
+        </Button>
+        <Button onClick={callback} color="primary" autoFocus>{ok}</Button>
+      </DialogActions>
+    </Dialog>
+  )
 }

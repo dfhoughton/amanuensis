@@ -32,6 +32,7 @@ export interface SourceRecord {
 export type KeyPair = [projectKey: number, phraseKey: number]
 
 export interface NoteRecord {
+    key: KeyPair,                             // a convenient denormalization -- the project and phrase key identifying this note
     gist: string,                             // essential notes about a phrase
     details: string,                          // free-form notes on the phrase -- an elaboration on the gist
     tags: string[],                           // closed-class tags categorizing the phrase
@@ -104,6 +105,3 @@ export type Query = { type: "lookup", phrase: string, project?: number } | {
     url?: string,
     starred?: boolean,
 }
-
-// a result returned for a search
-export type Match = [project: number, record: NoteRecord]

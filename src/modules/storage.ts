@@ -1,5 +1,5 @@
 import { deepClone } from './clone'
-import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Match } from './types'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query } from './types'
 
 // utility function to convert maps into arrays for permanent storage
 function m2a(map: Map<any, any>): [any, any][] {
@@ -9,12 +9,12 @@ function m2a(map: Map<any, any>): [any, any][] {
 }
 
 type FindResponse =
-    { state: "found", match: Match } |
-    { state: "ambiguous", matches: Match[] } |
-    { state: "none" }
+    { type: "found", match: NoteRecord } |
+    { type: "ambiguous", matches: NoteRecord[] } |
+    { type: "none" }
 
 // how to take a KeyPair and make a local storage/cache key
-function enkey(key: KeyPair): string {
+export function enkey(key: KeyPair): string {
     return `${key[0]}:${key[1]}`
 }
 
@@ -128,12 +128,12 @@ export class Index {
                     }
                     if (keys.length) {
                         const stringKeys = keys.map((pair) => enkey(pair))
-                        const rv: Match[] = []
+                        const rv: NoteRecord[] = []
                         const continuation = () => {
                             if (rv.length > 1) {
-                                resolve({ state: "ambiguous", matches: rv })
+                                resolve({ type: "ambiguous", matches: rv })
                             } else {
-                                resolve({ state: "found", match: rv[0] })
+                                resolve({ type: "found", match: rv[0] })
                             }
                         }
                         // first search the cache
@@ -141,7 +141,7 @@ export class Index {
                             const key = stringKeys[i]
                             const note = this.cache.get(key)
                             if (note != null) {
-                                rv.push([keys[i][0], note])
+                                rv.push(note)
                                 keys.splice(i, 1)
                                 stringKeys.splice(i, 1)
                             }
@@ -156,7 +156,7 @@ export class Index {
                                         const key = stringKeys[i]
                                         const note = found[key]
                                         this.cache.set(key, deepClone(note)) // cache it so we don't have to look it up next time
-                                        rv.push([keys[i][0], note])
+                                        rv.push(note)
                                     }
                                     continuation()
                                 }
@@ -165,7 +165,7 @@ export class Index {
                             continuation()
                         }
                     } else {
-                        resolve({ state: "none" })
+                        resolve({ type: "none" })
                     }
                 })
             case "ad hoc":
@@ -194,7 +194,7 @@ export class Index {
                                 )
                             }
                         }
-                        let candidates: Match[] = []
+                        let candidates: NoteRecord[] = []
                         const continuation = () => { // what to do once we've got our matches
                             const any = (ar: any[], f: (arg: any) => boolean): boolean => {
                                 for (const o of ar) {
@@ -212,7 +212,7 @@ export class Index {
                                 }
                                 return true
                             }
-                            candidates = candidates.filter(([, note]) => {
+                            candidates = candidates.filter((note) => {
                                 // phrase/strictness filtering is necessarily already done at this point
                                 // progress from easy to hard
                                 const { starred, url, tagRequired, tagForbidden, before, after } = query
@@ -256,12 +256,12 @@ export class Index {
                             })
                             if (candidates.length) {
                                 if (candidates.length === 1) {
-                                    resolve({ state: "found", match: candidates[0] })
+                                    resolve({ type: "found", match: candidates[0] })
                                 } else {
-                                    resolve({ state: "ambiguous", matches: candidates })
+                                    resolve({ type: "ambiguous", matches: candidates })
                                 }
                             } else {
-                                resolve({ state: "none" })
+                                resolve({ type: "none" })
                             }
                         }
                         const toLookUp: string[] = []
@@ -273,7 +273,7 @@ export class Index {
                                     key = enkey([pk, i])
                                     const note = this.cache.get(key)
                                     if (note) {
-                                        candidates.push([pk, note])
+                                        candidates.push(note)
                                     } else {
                                         toLookUp.push(key)
                                     }
@@ -300,7 +300,7 @@ export class Index {
                                     const key = enkey([pk, i])
                                     const note = this.cache.get(key)
                                     if (note) {
-                                        candidates.push([pk, note])
+                                        candidates.push(note)
                                     } else {
                                         toLookUp.push(key)
                                     }
@@ -314,7 +314,7 @@ export class Index {
                                 } else {
                                     for (const [key, note] of Object.entries(found)) {
                                         const pk: number = Number.parseInt(key.split(":")[0])
-                                        candidates.push([pk, note as NoteRecord])
+                                        candidates.push(note as NoteRecord)
                                     }
                                     continuation()
                                 }
@@ -324,7 +324,7 @@ export class Index {
                         }
                     } else {
                         // no filters means no results 
-                        resolve({ state: "none" })
+                        resolve({ type: "none" })
                     }
                 })
         }
@@ -352,6 +352,7 @@ export class Index {
                     }
                 })
                 projectIndex.set(key, pk)
+                data.key[1] = pk
                 storable[projectInfo.pk.toString()] = m2a(projectIndex)
             }
             const keyPair: KeyPair = [projectInfo.pk, pk] // convert key to the 
@@ -405,7 +406,8 @@ export class Index {
         })
     }
 
-    delete({ phrase, project }: { phrase: string, project: ProjectInfo }): Promise<void> {
+    // boolean parameter of returned promise indicates whether other notes were modified when deleting this one
+    delete({ phrase, project }: { phrase: string, project: ProjectInfo }): Promise<boolean> {
         return new Promise((resolve, reject) => {
             const key = this.key(phrase, project)
             if (key === null) {
@@ -424,7 +426,13 @@ export class Index {
                                     reject(`failed to delete "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`)
                                 } else {
                                     this.projectIndices.get(project.pk)?.delete(norm)
-                                    resolve()
+                                    if (memoranda.length) {
+                                        this.cache.clear() // Gordian knot solution
+                                        resolve(true)
+                                    } else {
+                                        this.cache.delete(key)
+                                        resolve(false)
+                                    }
                                 }
                             })
                         }
@@ -490,7 +498,6 @@ export class Index {
                     }
                     let note = this.cache.get(key)
                     if (note) {
-                        this.cache.delete(key)
                         continuation1(note)
                     } else {
                         this.chrome.storage.local.get([key], (found) => {

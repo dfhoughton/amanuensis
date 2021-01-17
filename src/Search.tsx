@@ -1,8 +1,8 @@
 import { App } from './App'
 import { Details } from './modules/util'
-import { Match, Query } from './modules/types'
+import { NoteRecord, Query } from './modules/types'
 import { Card, makeStyles, useIsFocusVisible } from '@material-ui/core'
-import { Index } from './modules/storage'
+import { enkey, Index } from './modules/storage'
 import classes from '*.module.css'
 
 interface SearchProps {
@@ -51,18 +51,13 @@ function Form({ app }: { app: App }) {
     )
 }
 
-function Result({ match, index }: { match: Match, index: Index | null }) {
+function Result({ match, index }: { match: NoteRecord, index: Index | null }) {
     if (index === null) {
         return null
     }
-    const [proj, note] = match
-    const phrase: string = note.citations[0].phrase
-    const k = index.key(phrase, proj)
-    if (k === null) {
-        return null
-    }
+    const phrase: string = match.citations[0].phrase
     return (
-        <Card key={k}>
+        <Card key={enkey(match.key)}>
 
         </Card>
     )
