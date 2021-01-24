@@ -12,6 +12,7 @@ import { makeStyles } from '@material-ui/core/styles'
 import { Delete, Save } from '@material-ui/icons'
 import { App } from './App'
 import { Grid, Typography as T } from '@material-ui/core'
+import { enkey } from './modules/storage'
 
 const hash = require('object-hash')
 
@@ -140,7 +141,12 @@ class Note extends React.Component<NoteProps, NoteState> {
                         case 'found':
                             // check to see whether any of the citations are missing
                             // TODO make sure this works
-                            const keys = new Set(Object.values(this.state.relations).reduce((acc, pairs) => acc.concat(pairs), []))
+                            const keys = new Set(
+                                Object.values(this.state.relations).reduce(
+                                    (acc: string[], pairs) => acc.concat(pairs.map(p => enkey(p))),
+                                    []
+                                )
+                            )
                             this.app.switchboard.index?.missing(keys)
                                 .then((missing) => {
                                     if (missing.size) {
@@ -148,7 +154,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                                         const relations = deepClone(this.state.relations)
                                         for (let [k, v] of Object.entries(relations)) {
                                             let ar = v as KeyPair[]
-                                            ar = ar.filter((p) => !missing.has(p))
+                                            ar = ar.filter((p) => !missing.has(enkey(p)))
                                             if (ar.length) {
                                                 relations[k] = ar
                                             } else {
@@ -400,11 +406,10 @@ function Tags(props: { note: Note }) {
             multiple
             freeSolo
             autoComplete
-            size="small"
             renderInput={(params) => <TextField {...params} label="Tags" placeholder="category" />}
             renderTags={
                 (value, getTagProps) =>
-                    value.map((obj, index) => <Chip variant="outlined" label={obj} {...getTagProps({ index })} />)
+                    value.map((obj, index) => <Chip variant="outlined" size="small" label={obj} {...getTagProps({ index })} />)
             }
         />
     )

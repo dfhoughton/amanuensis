@@ -92,3 +92,91 @@ export function debounce(interval: number = 200): (f: () => void) => () => void 
         }
     }
 }
+
+// does predicate apply to any?
+export function any(things: any[], predicate: (arg: any) => boolean): boolean {
+    for (const o of things) {
+        if (predicate(o)) {
+            return true
+        }
+    }
+    return false
+}
+
+// does predicate apply to all?
+export function all(things: any[], predicate: (arg: any) => boolean): boolean {
+    for (const o of things) {
+        if (!predicate(o)) {
+            return false
+        }
+    }
+    return true
+}
+
+// does predicate apply to none?
+export function none(things: any[], predicate: (arg: any) => boolean): boolean {
+    for (const o of things) {
+        if (predicate(o)) {
+            return false
+        }
+    }
+    return true
+}
+
+// like ruby's flatten but can take any object as its parameter
+export function flatten(val: any, ar: any[] = []): any[] {
+    if (val.forEach) {
+        val.forEach((v: any) => flatten(v, ar))
+    } else {
+        ar.push(val)
+    }
+    return ar
+}
+
+// find the least and greatest member of a list or set after flattening
+export function minmax(val: any, comparator?: (a: any, b: any) => number): [min: any, max: any] {
+    const ar = flatten(val)
+    if (ar.length > 1) {
+        ar.sort(comparator)
+    }
+    return [ar[0], ar[ar.length - 1]]
+}
+
+// convert a date into the format that date inputs expect -- there must be a better way
+export function ymd(date: Date | null | undefined): string | undefined {
+    if (date) {
+        let y = date.getFullYear().toString()
+        while (y.length < 4) {
+            y = "0" + y
+        }
+        let m = (date.getMonth() + 1).toString()
+        while (m.length < 2) {
+            m = "0" + m
+        }
+        let d = (date.getDate() + 1).toString()
+        while (d.length < 2) {
+            d = "0" + d
+        }
+        return `${y}-${m}-${d}`
+    }
+}
+
+// filters to the set of things which are unique according to the toString values of the members of the array
+export function uniq(ar: any[]) : any[] {
+    if (ar.length < 2) return ar
+    const seen = new Set<string>()
+    return ar.filter((v) => {
+        if (seen.size == 0) {
+            seen.add(v.toString())
+            return true
+        } else {
+            const s = v.toString()
+            if (seen.has(v)) {
+                return false
+            } else {
+                seen.add(v)
+                return true
+            }
+        }
+    })
+}

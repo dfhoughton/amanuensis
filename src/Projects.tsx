@@ -298,7 +298,6 @@ function ChangeModal({ proj }: { proj: Projects }) {
                             freeSolo
                             autoComplete
                             limitTags={3}
-                            size="small"
                             defaultValue={proj.state.modifying!.relations}
                             renderInput={(params) => (
                                 <TextField
@@ -319,6 +318,7 @@ function ChangeModal({ proj }: { proj: Projects }) {
                                             const [left, right] = Array.isArray(obj) ? obj : stringToRelation(obj)
                                             return <Chip
                                                 variant="outlined"
+                                                size="small"
                                                 label={left === right ? left : <PairedRelation left={left} right={right} />}
                                                 {...getTagProps({ index })}
                                             />

@@ -93,15 +93,22 @@ export interface ContentSelection {
     selection: Selection
 }
 
-export type Query = { type: "lookup", phrase: string, project?: number } | {
+export interface LookupQuery {
+    type: "lookup",
+    phrase: string,
+    project?: number
+}
+
+export interface AdHocQuery {
     type: "ad hoc",
     phrase?: string,
     strictness?: "exact" | "substring" | "fuzzy",
     project?: number[],
-    tagRequired?: string[],
-    tagForbidden?: string[],
+    tags?: string[],
     after?: Date,
     before?: Date,
     url?: string,
     starred?: boolean,
 }
+
+export type Query = LookupQuery | AdHocQuery

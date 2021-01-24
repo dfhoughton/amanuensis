@@ -39,10 +39,11 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
     if (Object.is(obj1, obj2)) {
         return false
     }
-    if (typeof obj1 !== typeof obj2) {
+    const type1 = typeof obj1
+    if (type1 !== typeof obj2) {
         return true
     }
-    if (typeof obj1 === 'object') {
+    if (type1 === 'object') {
         if ((obj1 == null) !== (obj2 == null)) {
             return true
         }
@@ -66,10 +67,11 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
             }
             return false
         }
-        if (Object.keys(obj1).length !== Object.keys(obj2).length) {
+        const entries1 = Object.entries(obj1)
+        if (entries1.length !== Object.keys(obj2).length) {
             return true
         }
-        for (const [k, v] of Object.entries(obj1)) {
+        for (const [k, v] of entries1) {
             if (except.indexOf(k) === -1) {
                 if (anyDifference(v, obj2[k], ...except)) {
                     return true
