@@ -17,8 +17,13 @@ const projectStyles = makeStyles((theme) => ({
 
     },
     results: {
-
-    }
+        marginTop: theme.spacing(3),
+    },
+    noNotes: {
+        display: "table",
+        margin: "0 auto",
+        fontStyle: "italic",
+    },
 }))
 
 
@@ -32,6 +37,7 @@ function Search({ app }: SearchProps) {
             <Form app={app} />
             <div className={classes.results}>
                 {app.state.searchResults.map(r => <Result note={r} app={app} />)}
+                {!app.state.searchResults.length && <div className={classes.noNotes}>no notes found</div>}
             </div>
         </div>
     )
@@ -236,6 +242,21 @@ function Form({ app }: { app: App }) {
                     }}
                 />
             </Grid>
+            <TextField
+                id="url"
+                label="URL"
+                className={classes.item}
+                value={url || ''}
+                onChange={(event) => {
+                    search = deepClone(search)
+                    if (/\S/.test(event.target.value)) {
+                        search.url = event.target.value
+                    } else {
+                        delete search.url
+                    }
+                    app.setState({ search })
+                }}
+            />
             <div className={classes.centered}>
                 <Grid container justify="space-evenly" className={classes.item}>
                     <Button
@@ -278,7 +299,10 @@ function Form({ app }: { app: App }) {
 
 const resultStyles = makeStyles((theme) => ({
     root: {
-        marginTop: theme.spacing(3),
+        marginTop: theme.spacing(2),
+        '&:first-child': {
+            marginTop: 0,
+        }
     },
     phrase: {
 
@@ -311,7 +335,7 @@ function Phrase({note, app}: CardProps) {
     const phrase = phrases.shift()
     if (!phrase) return null // should be a no-op
     return (
-        <div>{phrase}</div>
+        <span>{phrase}</span>
     )
 }
 
@@ -321,6 +345,6 @@ function Url({note, app}: CardProps) {
     const url = urls.shift()
     if (!url) return null
     return (
-        <div>{url}</div>
+        <span>{url}</span>
     )
 }
