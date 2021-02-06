@@ -2,11 +2,57 @@ import { deepClone } from './clone'
 import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord } from './types'
 import { all, any, none } from './util'
 
-// utility function to convert maps into arrays for permanent storage
-function m2a(map: Map<any, any>): [any, any][] {
-    const ar: [any, any][] = []
-    map.forEach((v, k) => ar.push([k, v]))
-    return ar
+// do this to anything going into storage
+function serialize(obj: any): any {
+    if (typeof obj === 'object') {
+        if (obj == null) {
+            return null
+        } else if (obj instanceof Date) {
+            return { __class__: 'Date', args: obj.getTime() }
+        } else if (obj instanceof Set) {
+            return { __class__: 'Set', args: Array.from(obj).map((v) => serialize(v)) }
+        } else if (obj instanceof Map) {
+            return { __class__: 'Map', args: Array.from(obj).map(([k, v]) => [serialize(k), serialize(v)]) }
+        } else if (Array.isArray(obj)) {
+            return obj.map((v) => serialize(v))
+        } else {
+            const rv: { [key: string]: any } = {}
+            for (const [k, v] of Object.entries(obj)) {
+                rv[k] = serialize(v)
+            }
+            return rv
+        }
+    } else {
+        return obj
+    }
+}
+
+// do this to anything coming out of storage
+function deserialize(obj: any): any {
+    if (typeof obj === 'object') {
+        if (obj == null) {
+            return null
+        } else if (Array.isArray(obj)) {
+            return obj.map((v) => deserialize(v))
+        } else {
+            switch (obj.__class__) {
+                case 'Date':
+                    return new Date(obj.args)
+                case 'Set':
+                    return new Set(deserialize(obj.args))
+                case 'Map':
+                    return new Map(deserialize(obj.args))
+                default:
+                    const rv: { [key: string]: any } = {}
+                    for (const [k, v] of Object.entries(obj)) {
+                        rv[k] = deserialize(v)
+                    }
+                    return rv
+            }
+        }
+    } else {
+        return obj
+    }
 }
 
 type FindResponse =
@@ -39,8 +85,8 @@ export class Index {
             const project = this.makeDefaultProject()
             this.projects.set(project.name, project)
             this.projectIndices.set(project.pk, new Map())
-            const storable = { projects: m2a(this.projects) }
-            this.chrome.storage.local.set(storable)
+            const storable = { projects: this.projects }
+            this.chrome.storage.local.set(serialize(storable))
         }
         this.reverseProjectIndex = new Map()
         this.projects.forEach((value, key) => this.reverseProjectIndex.set(value.pk, key))
@@ -149,7 +195,7 @@ export class Index {
                                 } else {
                                     for (let i = 0; i < keys.length; i++) {
                                         const key = stringKeys[i]
-                                        const note = found[key]
+                                        const note = deserialize(found[key])
                                         this.cache.set(key, deepClone(note)) // cache it so we don't have to look it up next time
                                         rv.push(note)
                                     }
@@ -291,7 +337,7 @@ export class Index {
                 }
             })
                 .then(() => {
-                    this.chrome.storage.local.set({ tags: Array.from(this.tags) }, () => {
+                    this.chrome.storage.local.set(serialize({ tags: this.tags }), () => {
                         if (this.chrome.runtime.lastError) {
                             reject(`could not save tags: ${this.chrome.runtime.lastError}`)
                         } else {
@@ -327,7 +373,7 @@ export class Index {
                             reject(this.chrome.runtime.lastError)
                         } else {
                             for (const note of Object.values(found)) {
-                                visitor(note as NoteRecord)
+                                visitor(deserialize(note) as NoteRecord)
                             }
                             visitBatch()
                         }
@@ -363,7 +409,7 @@ export class Index {
                 })
                 projectIndex.set(key, pk)
                 data.key[1] = pk
-                storable[projectInfo.pk.toString()] = m2a(projectIndex)
+                storable[projectInfo.pk.toString()] = projectIndex
             }
             const keyPair: KeyPair = [projectInfo.pk, pk] // convert key to the 
             this.cache.set(enkey(keyPair), data)
@@ -373,11 +419,7 @@ export class Index {
                 this.tags.add(tag)
             }
             if (this.tags.size > l) {
-                const tags: string[] = []
-                for (const tag of this.tags) {
-                    tags.push(tag)
-                }
-                storable.tags = tags
+                storable.tags = this.tags
             }
             // modify any phrases newly tied to this by a relation
             // NOTE any relation *deleted* in editing will need to be handled separately
@@ -406,7 +448,7 @@ export class Index {
             }
             // store the phrase itself
             storable[enkey(keyPair)] = data
-            this.chrome.storage.local.set(storable, () => {
+            this.chrome.storage.local.set(serialize(storable), () => { // FIXME
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
@@ -461,7 +503,7 @@ export class Index {
                         // remove from any related notes the relations concerning this note
                         const continuation3 = () => {
                             if (Object.keys(memoranda).length) {
-                                this.chrome.storage.local.set(memoranda, () => {
+                                this.chrome.storage.local.set(serialize(memoranda), () => {
                                     if (this.chrome.runtime.lastError) {
                                         reject(`could not store changes to notes affected by the deletion of "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`)
                                     } else {
@@ -507,7 +549,8 @@ export class Index {
                                 if (this.chrome.runtime.lastError) {
                                     reject(`could not obtain some objects whose relations needed to be modified after the deletion of "${phrase}" from project ${project.name}: ${this.chrome.runtime.lastError}`)
                                 } else {
-                                    for (const [key, note] of found) {
+                                    for (let [key, note] of found) {
+                                        note = deserialize(note)
                                         const [end, pair] = sought[key]
                                         removeRelation(end, pair, note)
                                     }
@@ -526,7 +569,7 @@ export class Index {
                             if (this.chrome.runtime.lastError) {
                                 reject(`could not retrieve note to be deleted for ${phrase} in ${project.name}: ${this.chrome.runtime.lastError}`)
                             } else {
-                                note = found[key] as NoteRecord
+                                note = deserialize(found[key]) as NoteRecord
                                 continuation1(note)
                             }
                         })
@@ -584,7 +627,7 @@ export class Index {
                             } else {
                                 delete data2.relations[relation]
                             }
-                            this.chrome.storage.local.set(storable, () => {
+                            this.chrome.storage.local.set(serialize(storable), () => {
                                 if (this.chrome.runtime.lastError) {
                                     reject(this.chrome.runtime.lastError)
                                 } else {
@@ -596,16 +639,17 @@ export class Index {
                         }
                     }
                     const otherKey = enkey(pair)
-                    const other = this.cache.get(otherKey)
+                    let other = this.cache.get(otherKey)
                     if (other) {
                         continuation(other)
                     } else {
-                        this.chrome.storage.local.get([enkey(pair)], (found) => {
+                        this.chrome.storage.local.get([otherKey], (found) => {
                             if (this.chrome.runtime.lastError) {
                                 reject(this.chrome.runtime.lastError)
                             } else {
-                                this.cache.set(otherKey, found)
-                                continuation(found)
+                                other = deserialize(found[otherKey]) as NoteRecord
+                                this.cache.set(otherKey, other)
+                                continuation(other)
                             }
                         })
                     }
@@ -719,8 +763,8 @@ export class Index {
             }
             const project: ProjectInfo = { pk, name, description, normalizer, relations }
             this.projects.set(name, project)
-            storable.projects = m2a(this.projects)
-            this.chrome.storage.local.set(storable, () => {
+            storable.projects = this.projects
+            this.chrome.storage.local.set(serialize(storable), () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
@@ -775,9 +819,9 @@ export class Index {
                                 this.currentProject = 0
                                 memoranda.currentProject = 0
                             }
-                            memoranda.projects = m2a(this.projects)
+                            memoranda.projects = this.projects
                             // now we need to save the changes
-                            this.chrome.storage.local.set(memoranda, () => {
+                            this.chrome.storage.local.set(serialize(memoranda), () => {
                                 if (this.chrome.runtime.lastError) {
                                     reject(`all the notes in ${projectInfo.name} have been deleted, but some changes could not be saved: ${this.chrome.runtime.lastError}`)
                                 } else {
@@ -809,7 +853,7 @@ export class Index {
                             reject(this.chrome.runtime.lastError)
                         } else {
                             for (const [key, note] of Object.entries(found)) {
-                                adjustables.push([key, note as NoteRecord])
+                                adjustables.push([key, deserialize(note) as NoteRecord])
                             }
                             continuation2()
                         }
@@ -824,7 +868,7 @@ export class Index {
                         reject(this.chrome.runtime.lastError)
                     } else {
                         for (const note of Object.values(found)) {
-                            notes.push(note as NoteRecord)
+                            notes.push(deserialize(note) as NoteRecord)
                         }
                         continuation1()
                     }
@@ -884,8 +928,7 @@ export class Index {
                     const project = this.makeDefaultProject()
                     this.projects.set(project.name, project)
                     this.projectIndices.set(project.pk, new Map())
-                    const storable = { projects: m2a(this.projects) }
-                    this.chrome.storage.local.set(storable) // if this fails no harm done
+                    this.chrome.storage.local.set(serialize({ projects: this.projects })) // if this fails no harm done
                     resolve()
                 }
             })
@@ -900,21 +943,21 @@ export function getIndex(chrome: Chrome): Promise<Index> {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { projects = [], currentProject = 0, tags = [] } = result || {}
+                let { projects = new Map(), currentProject = 0, tags = new Set() } = deserialize(result) || {}
                 // now that we have the project we can fetch the project indices
                 const indices: string[] = []
                 for (const [, projectInfo] of projects) {
                     indices.push(projectInfo.pk.toString())
                 }
-                chrome.storage.local.get(indices, (result: { [projectPk: string]: [phrase: string, pk: number][] }) => {
+                chrome.storage.local.get(indices, (result) => {
                     if (chrome.runtime.lastError) {
                         reject(chrome.runtime.lastError)
                     } else {
                         const projectIndices = new Map()
                         for (const [idx, ridx] of Object.entries(result)) {
-                            projectIndices.set(Number.parseInt(idx), new Map(ridx))
+                            projectIndices.set(Number.parseInt(idx), deserialize(ridx))
                         }
-                        resolve(new Index(chrome, new Map(projects), currentProject, projectIndices, new Set(tags)))
+                        resolve(new Index(chrome, projects, currentProject, projectIndices, tags))
                     }
                 })
             }

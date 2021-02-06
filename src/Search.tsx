@@ -1,7 +1,7 @@
 import { App } from './App'
-import { Details, flatten, Mark, uniq, ymd } from './modules/util'
+import { Details, flatten, Mark, TT, uniq, ymd } from './modules/util'
 import { AdHocQuery, CitationRecord, NoteRecord } from './modules/types'
-import { Button, Card, Chip, FormControl, FormControlLabel, Grid, makeStyles, Radio, RadioGroup, TextField } from '@material-ui/core'
+import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, Radio, RadioGroup, TextField } from '@material-ui/core'
 import { enkey, normalizers } from './modules/storage'
 import React from 'react'
 import { deepClone } from './modules/clone'
@@ -131,7 +131,7 @@ function Form({ app }: { app: App }) {
                     </RadioGroup>
                 </FormControl>
             </div>
-            {projects.length > 1 && <Autocomplete
+            {(projects.length > 1 || '') && <Autocomplete
                 id="project"
                 className={classes.item}
                 options={projects}
@@ -183,7 +183,7 @@ function Form({ app }: { app: App }) {
                     </RadioGroup>
                 </FormControl>
             </div>
-            {tags.length && <Autocomplete
+            {(tags.length || '') && <Autocomplete
                 id="tags-required"
                 className={classes.item}
                 options={tags}
@@ -262,7 +262,7 @@ function Form({ app }: { app: App }) {
                     <Button
                         color="primary"
                         className={classes.inCentered}
-                        variant="outlined"
+                        variant="contained"
                         endIcon={<SearchIcon />}
                         onClick={() => {
                             index.find(search)
@@ -283,13 +283,13 @@ function Form({ app }: { app: App }) {
                     >
                         Search
                     </Button>
-                        <Button
-                            color="secondary"
-                            className={classes.inCentered}
-                            variant="outlined"
-                            onClick={() => app.setState({ search: { type: 'ad hoc' } })}
-                        >
-                            Clear
+                    <Button
+                        color="secondary"
+                        className={classes.inCentered}
+                        variant="contained"
+                        onClick={() => app.setState({ search: { type: 'ad hoc' } })}
+                    >
+                        Clear
                     </Button>
                 </Grid>
             </div>
@@ -305,46 +305,99 @@ const resultStyles = makeStyles((theme) => ({
         }
     },
     phrase: {
+        fontWeight: 'bold',
+    },
+    project: {
+        textAlign: 'right',
+        fontWeight: 'bold',
+        color: theme.palette.grey[500],
+    },
+    star: {
+        textAlign: 'right',
+        lineHeight: '1rem',
+    },
+    dates: {
+        fontSize: 'smaller',
+        color: theme.palette.grey[500],
+        marginLeft: '1rem',
+    },
+    tags: {
+        display: 'flex',
+        justifyContent: 'right',
+        fontSize: 'smaller',
+    },
+    gist: {
+        whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
+    },
+    urls: {
 
     },
-
 }))
 
-interface CardProps { note: NoteRecord, app: App }
-
-function Result({ note, app }: CardProps) {
-    if (app.switchboard.index === null) {
-        return null
-    }
+export function Result({ note, app }: { note: NoteRecord, app: App }) {
     const classes = resultStyles()
-    const phrase: string = note.citations[0].phrase
-    const {starred, url} = app.state.search as AdHocQuery
+    const index = app.switchboard.index;
+    const project = index!.projects.get(index!.reverseProjectIndex.get(note.key[0]) || '');
     return (
-        <Card key={enkey(note.key)} className={classes.root}>
-            <Grid justify="space-between">
-                <Phrase app={app} note={note}/>
-                <Url app={app} note={note}/>
-                <Mark starred={note.starred}/>
-            </Grid>
+        <Card className={classes.root} key={enkey(note.key)}>
+            <CardContent>
+                <Grid container spacing={1}>
+                    <Grid item xs={7} className={classes.phrase}>
+                        {note.citations[0].phrase}
+                    </Grid>
+                    <Grid item xs={4} className={classes.project}>
+                        {project!.name}
+                    </Grid>
+                    <Grid item xs={1} className={classes.star}>
+                        <Mark starred={note.starred} style={{ fontSize: '1rem' }} />
+                    </Grid>
+                    <Grid item xs={5} className={classes.dates}>
+                        {formatDates(note)}
+                    </Grid>
+                    <Grid item xs={6} className={classes.tags}>
+                        {formatTags(note)}
+                    </Grid>
+                    <Grid item xs={12} className={classes.gist}>{note.gist}</Grid>
+                    <Grid item xs={12} className={classes.urls}>{formatUrls(note)}</Grid>
+                </Grid>
+            </CardContent>
         </Card>
     )
 }
 
-function Phrase({note, app}: CardProps) {
-    const phrases : string[] = uniq(note.citations.map((c: CitationRecord) => c.phrase ))
-    const phrase = phrases.shift()
-    if (!phrase) return null // should be a no-op
-    return (
-        <span>{phrase}</span>
-    )
+function formatDates(note: NoteRecord): string | React.ReactElement {
+    let ar = uniq(flatten(note.citations.map((c) => c.when.map((d) => ymd(d)))).sort())
+    const joined = ar.join(', ')
+    if (ar.length > 3) {
+        ar = [ar[0], '...', ar[ar.length - 1]]
+        return <TT msg={joined}><span>{ar.join(' ')}</span></TT>
+    }
+    return joined
 }
 
-function Url({note, app}: CardProps) {
-    if (!(app.state.search as AdHocQuery).url) return null
-    const urls: string[] = uniq(note.citations.map((c: CitationRecord) => c.source.url))
-    const url = urls.shift()
-    if (!url) return null
-    return (
-        <span>{url}</span>
-    )
+function formatTags(note: NoteRecord): string {
+    return note.tags.sort().join(', ')
+}
+
+function formatUrls(note: NoteRecord): React.ReactElement[] {
+    return uniq(note.citations, (c: CitationRecord) => c.source.url).
+        sort((a, b) => a.source.url < b.source.url ? -1 : 1).
+        map((c: CitationRecord) => <Url c={c} />)
+}
+
+const urlStyles = makeStyles((theme) => ({
+    root: {
+        display: 'table',
+        whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
+        fontSize: 'smaller',
+        marginTop: theme.spacing(0.2),
+        marginLeft: theme.spacing(1),
+    },
+}))
+
+function Url({ c }: { c: CitationRecord }) {
+    const classes = urlStyles()
+    return <TT msg={c.source.title}><div className={classes.root}>{c.source.url}</div></TT>
 }

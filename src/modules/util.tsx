@@ -73,10 +73,11 @@ const starStyles = makeStyles((theme) => ({
 }))
 
 // for making a gold/grey-bordered star for bookmarks and such
-export function Mark({ starred, onClick }: { starred: boolean, onClick?: () => void }) {
+export function Mark({ starred, onClick, fontSize, style }: { starred: boolean, style?: any, fontSize?: any, onClick?: () => void }) {
     const classes = starStyles()
     const cz = onClick ? (starred ? classes.pointy : `${classes.unstarred} ${classes.pointy}`) : (starred ? '' : classes.unstarred)
-    return starred ? <Star color="secondary" onClick={onClick} className={cz} /> : <StarBorder className={cz} onClick={onClick} />
+    const opts = { onClick, fontSize, style, className: cz }
+    return starred ? <Star color="secondary" {...opts} /> : <StarBorder {...opts} />
 }
 
 // create a debounced version of a function
@@ -145,10 +146,8 @@ export function minmax(val: any, comparator?: (a: any, b: any) => number): [min:
 // convert a date into the format that date inputs expect -- there must be a better way
 export function ymd(date: Date | null | undefined): string | undefined {
     if (date) {
-        let y = date.getFullYear().toString()
-        while (y.length < 4) {
-            y = "0" + y
-        }
+        console.log({date})
+        let y = date.getFullYear()
         let m = (date.getMonth() + 1).toString()
         while (m.length < 2) {
             m = "0" + m
@@ -162,19 +161,19 @@ export function ymd(date: Date | null | undefined): string | undefined {
 }
 
 // filters to the set of things which are unique according to the toString values of the members of the array
-export function uniq(ar: any[]) : any[] {
+export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): any[] {
     if (ar.length < 2) return ar
     const seen = new Set<string>()
     return ar.filter((v) => {
         if (seen.size == 0) {
-            seen.add(v.toString())
+            seen.add(by(v))
             return true
         } else {
-            const s = v.toString()
-            if (seen.has(v)) {
+            const s = by(v)
+            if (seen.has(s)) {
                 return false
             } else {
-                seen.add(v)
+                seen.add(s)
                 return true
             }
         }
