@@ -3,6 +3,7 @@ import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer
 import { all, any, none } from './util'
 
 // do this to anything going into storage
+// NOTE no cycles!
 function serialize(obj: any): any {
     if (typeof obj === 'object') {
         if (obj == null) {

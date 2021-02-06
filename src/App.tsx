@@ -79,7 +79,7 @@ type MessageLevels = "error" | "warning" | "info" | "success"
 const styles = (theme: any) => ({
   root: {
     flexGrow: 1,
-    minWidth: '550px',
+    width: '550px',
     // backgroundColor: theme.palette.background.paper,
   },
   button: {
