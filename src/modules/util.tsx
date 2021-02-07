@@ -1,7 +1,8 @@
 import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Typography } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
-import { Help, Star, StarBorder } from '@material-ui/icons'
+import { Crop169, Help, Star, StarBorder } from '@material-ui/icons'
 import { ReactElement } from 'react'
+import { HasKey, KeyPair } from './types'
 
 interface TTProps {
     children: ReactElement,
@@ -178,4 +179,9 @@ export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): a
             }
         }
     })
+}
+
+// determine note identity by comparing keypairs
+export function sameNote(n1: HasKey, n2: HasKey): boolean {
+    return n1.key[0] === n2.key[0] && n1.key[1] === n2.key[1]
 }

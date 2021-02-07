@@ -1,12 +1,12 @@
 import { App } from './App'
-import { Details, flatten, Mark, TT, uniq, ymd } from './modules/util'
+import { Details, flatten, Mark, sameNote, TT, uniq, ymd } from './modules/util'
 import { AdHocQuery, CitationRecord, NoteRecord } from './modules/types'
 import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, Radio, RadioGroup, TextField } from '@material-ui/core'
 import { enkey, normalizers } from './modules/storage'
 import React from 'react'
 import { deepClone } from './modules/clone'
 import { Autocomplete } from '@material-ui/lab'
-import { Search as SearchIcon } from '@material-ui/icons'
+import { Search as SearchIcon, Visibility, Link } from '@material-ui/icons'
 
 interface SearchProps {
     app: App
@@ -307,6 +307,11 @@ const resultStyles = makeStyles((theme) => ({
     phrase: {
         fontWeight: 'bold',
     },
+    navlinker: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     project: {
         textAlign: 'right',
         fontWeight: 'bold',
@@ -340,13 +345,16 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
     const index = app.switchboard.index;
     const project = index!.projects.get(index!.reverseProjectIndex.get(note.key[0]) || '');
     return (
-        <Card className={classes.root} key={enkey(note.key)} onClick={() => true}>
+        <Card className={classes.root} key={enkey(note.key)}>
             <CardContent>
                 <Grid container spacing={1}>
-                    <Grid item xs={7} className={classes.phrase}>
+                    <Grid item xs={5} className={classes.phrase}>
                         {note.citations[0].phrase}
                     </Grid>
-                    <Grid item xs={4} className={classes.project}>
+                    <Grid item xs={3} className={classes.navlinker}>
+                        <NavLinker note={note} app={app} />
+                    </Grid>
+                    <Grid item xs={3} className={classes.project}>
                         {project!.name}
                     </Grid>
                     <Grid item xs={1} className={classes.star}>
@@ -363,6 +371,34 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
                 </Grid>
             </CardContent>
         </Card>
+    )
+}
+
+const linkerStyles = makeStyles((theme) => ({
+    link: {
+        marginLeft: theme.spacing(1),
+    },
+}))
+
+function NavLinker({ note, app }: { note: NoteRecord, app: App }): React.ReactElement {
+    const classes = linkerStyles()
+    const cn = app.currentNote()
+    let link
+    if (cn && cn.citations.length && !sameNote(cn, note)) {
+        const message = `link "${note.citations[0].phrase}" to "${cn.citations[0].phrase}"`
+        link = (
+            <TT msg={message}>
+                <Link color="primary" fontSize="small" className={classes.link} onClick={() => app.notify('not yet implemented')} />
+            </TT>
+        )
+    }
+    return (
+        <div>
+            <TT msg={`go to "${note.citations[0].phrase}"`}>
+                <Visibility color="secondary" fontSize="small" onClick={() => app.goto(note)} />
+            </TT>
+            {link}
+        </div>
     )
 }
 

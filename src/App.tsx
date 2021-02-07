@@ -19,6 +19,7 @@ import { Alert } from '@material-ui/lab'
 import { Chrome, NoteRecord, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
 import { enkey } from './modules/storage'
+import { sameNote } from './modules/util'
 
 export const projectName = "Notorious"
 
@@ -201,6 +202,10 @@ export class App extends React.Component<AppProps, AppState> {
     return this.state.history[this.state.historyIndex]
   }
 
+  currentNote(): NoteState | undefined {
+    return this.state.history[this.state.historyIndex]?.current
+  }
+
   // to happen after a save
   changeHistory(current: NoteState, saved: NoteState) {
     const newHistory = deepClone(this.state.history)
@@ -215,6 +220,30 @@ export class App extends React.Component<AppProps, AppState> {
       const newHistory = deepClone(this.state.history)
       newHistory.push(newEvent)
       this.setState({ history: newHistory, historyIndex: this.state.history.length })
+    }
+  }
+
+  // go to an existing saved note
+  goto(note: NoteRecord) {
+    const cn = this.currentNote()
+    if (cn && sameNote(note, cn)) {
+      this.setState({ tab: 0 }, () => {
+        // todo -- cause loading event
+      })
+    } else {
+      const noteState: NoteState = {
+        everSaved: true,
+        citationIndex: 0,
+        unsavedContent: false,
+        ...note
+      }
+      // this action clears the future history
+      const newHistory = deepClone(this.state.history.splice(0, this.state.historyIndex + 1))
+      this.setState({ history: newHistory }, () => {
+        this.makeHistory(noteState, noteState)
+        this.setState({ tab: 0 })
+        // todo -- cause loading event
+      })
     }
   }
 

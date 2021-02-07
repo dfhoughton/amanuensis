@@ -31,6 +31,8 @@ export interface SourceRecord {
 
 export type KeyPair = [projectKey: number, phraseKey: number]
 
+export type HasKey = { key: KeyPair }
+
 export interface NoteRecord {
     key: KeyPair,                             // a convenient denormalization -- the project and phrase key identifying this note
     gist: string,                             // essential notes about a phrase
