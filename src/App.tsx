@@ -322,16 +322,16 @@ export class App extends React.Component<AppProps, AppState> {
         }
       }
       if (missing.length) {
-        chrome.storage.local.get(missing, (found) => {
-          if (chrome.runtime.lastError) {
-            reject(`could not obtain all information required to clean history: ${chrome.runtime.lastError}`)
-          } else {
-            for (const [key, note] of Object.entries(found)) {
-              foundNotes.set(key, note as NoteRecord)
+        this.switchboard.index!.getBatch(missing)
+          .catch((error) => reject(`could not obtain all information required to clean history: ${error}`))
+          .then((found) => {
+            if (found) { // to please typescript
+              for (const [key, note] of Object.entries(found)) {
+                foundNotes.set(key, note)
+              }
             }
             continuation()
-          }
-        })
+          })
       } else {
         continuation()
       }

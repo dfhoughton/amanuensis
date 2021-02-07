@@ -323,7 +323,7 @@ const resultStyles = makeStyles((theme) => ({
     },
     tags: {
         display: 'flex',
-        justifyContent: 'right',
+        flexDirection: 'row-reverse',
         fontSize: 'smaller',
     },
     gist: {
@@ -340,7 +340,7 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
     const index = app.switchboard.index;
     const project = index!.projects.get(index!.reverseProjectIndex.get(note.key[0]) || '');
     return (
-        <Card className={classes.root} key={enkey(note.key)}>
+        <Card className={classes.root} key={enkey(note.key)} onClick={() => true}>
             <CardContent>
                 <Grid container spacing={1}>
                     <Grid item xs={7} className={classes.phrase}>

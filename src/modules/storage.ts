@@ -154,6 +154,19 @@ export class Index {
         })
     }
 
+    // get a batch of note records from their keys
+    getBatch(keys: string[]): Promise<{ [key: string]: NoteRecord }> {
+        return new Promise((resolve, reject) => {
+            this.chrome.storage.local.get(keys, (found) => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve(deserialize(found))
+                }
+            })
+        })
+    }
+
     // a general purpose method for finding notes
     find(query: Query): Promise<FindResponse> {
         switch (query.type) {
