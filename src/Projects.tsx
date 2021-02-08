@@ -62,7 +62,7 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                 .then(() => {
                     this.initProjects()
                     this.setState({ action: null, modifying: null })
-                    app.cleanHistory()
+                    app.cleanHistory(true)
                         .then(() => {
                             this.props.app.cleanSearch()
                                 .catch((e) => app.error(e))

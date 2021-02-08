@@ -19,7 +19,7 @@ import { Alert } from '@material-ui/lab'
 import { Chrome, NoteRecord, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
 import { enkey } from './modules/storage'
-import { sameNote } from './modules/util'
+import { flatten, sameNote } from './modules/util'
 
 export const projectName = "Notorious"
 
@@ -263,8 +263,8 @@ export class App extends React.Component<AppProps, AppState> {
   removeNote(note: NoteState) {
     const [, project] = this.switchboard.index!.findProject(note.key[0])
     this.switchboard.index?.delete({ phrase: note.citations[0].phrase, project })
-      .then((_otherNotesModified) => {
-        this.cleanHistory()
+      .then((otherNotesModified) => {
+        this.cleanHistory(otherNotesModified)
           .catch((e) => this.error(e))
           .then(() => {
             this.cleanSearch()
@@ -277,7 +277,26 @@ export class App extends React.Component<AppProps, AppState> {
   // clean up the search state after some deletion
   cleanSearch(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const search: Query = this.state.search.type === 'lookup' ? { type: 'ad hoc' } : this.state.search
+      const search: Query = this.state.search.type === 'lookup' ? { type: 'ad hoc' } : deepClone(this.state.search)
+      const p = search.project == null ? null : flatten(search.project)
+      if (p) {
+        // projects may be deleted
+        for (let i = p.length - 1; i >=0; i--) {
+          if (!this.switchboard.index!.reverseProjectIndex.has(p[i])) {
+            p.splice(i, 1)
+          }
+        }
+        switch (p.length) {
+          case 0:
+            delete search.project
+            break;
+          case 1:
+            search.project = p[0]
+            break
+          default:
+            search.project = p
+        }
+      }
       this.switchboard.index?.find(search)
         .catch((e) => reject(e))
         .then((found) => {
@@ -296,11 +315,11 @@ export class App extends React.Component<AppProps, AppState> {
           }
           this.setState(changes, () => resolve())
         })
-      }
+    }
     )
   }
   // fix the state of everything in navigational history
-  cleanHistory(): Promise<void> {
+  cleanHistory(otherNotesModified: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
       const keys: string[] = this.state.history.map((v) => enkey(v.current.key))
       this.switchboard.index?.getBatch(keys)
@@ -314,17 +333,14 @@ export class App extends React.Component<AppProps, AppState> {
             const retrieved = found && found[key]
             let current, saved: NoteState
             if (retrieved) {
-              // erase any unsaved changes (Gordian Knot solution -- we could do better)
-              current = { ...retrieved, unsavedContent: false, everSaved: true, citationIndex: visit.current.citationIndex }
-              saved = deepClone(current)
-              history[i] = { current, saved }
-            } else if (this.switchboard.index!.reverseProjectIndex.has(visit.current.key[0])) {
-              // this was just deleted; treat it as unsaved so the user can reverse the deletion
-              current = { ...visit.current, unsavedContent: true, everSaved: false }
-              saved = nullState()
-              history[i] = { current, saved }
+              if (otherNotesModified) {
+                // erase any unsaved changes (Gordian Knot solution -- we could do better)
+                current = { ...retrieved, unsavedContent: false, everSaved: true, citationIndex: visit.current.citationIndex }
+                saved = deepClone(current)
+                history[i] = { current, saved }
+              }
             } else {
-              // if this note's project doesn't exist anymore, remove it from navigational history
+              // remove it from navigational history
               if (historyIndex > i) {
                 historyIndex--
               } else if (historyIndex === i) {
