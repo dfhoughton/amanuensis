@@ -62,13 +62,16 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                 .then(() => {
                     this.initProjects()
                     this.setState({ action: null, modifying: null })
-                    // TODO clean app search and search results as well
-                    app.cleanHistory(true)
+                    app.cleanHistory()
                         .then(() => {
-                            if (changeToDefault) {
-                                app.setState({ defaultProject: 0 })
-                            }
-                            app.success(`Removed project ${name}`)
+                            this.props.app.cleanSearch()
+                                .catch((e) => app.error(e))
+                                .then(() => {
+                                    if (changeToDefault) {
+                                        app.setState({ defaultProject: 0 })
+                                    }
+                                    app.success(`Removed project ${name}`)
+                                })
                         })
                         .catch((e) => app.error(e))
                 })
@@ -202,6 +205,7 @@ const relationFilterOptions = createFilterOptions({
     },
 })
 
+// TODO delegate to the app modal
 function ChangeModal({ proj }: { proj: Projects }) {
     const action = proj.state.action
     if (!(action === 'cloning' || action === 'editing')) {
@@ -376,6 +380,7 @@ function PairedRelation({ left, right }: { left: string, right: string }) {
     return <span>{left}<span className={classes.sep}>/</span>{right}</span>
 }
 
+// TODO delegate this to the app modal
 function DestroyModal({ proj }: { proj: Projects }) {
     if (proj.state.action !== 'destroying') {
         return null

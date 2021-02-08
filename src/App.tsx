@@ -1,5 +1,5 @@
 import React, { ReactElement, SyntheticEvent } from 'react'
-import Note, { NoteState } from './Note'
+import Note, { NoteState, nullState } from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
 import Projects from './Projects'
@@ -48,7 +48,7 @@ interface AppProps {
 }
 
 interface ConfirmationState {
-  callback?: () => void,
+  callback?: () => boolean,
   title?: string,
   text?: string | ReactElement,
   ok?: string,
@@ -142,7 +142,7 @@ export class App extends React.Component<AppProps, AppState> {
           <Snackbar open={!!this.state.message} autoHideDuration={6000} onClose={closeBar}>
             <Alert onClose={closeBar} severity={this.state.message?.level || 'info'}>{this.state.message?.text}</Alert>
           </Snackbar>
-          <ConfirmationModal confOps={this.state.confirmation} cancel={() => this.setState({ confirmation: {} })} />
+          <ConfirmationModal app={this} confOps={this.state.confirmation} cancel={() => this.setState({ confirmation: {} })} />
         </div>
       </ThemeProvider>
     );
@@ -203,7 +203,7 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   currentNote(): NoteState | undefined {
-    return this.state.history[this.state.historyIndex]?.current
+    return this.recentHistory()?.current
   }
 
   // to happen after a save
@@ -232,10 +232,10 @@ export class App extends React.Component<AppProps, AppState> {
       })
     } else {
       const noteState: NoteState = {
+        ...note,
         everSaved: true,
         citationIndex: 0,
         unsavedContent: false,
-        ...note
       }
       // this action clears the future history
       const newHistory = deepClone(this.state.history.splice(0, this.state.historyIndex + 1))
@@ -263,107 +263,78 @@ export class App extends React.Component<AppProps, AppState> {
   removeNote(note: NoteState) {
     const [, project] = this.switchboard.index!.findProject(note.key[0])
     this.switchboard.index?.delete({ phrase: note.citations[0].phrase, project })
-      .then((otherNotesModified) => {
-        const done = () => this.success(`The note regarding "${note.citations[0].phrase}" has been deleted from the ${project.name} project.`)
-        let search: Query
-        switch (this.state.search.type) {
-          case "lookup":
-            search = { type: "ad hoc" }
-            this.switchboard.index?.find(search)
-              .then((found) => {
-                switch (found.type) {
-                  case "none":
-                    this.setState({
-                      historyIndex: 0,
-                      history: [],
-                      searchResults: [],
-                      tab: 2,
-                      search
-                    })
-                    done()
-                    break
-                  case "found":
-                    this.error(`the "found" state should be unreachable when deleting a note found by lookup`)
-                    break
-                  case "ambiguous":
-                    this.error(`the "ambiguous" state should be unreachable when deleting a note found by lookup`)
-                    break
-                }
-              })
-              .catch((e) => this.error(e))
-            break
-          case "ad hoc":
-            // TODO
-            this.cleanHistory(otherNotesModified).catch(e => this.error(e)).then(() => { })
-            break
-        }
+      .then((_otherNotesModified) => {
+        this.cleanHistory()
+          .catch((e) => this.error(e))
+          .then(() => {
+            this.cleanSearch()
+              .catch((e) => this.error(`Error restoring search after note deletion: ${e}`))
+              .then(() => this.success(`The note regarding "${note.citations[0].phrase}" has been deleted from the ${project.name} project.`))
+          })
       })
       .catch((e) => this.error(e))
   }
-  // remove deleted notes from navigational history
-  cleanHistory(otherNotesModified: boolean): Promise<void> {
+  // clean up the search state after some deletion
+  cleanSearch(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const search: Query = this.state.search.type === 'lookup' ? { type: 'ad hoc' } : this.state.search
+      this.switchboard.index?.find(search)
+        .catch((e) => reject(e))
+        .then((found) => {
+          const changes: any = { tab: 2, search, historyIndex: 0 }
+          if (found) {
+            switch (found.type) {
+              case "none":
+                changes.searchResults = []
+                break
+              case "ambiguous":
+                changes.searchResults = found.matches
+                break
+              case 'found':
+                changes.searchResults = [found.match]
+            }
+          }
+          this.setState(changes, () => resolve())
+        })
+      }
+    )
+  }
+  // fix the state of everything in navigational history
+  cleanHistory(): Promise<void> {
     return new Promise((resolve, reject) => {
       const keys: string[] = this.state.history.map((v) => enkey(v.current.key))
-      const missing: string[] = []
-      const foundNotes: Map<string, NoteRecord> = new Map()
-      for (const key of keys) {
-        const note = this.switchboard.index?.cache.get(key)
-        if (note) {
-          foundNotes.set(key, note)
-        } else {
-          missing.push(key)
-        }
-      }
-      const continuation = () => {
-        const history: Visit[] = deepClone(this.state.history)
-        let indexChanged = false
-        let historyIndex = this.state.historyIndex
-        for (let i = history.length - 1; i >= 0; i--) {
-          const key = keys[i]
-          const note = foundNotes.get(key)
-          if (note) {
-            const oldHistory = this.state.history[i]
-            const ns = {
-              unsavedContent: oldHistory.current.unsavedContent,
-              citationIndex: oldHistory.current.citationIndex,
-              ...note
-            }
-            let v: Visit
-            if (otherNotesModified) {
-              v = deepClone(oldHistory)
-              v.current.unsavedContent = false
-              v.current.relations = note.relations
-              v.saved = deepClone(v.current)
-              history[i] = v
-            }
-          } else {
-            history.splice(i, 1)
-            if (i === this.state.historyIndex) {
-              indexChanged = true
-            } else if (!indexChanged && i < historyIndex) {
-              historyIndex--
-            }
-          }
-          if (indexChanged) {
-            historyIndex = history.length - 1
-          }
-          this.setState({ historyIndex, history })
-        }
-      }
-      if (missing.length) {
-        this.switchboard.index!.getBatch(missing)
-          .catch((error) => reject(`could not obtain all information required to clean history: ${error}`))
-          .then((found) => {
-            if (found) { // to please typescript
-              for (const [key, note] of Object.entries(found)) {
-                foundNotes.set(key, note)
+      this.switchboard.index?.getBatch(keys)
+        .catch((e) => reject(`Failed to retrieve information required to clean navigation history: ${e}`))
+        .then((found) => {
+          const history: Visit[] = deepClone(this.state.history)
+          let historyIndex = this.state.historyIndex
+          for (let i = history.length - 1; i >= 0; i--) {
+            const visit = history[i]
+            const key = enkey(visit.current.key)
+            const retrieved = found && found[key]
+            let current, saved: NoteState
+            if (retrieved) {
+              // erase any unsaved changes (Gordian Knot solution -- we could do better)
+              current = { ...retrieved, unsavedContent: false, everSaved: true, citationIndex: visit.current.citationIndex }
+              saved = deepClone(current)
+              history[i] = { current, saved }
+            } else if (this.switchboard.index!.reverseProjectIndex.has(visit.current.key[0])) {
+              // this was just deleted; treat it as unsaved so the user can reverse the deletion
+              current = { ...visit.current, unsavedContent: true, everSaved: false }
+              saved = nullState()
+              history[i] = { current, saved }
+            } else {
+              // if this note's project doesn't exist anymore, remove it from navigational history
+              if (historyIndex > i) {
+                historyIndex--
+              } else if (historyIndex === i) {
+                historyIndex = 0
               }
+              history.splice(i, 1)
             }
-            continuation()
-          })
-      } else {
-        continuation()
-      }
+          }
+          this.setState({ history, historyIndex }, () => resolve())
+        })
     })
   }
 }
@@ -397,7 +368,7 @@ function a11yProps(index: number) {
   };
 }
 
-function ConfirmationModal({ confOps, cancel }: { confOps: ConfirmationState, cancel: () => void }) {
+function ConfirmationModal({ app, confOps, cancel }: { app: App, confOps: ConfirmationState, cancel: () => void }) {
   const { text, callback, title = "Confirm", ok = "Ok" } = confOps
   if (!(text && callback)) {
     return null
@@ -416,7 +387,7 @@ function ConfirmationModal({ confOps, cancel }: { confOps: ConfirmationState, ca
         <Button onClick={cancel} >
           Cancel
         </Button>
-        <Button onClick={callback} color="primary" autoFocus>{ok}</Button>
+        <Button onClick={() => callback() && app.setState({ confirmation: {} })} color="primary" autoFocus>{ok}</Button>
       </DialogActions>
     </Dialog>
   )

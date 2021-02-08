@@ -40,19 +40,19 @@ class Note extends React.Component<NoteProps, NoteState> {
             this.savedState = saved
             this.checkForDeletions()
         } else {
-            this.state = this.nullState()
-            this.savedState = this.nullState() // used as basis of comparison to see whether the record is dirty
+            this.state = nullState()
+            this.savedState = nullState() // used as basis of comparison to see whether the record is dirty
         }
         this.app.switchboard.addActions({
             selection: (msg) => { this.showSelection(msg) }
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
-        let i: NodeJS.Timeout | undefined
     }
 
     render() {
         const hasWord = this.hasWord()
+        console.log("rendering this note:", this.state)
         return (
             <div className="note">
                 <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />
@@ -66,7 +66,10 @@ class Note extends React.Component<NoteProps, NoteState> {
                         this.app.confirm({
                             title: `Delete this note?`,
                             text: `Delete this note concerning "${this.state.citations[0].phrase}"?`,
-                            callback: () => this.app.removeNote(this.state)
+                            callback: () => {
+                                this.app.removeNote(this.state)
+                                return true
+                            }
                         })
                     }}
                 />
@@ -112,21 +115,6 @@ class Note extends React.Component<NoteProps, NoteState> {
         })
     }
 
-    nullState(): NoteState {
-        return {
-            key: [0, -1], // "namespace" and primary key for the note; project indices map to names; e.g., "German"; project 0 is the default; -1 represents an unsaved note
-            gist: "", // the most important notes about the phrase
-            details: "", // less essential notes about the phrase
-            tags: [], // tags used to categorize phrases
-            citations: [], // instances this *particular* phrase, after normalization, has been found
-            relations: {},
-            starred: false,
-            unsavedContent: false,
-            everSaved: false,
-            citationIndex: 0,
-        }
-    }
-
     // check to see whether any information relevant to the display of this note has changed
     // since it was last displayed
     checkForDeletions() {
@@ -169,7 +157,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                                 .catch((error) => this.app.error(`Error when looking for missing relations: ${error}`))
                             break
                         case 'none':
-                            this.savedState = this.nullState()
+                            this.savedState = nullState()
                             const newState = {
                                 key: deepClone(this.state.key),
                                 unsavedContent: true,
@@ -247,7 +235,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         break
                     case "none":
                         this.app.setState({ search: query, searchResults: [] })
-                        const newState = this.nullState()
+                        const newState = nullState()
                         newState.unsavedContent = true
                         newState.citations.push(citation)
                         this.setState(newState)
@@ -496,3 +484,19 @@ function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPa
         </ul>
     );
 }
+
+export function nullState(): NoteState {
+    return {
+        key: [0, -1], // "namespace" and primary key for the note; project indices map to names; e.g., "German"; project 0 is the default; -1 represents an unsaved note
+        gist: "", // the most important notes about the phrase
+        details: "", // less essential notes about the phrase
+        tags: [], // tags used to categorize phrases
+        citations: [], // instances this *particular* phrase, after normalization, has been found
+        relations: {},
+        starred: false,
+        unsavedContent: false,
+        everSaved: false,
+        citationIndex: 0,
+    }
+}
+

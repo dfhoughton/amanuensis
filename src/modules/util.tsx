@@ -2,7 +2,7 @@ import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Typography }
 import Tooltip from '@material-ui/core/Tooltip'
 import { Crop169, Help, Star, StarBorder } from '@material-ui/icons'
 import { ReactElement } from 'react'
-import { HasKey, KeyPair } from './types'
+import { EssentialNoteBits, KeyPair } from './types'
 
 interface TTProps {
     children: ReactElement,
@@ -147,7 +147,6 @@ export function minmax(val: any, comparator?: (a: any, b: any) => number): [min:
 // convert a date into the format that date inputs expect -- there must be a better way
 export function ymd(date: Date | null | undefined): string | undefined {
     if (date) {
-        console.log({date})
         let y = date.getFullYear()
         let m = (date.getMonth() + 1).toString()
         while (m.length < 2) {
@@ -182,6 +181,8 @@ export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): a
 }
 
 // determine note identity by comparing keypairs
-export function sameNote(n1: HasKey, n2: HasKey): boolean {
-    return n1.key[0] === n2.key[0] && n1.key[1] === n2.key[1]
+export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {
+    return n1.key[0] === n2.key[0] &&
+        n1.key[1] === n2.key[1] &&
+        n1.citations.length == n2.citations.length // to handle a spurious [0,0] with the blank note
 }
