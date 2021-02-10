@@ -377,6 +377,10 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
 const linkerStyles = makeStyles((theme) => ({
     link: {
         marginLeft: theme.spacing(1),
+        cursor: 'pointer',
+    },
+    goto: {
+        cursor: 'pointer',
     },
 }))
 
@@ -395,7 +399,7 @@ function NavLinker({ note, app }: { note: NoteRecord, app: App }): React.ReactEl
     return (
         <div>
             <TT msg={`go to "${note.citations[0].phrase}"`}>
-                <Visibility color="secondary" fontSize="small" onClick={() => app.goto(note)} />
+                <Visibility color="secondary" fontSize="small" className={classes.goto} onClick={() => app.goto(note)} />
             </TT>
             {link}
         </div>

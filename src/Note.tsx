@@ -1,4 +1,4 @@
-import React, { ChangeEvent } from 'react'
+import React, { ChangeEvent, SetStateAction } from 'react'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
 import SwitchBoard from './modules/switchboard'
@@ -9,9 +9,9 @@ import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
 
-import { Delete, Save } from '@material-ui/icons'
+import { Delete, FilterCenterFocus, Navigation, Save } from '@material-ui/icons'
 import { App } from './App'
-import { Grid, Typography as T } from '@material-ui/core'
+import { Grid, Popover, Typography as T } from '@material-ui/core'
 import { enkey } from './modules/storage'
 
 const hash = require('object-hash')
@@ -307,17 +307,39 @@ const widgetStyles = makeStyles((theme) => ({
         fontSize: 'small',
         textAlign: 'center',
     },
+    star: {
+        cursor: "pointer",
+    },
     save: {
+        cursor: "pointer",
         color: theme.palette.warning.dark
     },
     delete: {
+        cursor: "pointer",
         color: theme.palette.error.dark
+    },
+    arrow: {
+        cursor: 'pointer',
+    },
+    nav: {
+        padding: theme.spacing(1)
+    },
+    focus: {
+        cursor: "pointer",
+        display: "table",
+        margin: "0 auto",
+        marginBottom: theme.spacing(0.1),
     }
 }))
 
 function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash }:
     { starred: boolean, anyUnsaved: boolean, everSaved: boolean, star: () => void, save: () => void, trash: () => void }) {
     const classes = widgetStyles()
+    const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
+
+    const open = Boolean(anchorEl);
+    const id = open ? 'simple-popover' : undefined;
+
     const saveWidget = !anyUnsaved ?
         null :
         <div onClick={save}>
@@ -330,7 +352,31 @@ function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash }:
         <div onClick={trash}><Delete className={classes.delete} /></div>
     return (
         <div className={classes.root}>
-            <div onClick={star}><TT msg="bookmark" placement="left"><Mark starred={starred} /></TT></div>
+            <div onClick={star} className={classes.star}><TT msg="bookmark" placement="left"><Mark starred={starred} /></TT></div>
+            <span className={classes.arrow} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
+                <Navigation color="primary" id="nav" />
+            </span>
+            <Popover
+                id={id}
+                open={open}
+                anchorEl={anchorEl}
+                onClose={() => setAnchorEl(null)}
+                anchorOrigin={{
+                    vertical: 'center',
+                    horizontal: 'center',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <div className={classes.nav}>
+                    <div className={classes.focus}>
+                        <FilterCenterFocus color="primary"/>
+                    </div>
+                    stuff
+                </div>
+            </Popover>
             {saveWidget}
             {deleteWidget}
         </div>
