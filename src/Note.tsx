@@ -62,6 +62,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     everSaved={this.state.everSaved}
                     star={() => this.star()}
                     save={() => this.saveNote()}
+                    app={this.props.app}
                     trash={() => {
                         this.app.confirm({
                             title: `Delete this note?`,
@@ -335,8 +336,8 @@ const widgetStyles = makeStyles((theme) => ({
     }
 }))
 
-function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash }:
-    { starred: boolean, anyUnsaved: boolean, everSaved: boolean, star: () => void, save: () => void, trash: () => void }) {
+function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash, app }:
+    { app: App, starred: boolean, anyUnsaved: boolean, everSaved: boolean, star: () => void, save: () => void, trash: () => void }) {
     const classes = widgetStyles()
     const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
 
@@ -356,30 +357,32 @@ function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash }:
     return (
         <div className={classes.root}>
             <div onClick={star} className={classes.star}><TT msg="bookmark" placement="left"><Mark starred={starred} /></TT></div>
-            <span className={classes.arrow} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
-                <Navigation color="primary" id="nav" />
-            </span>
-            <Popover
-                id={id}
-                open={open}
-                anchorEl={anchorEl}
-                onClose={() => setAnchorEl(null)}
-                anchorOrigin={{
-                    vertical: 'center',
-                    horizontal: 'center',
-                }}
-                transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                }}
-            >
-                <div className={classes.nav}>
-                    <div className={classes.focus}>
-                        <FilterCenterFocus color="primary"/>
-                    </div>
+            {(app.state.history.length > 1 || '') && <div>
+                <span className={classes.arrow} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
+                    <Navigation color="primary" id="nav" />
+                </span>
+                <Popover
+                    id={id}
+                    open={open}
+                    anchorEl={anchorEl}
+                    onClose={() => setAnchorEl(null)}
+                    anchorOrigin={{
+                        vertical: 'center',
+                        horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                    }}
+                >
+                    <div className={classes.nav}>
+                        <div className={classes.focus}>
+                            <FilterCenterFocus color="primary" />
+                        </div>
                     stuff
                 </div>
-            </Popover>
+                </Popover>
+            </div>}
             {saveWidget}
             {deleteWidget}
         </div>
