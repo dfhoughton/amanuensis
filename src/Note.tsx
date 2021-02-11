@@ -253,9 +253,12 @@ class Note extends React.Component<NoteProps, NoteState> {
             return
         }
         const data = deepClone(this.state, "unsavedContent", "project")
-        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, project: this.state.key[0], data: data }).then(() => {
+        this.app.switchboard.index?.add({ phrase: this.currentCitation().phrase, project: this.state.key[0], data: data }).then((pk) => {
             this.savedState = deepClone(this.state)
-            this.setState({ unsavedContent: false, everSaved: true })
+            const key = deepClone(this.state.key)
+            key[1] = pk
+            this.savedState.key = key
+            this.setState({ key, unsavedContent: false, everSaved: true })
         })
     }
 

@@ -405,17 +405,17 @@ export class Index {
     }
 
     // save a phrase, all the data associated with the phrase should be packed into data
-    add({ phrase, project, data }: { phrase: string, project: number, data: NoteRecord }): Promise<void> {
+    add({ phrase, project, data }: { phrase: string, project: number, data: NoteRecord }): Promise<number> {
         return new Promise((resolve, reject) => {
             const storable: { [key: string]: any } = {}
             const [, projectInfo] = this.findProject(project)
             const key = this.normalize(phrase, projectInfo)
             let projectIndex = this.projectIndices.get(projectInfo.pk) || new Map()
-            let pk = projectIndex.get(key)
-            if (pk == null) {
+            let pk: number = projectIndex.get(key) || 0
+            if (!pk) {
                 // this is necessarily in neither the index nor the project index
                 // we will have to generate a primary key for this phrase and store both indices
-                pk = 0
+                pk = 1
                 projectIndex.forEach(function (v, k) {
                     if (v >= pk) {
                         pk = v + 1
@@ -466,7 +466,7 @@ export class Index {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
-                    resolve()
+                    resolve(pk)
                 }
             })
         })

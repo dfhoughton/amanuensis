@@ -182,7 +182,5 @@ export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): a
 
 // determine note identity by comparing keypairs
 export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {
-    return n1.key[0] === n2.key[0] &&
-        n1.key[1] === n2.key[1] &&
-        n1.citations.length == n2.citations.length // to handle a spurious [0,0] with the blank note
+    return n1.key[0] === n2.key[0] && n1.key[1] === n2.key[1]
 }
