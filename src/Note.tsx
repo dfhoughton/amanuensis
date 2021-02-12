@@ -1,17 +1,17 @@
-import React, { ChangeEvent, SetStateAction } from 'react'
-import { deepClone, anyDifference } from './modules/clone'
-import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
-import SwitchBoard from './modules/switchboard'
-import { debounce, Mark, TT } from './modules/util'
+import React, { ChangeEvent } from 'react'
 
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
-
-import { Delete, FilterCenterFocus, Navigation, Save } from '@material-ui/icons'
-import { App } from './App'
 import { Grid, Popover, Typography as T } from '@material-ui/core'
+import { Delete, FilterCenterFocus, Navigation, Save } from '@material-ui/icons'
+
+import { deepClone, anyDifference } from './modules/clone'
+import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
+import SwitchBoard from './modules/switchboard'
+import { debounce, Mark, sameNote, TT } from './modules/util'
+import { App, Visit } from './App'
 import { enkey } from './modules/storage'
 
 const hash = require('object-hash')
@@ -56,24 +56,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         return (
             <div className="note">
                 <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />
-                <StarWidget
-                    starred={this.state.starred}
-                    anyUnsaved={this.state.unsavedContent}
-                    everSaved={this.state.everSaved}
-                    star={() => this.star()}
-                    save={() => this.saveNote()}
-                    app={this.props.app}
-                    trash={() => {
-                        this.app.confirm({
-                            title: `Delete this note?`,
-                            text: `Delete this note concerning "${this.state.citations[0].phrase}"?`,
-                            callback: () => {
-                                this.app.removeNote(this.state)
-                                return true
-                            }
-                        })
-                    }}
-                />
+                <StarWidget app={this.props.app} n={this} />
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
                 <Annotations
                     gist={this.state.gist}
@@ -322,6 +305,43 @@ const widgetStyles = makeStyles((theme) => ({
         cursor: "pointer",
         color: theme.palette.error.dark
     },
+}))
+
+function StarWidget({ app, n }: { n: Note, app: App }) {
+    const classes = widgetStyles()
+
+    const t = () => {
+        app.confirm({
+            title: `Delete this note?`,
+            text: `Delete this note concerning "${n.state.citations[0].phrase}"?`,
+            callback: () => {
+                app.removeNote(n.state)
+                return true
+            }
+        })
+    }
+
+    const saveWidget = !n.state.unsavedContent ?
+        null :
+        <div onClick={() => n.saveNote()}>
+            <TT msg="save unsaved content" placement="left">
+                <Save className={classes.save} />
+            </TT>
+        </div>
+    const deleteWidget = !n.state.everSaved ?
+        null :
+        <div onClick={t}><Delete className={classes.delete} /></div>
+    return (
+        <div className={classes.root}>
+            <div onClick={() => n.star()} className={classes.star}><TT msg="bookmark" placement="left"><Mark starred={n.state.starred} /></TT></div>
+            <Nav app={app} n={n} />
+            {saveWidget}
+            {deleteWidget}
+        </div>
+    )
+}
+
+const navStyles = makeStyles((theme) => ({
     arrow: {
         cursor: 'pointer',
     },
@@ -333,58 +353,74 @@ const widgetStyles = makeStyles((theme) => ({
         display: "table",
         margin: "0 auto",
         marginBottom: theme.spacing(0.1),
+    },
+}))
+
+function Nav({ app, n }: { app: App, n: Note }) {
+    const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
+    if (app.state.history.length < 2) {
+        return null
+    }
+    const classes = navStyles()
+    const open = Boolean(anchorEl);
+    const id = open ? 'simple-popover' : undefined;
+    return (
+        <div>
+            <span className={classes.arrow} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
+                <Navigation color="primary" id="nav" />
+            </span>
+            <Popover
+                id={id}
+                open={open}
+                anchorEl={anchorEl}
+                onClose={() => setAnchorEl(null)}
+                anchorOrigin={{
+                    vertical: 'center',
+                    horizontal: 'center',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <div className={classes.nav}>
+                    <div className={classes.focus}>
+                        <FilterCenterFocus color="primary" />
+                    </div>
+                    {app.state.history.map((v) => <HistoryLink v={v} app={app} n={n} />)}
+                </div>
+            </Popover>
+        </div>
+    )
+}
+
+const historyLinkStyles = makeStyles((theme) => ({
+    root: {
+        cursor: 'pointer',
+        display: 'table',
+        margin: '0 auto',
+    },
+    current: {
+        backgroundColor: theme.palette.secondary.light,
     }
 }))
 
-function StarWidget({ starred, anyUnsaved, everSaved, star, save, trash, app }:
-    { app: App, starred: boolean, anyUnsaved: boolean, everSaved: boolean, star: () => void, save: () => void, trash: () => void }) {
-    const classes = widgetStyles()
-    const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
-
-    const open = Boolean(anchorEl);
-    const id = open ? 'simple-popover' : undefined;
-
-    const saveWidget = !anyUnsaved ?
-        null :
-        <div onClick={save}>
-            <TT msg="save unsaved content" placement="left">
-                <Save className={classes.save} />
-            </TT>
-        </div>
-    const deleteWidget = !everSaved ?
-        null :
-        <div onClick={trash}><Delete className={classes.delete} /></div>
+function HistoryLink({ v, app, n }: { v: Visit, app: App, n: Note }) {
+    const classes = historyLinkStyles()
+    const note = app.currentNote()
+    const currentKey = note && sameNote(note, v.current)
+    const callback = () => {
+        if (!currentKey) {
+            app.goto(v.current)
+            const visit = app.recentHistory()
+            n.savedState = visit!.saved
+            n.setState(visit!.current)
+        }
+    }
+    const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root
     return (
-        <div className={classes.root}>
-            <div onClick={star} className={classes.star}><TT msg="bookmark" placement="left"><Mark starred={starred} /></TT></div>
-            {(app.state.history.length > 1 || '') && <div>
-                <span className={classes.arrow} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
-                    <Navigation color="primary" id="nav" />
-                </span>
-                <Popover
-                    id={id}
-                    open={open}
-                    anchorEl={anchorEl}
-                    onClose={() => setAnchorEl(null)}
-                    anchorOrigin={{
-                        vertical: 'center',
-                        horizontal: 'center',
-                    }}
-                    transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'right',
-                    }}
-                >
-                    <div className={classes.nav}>
-                        <div className={classes.focus}>
-                            <FilterCenterFocus color="primary" />
-                        </div>
-                    stuff
-                </div>
-                </Popover>
-            </div>}
-            {saveWidget}
-            {deleteWidget}
+        <div key={enkey(v.current.key)} onClick={callback} className={cz}>
+            {v.current.citations[0].phrase}
         </div>
     )
 }

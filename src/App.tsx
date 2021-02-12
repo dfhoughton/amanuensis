@@ -70,7 +70,7 @@ interface Message {
   level: MessageLevels
 }
 
-interface Visit {
+export interface Visit {
   current: NoteState,
   saved: NoteState,
 }
@@ -215,36 +215,49 @@ export class App extends React.Component<AppProps, AppState> {
 
   // to happen when a note is navigated away from to another tab
   makeHistory(current: NoteState, saved: NoteState) {
-    const newEvent = { current, saved }
-    if (anyDifference(this.recentHistory(), newEvent)) {
-      const newHistory = deepClone(this.state.history)
-      newHistory.push(newEvent)
-      this.setState({ history: newHistory, historyIndex: this.state.history.length })
+    let historyIndex = 0, found = false
+    for (let l = this.state.history.length; historyIndex < l; historyIndex++) {
+      const v = this.state.history[historyIndex]
+      if (sameNote(v.current, current)) {
+        found = true
+        if (!anyDifference(v.current, current)) {
+          this.setState({ historyIndex })
+          return
+        }
+        break
+      }
     }
+    const newEvent = { current, saved }
+    const history: Visit[] = deepClone(this.state.history)
+    if (found) {
+      history[historyIndex] = newEvent
+    } else {
+      historyIndex = history.length
+      history.push(newEvent)
+    }
+    this.setState({ history, historyIndex })
   }
 
   // go to an existing saved note
-  goto(note: NoteRecord) {
-    const cn = this.currentNote()
-    if (cn && sameNote(note, cn)) {
-      this.setState({ tab: 0 }, () => {
-        // todo -- cause loading event
-      })
-    } else {
-      const noteState: NoteState = {
-        ...note,
-        everSaved: true,
-        citationIndex: 0,
-        unsavedContent: false,
+  goto(note: NoteRecord | NoteState) {
+    let historyIndex = 0
+    for (let l = this.state.history.length; historyIndex < l; historyIndex++) {
+      const v = this.state.history[historyIndex]
+      if (sameNote(v.current, note)) {
+        this.setState({ historyIndex })
+        return
       }
-      // this action clears the future history
-      const newHistory = deepClone(this.state.history.splice(0, this.state.historyIndex + 1))
-      this.setState({ history: newHistory }, () => {
-        this.makeHistory(noteState, noteState)
-        this.setState({ tab: 0 })
-        // todo -- cause loading event
-      })
     }
+    const current: NoteState = {
+      ...note,
+      everSaved: true,
+      citationIndex: 0,
+      unsavedContent: false,
+    }
+    const saved: NoteState = deepClone(current)
+    const history: Visit[] = deepClone(this.state.history)
+    history.push({ current, saved })
+    this.setState({ tab: 0, history, historyIndex })
   }
 
   // to travel to a different point in history
@@ -281,7 +294,7 @@ export class App extends React.Component<AppProps, AppState> {
       const p = search.project == null ? null : flatten(search.project)
       if (p) {
         // projects may be deleted
-        for (let i = p.length - 1; i >=0; i--) {
+        for (let i = p.length - 1; i >= 0; i--) {
           if (!this.switchboard.index!.reverseProjectIndex.has(p[i])) {
             p.splice(i, 1)
           }
