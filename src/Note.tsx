@@ -43,7 +43,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             this.state = nullState()
             this.savedState = nullState() // used as basis of comparison to see whether the record is dirty
         }
-        this.app.switchboard.addActions({
+        this.app.switchboard.addActions("note", {
             selection: (msg) => { this.showSelection(msg) }
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
@@ -90,7 +90,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     componentWillUnmount() {
         this.app.makeHistory(this.state, this.savedState)
-        this.app.switchboard.removeActions("selection")
+        this.app.switchboard.removeActions("note", ["selection"])
     }
 
     checkSavedState() {

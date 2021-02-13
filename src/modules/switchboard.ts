@@ -1,16 +1,18 @@
 import { getIndex, Index } from "./storage"
-import { Chrome, Port, Payload } from './types'
+import { Chrome, Port } from './types'
+
+type Handler = (data?: any) => void
 
 // the communication device shared among components
 export default class Switchboard {
-    actions: Map<string, (data?: Payload) => void>
+    actions: { [action: string]: { [source: string]: Handler } }
     queue: (() => void)[] | null
     chrome: Chrome
     port: Port | null
     index: Index | null
 
     constructor(chrome: Chrome) {
-        this.actions = new Map()
+        this.actions = {}
         this.queue = []
         this.chrome = chrome
         this.port = null
@@ -24,20 +26,40 @@ export default class Switchboard {
             callback()
         }
     }
-    addActions(actions: { [prop: string]: (data?: any) => void }) {
-        for (const [name, action] of Object.entries(actions)) {
-            this.actions.set(name, action)
+    addActions(source: string, actions: { [prop: string]: Handler }) {
+        for (const [action, handler] of Object.entries(actions)) {
+            let handlers = this.actions[action]
+            if (handlers === undefined) {
+                handlers = {}
+                this.actions[action] = handlers
+            }
+            handlers[source] = handler
         }
     }
-    removeActions(...actions: string[]) {
-        for (const m of actions) {
-            this.actions.delete(m)
+    removeActions(source: string, actions: string[]) {
+        for (const action of actions) {
+            let handlers = this.actions[action]
+            if (handlers) {
+                delete handlers[source]
+            }
         }
     }
     mounted() {
         this.port = this.chrome.extension.connect({ name: "popup" })
         this.port.onMessage.addListener((msg) => {
-            this.actions.get(msg.action)?.(msg)
+            let handlers = this.actions[msg.action]
+            if (handlers) {
+                for (const handler of Object.values(handlers)) {
+                    handler(msg)
+                }
+            }
+            // _ is a special identifier for the default handlers that handle all messages
+            handlers = this.actions._
+            if (handlers) {
+                for (const handler of Object.values(handlers)) {
+                    handler(msg)
+                }
+            }
         });
         // the channel doesn't open until you send a message down it
         this.port.postMessage({ action: 'open' })

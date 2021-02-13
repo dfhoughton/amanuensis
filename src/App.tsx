@@ -1,5 +1,5 @@
 import React, { ReactElement, SyntheticEvent } from 'react'
-import Note, { NoteState, nullState } from './Note'
+import Note, { NoteState } from './Note'
 import Config from './Config'
 import Switchboard from './modules/switchboard'
 import Projects from './Projects'
@@ -28,16 +28,6 @@ const theme = createMuiTheme({
     primary: indigo,
     secondary: amber,
   },
-  // overrides: {
-  //   MuiFilledInput: {
-  //     root: {
-  //       backgroundColor: 'transparent',
-  //       '&:hover': {
-  //         backgroundColor: 'transparent',
-  //       }
-  //     },
-  //   }
-  // }
 })
 
 interface AppProps {
@@ -151,7 +141,7 @@ export class App extends React.Component<AppProps, AppState> {
   componentDidMount() {
     this.switchboard.mounted()
     this.switchboard.then(() => this.setState({ defaultProject: this.switchboard.index!.currentProject }))
-    this.switchboard.addActions({
+    this.switchboard.addActions("app", {
       reloaded: (msg) => this.highlight(msg),
       error: ({ message }: { message: string }) => this.error(`There was an error in the currently active page: ${message}`)
     })
