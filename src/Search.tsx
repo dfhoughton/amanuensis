@@ -1,5 +1,5 @@
 import { App } from './App'
-import { Details, flatten, Mark, sameNote, TT, uniq, ymd } from './modules/util'
+import { Details, flatten, Mark, sameNote, TT, uniq, ymd, formatDates as fd, Expando } from './modules/util'
 import { AdHocQuery, CitationRecord, NoteRecord } from './modules/types'
 import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, Radio, RadioGroup, TextField } from '@material-ui/core'
 import { enkey, normalizers } from './modules/storage'
@@ -331,10 +331,6 @@ const resultStyles = makeStyles((theme) => ({
         flexDirection: 'row-reverse',
         fontSize: 'smaller',
     },
-    gist: {
-        whiteSpace: 'nowrap',
-        textOverflow: 'ellipsis',
-    },
     urls: {
 
     },
@@ -344,8 +340,9 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
     const classes = resultStyles()
     const index = app.switchboard.index;
     const project = index!.projects.get(index!.reverseProjectIndex.get(note.key[0]) || '');
+    const key= enkey(note.key)
     return (
-        <Card className={classes.root} key={enkey(note.key)}>
+        <Card className={classes.root} key={key}>
             <CardContent>
                 <Grid container spacing={1}>
                     <Grid item xs={5} className={classes.phrase}>
@@ -366,8 +363,10 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
                     <Grid item xs={6} className={classes.tags}>
                         {formatTags(note)}
                     </Grid>
-                    <Grid item xs={12} className={classes.gist}>{note.gist}</Grid>
-                    <Grid item xs={12} className={classes.urls}>{formatUrls(note)}</Grid>
+                    <Grid item xs={12}>
+                        <Expando id={`${key}-gist`} text={note.gist} />
+                    </Grid>
+                    <Grid item xs={12} className={classes.urls}>{formatUrls(note, key)}</Grid>
                 </Grid>
             </CardContent>
         </Card>
@@ -407,37 +406,34 @@ function NavLinker({ note, app }: { note: NoteRecord, app: App }): React.ReactEl
 }
 
 function formatDates(note: NoteRecord): string | React.ReactElement {
-    let ar = uniq(flatten(note.citations.map((c) => c.when.map((d) => ymd(d)))).sort())
-    const joined = ar.join(', ')
-    if (ar.length > 3) {
-        ar = [ar[0], '...', ar[ar.length - 1]]
-        return <TT msg={joined}><span>{ar.join(' ')}</span></TT>
-    }
-    return joined
+    let ar: Date[] = flatten(note.citations.map((c) => c.when))
+    return fd(ar)
 }
 
 function formatTags(note: NoteRecord): string {
     return note.tags.sort().join(', ')
 }
 
-function formatUrls(note: NoteRecord): React.ReactElement[] {
+function formatUrls(note: NoteRecord, key: string): React.ReactElement[] {
     return uniq(note.citations, (c: CitationRecord) => c.source.url).
         sort((a, b) => a.source.url < b.source.url ? -1 : 1).
-        map((c: CitationRecord) => <Url c={c} />)
+        map((c: CitationRecord, i) => <Url c={c} i={i} key={key} />)
 }
 
 const urlStyles = makeStyles((theme) => ({
     root: {
-        display: 'table',
-        whiteSpace: 'nowrap',
-        textOverflow: 'ellipsis',
         fontSize: 'smaller',
         marginTop: theme.spacing(0.2),
         marginLeft: theme.spacing(1),
     },
 }))
 
-function Url({ c }: { c: CitationRecord }) {
+function Url({ c, i, key }: { c: CitationRecord, i: number, key: string }) {
     const classes = urlStyles()
-    return <TT msg={c.source.title}><div className={classes.root}>{c.source.url}</div></TT>
+    return (
+        <Grid container key={i} spacing={1} className={classes.root}>
+            <Grid item xs={6}><Expando text={c.source.title} id={`${key}:${i}-title`}/></Grid>
+            <Grid item xs={6}><Expando text={c.source.url} id={`${key}:${i}-url`}/></Grid>
+        </Grid>
+    )
 }

@@ -10,7 +10,7 @@ import { Delete, FilterCenterFocus, Navigation, Save } from '@material-ui/icons'
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
 import SwitchBoard from './modules/switchboard'
-import { debounce, Mark, sameNote, TT } from './modules/util'
+import { debounce, Expando, formatDates, Mark, sameNote, TT } from './modules/util'
 import { App, Visit } from './App'
 import { enkey } from './modules/storage'
 
@@ -45,7 +45,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         }
         this.app.switchboard.addActions("note", {
             selection: (msg) => { this.showSelection(msg) },
-            _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
+            // _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
@@ -74,7 +74,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                 />
                 <Tags note={this} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
-                <Citations citations={this.state.citations} hasWord={hasWord} />
+                <Citations note={this} />
             </div>
         );
     }
@@ -494,22 +494,61 @@ function Tags(props: { note: Note }) {
 
 }
 
-function Citations(props: { hasWord: boolean; citations: CitationRecord[]; }) {
-    if (!props.hasWord) {
-        return null
+function Citations({ note }: { note: Note }) {
+    return <div>{note.state.citations.map((c, i) => <Cite note={note} i={i} c={c} />)}</div>
+}
+
+const citationsStyles = makeStyles((theme) => ({
+    cell: {
+        fontSize: 'smaller',
+    },
+    first: {
+        fontWeight: 'bold',
+        cursor: 'pointer',
+    },
+    current: {
+        fontWeight: 'bold',
+        backgroundColor: theme.palette.secondary.light,
+    },
+    repeat: {
+        color: theme.palette.grey[500],
+        cursor: 'pointer',
+    },
+    date: {
+        color: theme.palette.grey[500]
+    },
+}))
+
+function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
+    const classes = citationsStyles()
+    const current = i === note.state.citationIndex
+    let cz = classes.first
+    if (current) {
+        cz = classes.current
+    } else if (i > 0 && c.phrase === note.state.citations[i - 1].phrase) {
+        cz = classes.repeat
     }
-    const citations = props.citations.slice(0, props.citations.length).map((cite) => {
-        return ( // should include date, and it should be possible to delete a citation
-            <li key={hash(cite.source.url)}>
-                {cite.source.url}
-            </li>
-        )
-    });
+    let cb
+    if (!current) {
+        cb = () => note.setState({ citationIndex: i })
+    }
+    const key = `${note.state.key[0]}:${note.state.key[1]}:${i}`
     return (
-        <ul className="citations">
-            {citations}
-        </ul>
-    );
+        <Grid container spacing={1} key={key}>
+            <Grid item xs={2} className={cz} onClick={cb}>
+                <Expando text={c.phrase} id={`${key}-phrase`} className={classes.cell}/>
+            </Grid>
+            <Grid item xs={3}>
+                <Expando text={c.source.title} id={`${key}-phrase`} className={classes.cell}/>
+            </Grid>
+            <Grid item xs={5}>
+                <Expando text={c.source.url} id={`${key}-phrase`} className={classes.cell}/>
+            </Grid>
+            <Grid item xs={2} className={classes.date}>
+                <Expando text={formatDates(c.when)} id={`${key}-phrase`} className={classes.cell}/>
+            </Grid>
+        </Grid>
+    )
 }
 
 const annotationStyles = makeStyles((theme) => ({

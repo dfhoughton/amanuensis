@@ -1,7 +1,7 @@
-import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Typography } from '@material-ui/core'
+import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Popover, Typography } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
 import { Help, Star, StarBorder } from '@material-ui/icons'
-import { ReactElement } from 'react'
+import React, { ReactElement } from 'react'
 import { EssentialNoteBits } from './types'
 
 interface TTProps {
@@ -79,6 +79,58 @@ export function Mark({ starred, onClick, fontSize, style }: { starred: boolean, 
     const cz = onClick ? (starred ? classes.pointy : `${classes.unstarred} ${classes.pointy}`) : (starred ? '' : classes.unstarred)
     const opts = { onClick, fontSize, style, className: cz }
     return starred ? <Star color="secondary" {...opts} /> : <StarBorder {...opts} />
+}
+
+const expandoStyles = makeStyles((theme) => ({
+    root: {
+        display: 'flex',
+    },
+    wrapper: {
+        padding: theme.spacing(1)
+    },
+    item: {
+        whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
+        overflow: 'hidden',
+        minWidth: 0,
+        cursor: 'pointer',
+    },
+}))
+
+export function Expando({ text, id, className }: { text: string | ReactElement | React.ReactElement[], id: string, className?: string }) {
+    const classes = expandoStyles()
+    const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
+    const open = Boolean(anchorEl);
+    const cz = className ? `${className} ${classes.root}` : classes.root
+    return (
+        <span className={cz}>
+            <span className={classes.item} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
+                {text}
+            </span>
+            <Popover
+                id={id}
+                open={open}
+                anchorEl={anchorEl}
+                onClose={() => setAnchorEl(null)}
+            >
+                <div className={classes.wrapper}>
+                    {text}
+                </div>
+            </Popover>
+
+        </span>
+    )
+}
+
+// a general way to format a sequence of timestamps
+export function formatDates(dates: Date[]): string | React.ReactElement {
+    let ar = uniq(dates.map((d) => ymd(d))).sort()
+    const joined = ar.join(', ')
+    if (ar.length > 3) {
+        ar = [ar[0], '...', ar[ar.length - 1]]
+        return <TT msg={joined}><span>{ar.join(' ')}</span></TT>
+    }
+    return joined
 }
 
 // create a debounced version of a function
