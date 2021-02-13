@@ -1,8 +1,8 @@
 import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Typography } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
-import { Crop169, Help, Star, StarBorder } from '@material-ui/icons'
+import { Help, Star, StarBorder } from '@material-ui/icons'
 import { ReactElement } from 'react'
-import { EssentialNoteBits, KeyPair } from './types'
+import { EssentialNoteBits } from './types'
 
 interface TTProps {
     children: ReactElement,

@@ -119,7 +119,7 @@ export class App extends React.Component<AppProps, AppState> {
     return (
       <ThemeProvider theme={theme}>
         <div className={classes.root}>
-          <AppBar position="static">
+          <AppBar position="sticky">
             <Tabs value={this.state.tab} onChange={handleChange} variant="fullWidth" aria-label={`${projectName} navigation`}>
               <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
               <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />
