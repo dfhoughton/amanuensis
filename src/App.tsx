@@ -234,7 +234,7 @@ export class App extends React.Component<AppProps, AppState> {
     for (let l = this.state.history.length; historyIndex < l; historyIndex++) {
       const v = this.state.history[historyIndex]
       if (sameNote(v.current, note)) {
-        this.setState({ historyIndex })
+        this.setState({ historyIndex, tab: 0 })
         return
       }
     }
