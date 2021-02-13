@@ -375,14 +375,6 @@ function Nav({ app, n }: { app: App, n: Note }) {
                 open={open}
                 anchorEl={anchorEl}
                 onClose={() => setAnchorEl(null)}
-                anchorOrigin={{
-                    vertical: 'center',
-                    horizontal: 'center',
-                }}
-                transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                }}
             >
                 <div className={classes.nav}>
                     <div className={classes.focus}>
