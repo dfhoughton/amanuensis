@@ -412,10 +412,11 @@ function HistoryLink({ v, app, n }: { v: Visit, app: App, n: Note }) {
     const currentKey = note && sameNote(note, v.current)
     const callback = () => {
         if (!currentKey) {
-            app.goto(v.current)
-            const visit = app.recentHistory()
-            n.savedState = visit!.saved
-            n.setState(visit!.current)
+            app.goto(v.current, () => {
+                const visit = app.recentHistory()
+                n.savedState = visit!.saved
+                n.setState(visit!.current)
+            })
         }
     }
     const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root
@@ -576,7 +577,7 @@ function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPa
 
 export function nullState(): NoteState {
     return {
-        key: [0, -1], // "namespace" and primary key for the note; project indices map to names; e.g., "German"; project 0 is the default; -1 represents an unsaved note
+        key: [0, 0], // "namespace" and primary key for the note; project indices map to names; e.g., "German"; project 0 is the default; 0 represents an unsaved note
         gist: "", // the most important notes about the phrase
         details: "", // less essential notes about the phrase
         tags: [], // tags used to categorize phrases

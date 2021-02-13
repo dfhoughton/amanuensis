@@ -229,12 +229,12 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   // go to an existing saved note
-  goto(note: NoteRecord | NoteState) {
+  goto(note: NoteRecord | NoteState, callback: () => void = () => {}) {
     let historyIndex = 0
     for (let l = this.state.history.length; historyIndex < l; historyIndex++) {
       const v = this.state.history[historyIndex]
       if (sameNote(v.current, note)) {
-        this.setState({ historyIndex, tab: 0 })
+        this.setState({ historyIndex, tab: 0 }, callback)
         return
       }
     }
@@ -247,7 +247,7 @@ export class App extends React.Component<AppProps, AppState> {
     const saved: NoteState = deepClone(current)
     const history: Visit[] = deepClone(this.state.history)
     history.push({ current, saved })
-    this.setState({ tab: 0, history, historyIndex })
+    this.setState({ tab: 0, history, historyIndex }, callback)
   }
 
   // to travel to a different point in history
