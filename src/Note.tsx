@@ -362,6 +362,7 @@ function Nav({ app, n }: { app: App, n: Note }) {
     if (app.state.history.length < 2) {
         return null
     }
+    console.log('history', app.state.history)
     const classes = navStyles()
     const open = Boolean(anchorEl);
     const id = open ? 'simple-popover' : undefined;

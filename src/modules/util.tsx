@@ -232,6 +232,15 @@ export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): a
     })
 }
 
+// how many things in ar past the test?
+export function count(ar: any[], test: (v: any) => boolean): number {
+    let n = 0;
+    for (let i = 0, l = ar.length; i < l; i++) {
+        if (test(ar[i])) n++
+    }
+    return n
+}
+
 // determine note identity by comparing keypairs
 export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {
     return n1.key[0] === n2.key[0] && n1.key[1] === n2.key[1]
