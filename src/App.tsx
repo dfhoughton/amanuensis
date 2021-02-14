@@ -251,19 +251,6 @@ export class App extends React.Component<AppProps, AppState> {
     this.setState({ tab: 0, history, historyIndex }, callback)
   }
 
-  // to travel to a different point in history
-  timeTravel(index: number, current?: NoteState, saved?: NoteState) {
-    if (index !== this.state.historyIndex && index >= 0 && this.state.history[index]) {
-      if (current && saved) {
-        this.makeHistory(current, saved)
-        this.setState({ historyIndex: index, tab: 2 }) // toggle tab to force a re-render of the note
-        this.setState({ tab: 0 })
-      }
-    } else {
-      this.warn(`could not go to citation ${index + 1} in history`)
-    }
-  }
-
   removeNote(note: NoteState) {
     const [, project] = this.switchboard.index!.findProject(note.key[0])
     this.switchboard.index?.delete({ phrase: note.citations[0].phrase, project })
