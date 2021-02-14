@@ -426,6 +426,9 @@ const urlStyles = makeStyles((theme) => ({
         marginTop: theme.spacing(0.2),
         marginLeft: theme.spacing(1),
     },
+    url: {
+        color: theme.palette.grey[500],
+    }
 }))
 
 function Url({ c, i, key }: { c: CitationRecord, i: number, key: string }) {
@@ -433,7 +436,7 @@ function Url({ c, i, key }: { c: CitationRecord, i: number, key: string }) {
     return (
         <Grid container key={i} spacing={1} className={classes.root}>
             <Grid item xs={6}><Expando text={c.source.title} id={`${key}:${i}-title`}/></Grid>
-            <Grid item xs={6}><Expando text={c.source.url} id={`${key}:${i}-url`}/></Grid>
+            <Grid item xs={6} className={classes.url}><Expando text={c.source.url} id={`${key}:${i}-url`}/></Grid>
         </Grid>
     )
 }
