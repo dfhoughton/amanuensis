@@ -1,5 +1,5 @@
 import { getIndex, Index } from "./storage"
-import { Chrome, Port } from './types'
+import { Chrome, Payload, Port } from './types'
 
 type Handler = (data?: any) => void
 
@@ -25,6 +25,12 @@ export default class Switchboard {
         } else {
             callback()
         }
+    }
+    // send a message back the other way
+    send(msg: Payload) {
+        this.then(() => {
+            this.port!.postMessage(msg)
+        })
     }
     addActions(source: string, actions: { [prop: string]: Handler }) {
         for (const [action, handler] of Object.entries(actions)) {

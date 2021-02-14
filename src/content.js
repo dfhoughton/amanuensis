@@ -339,20 +339,26 @@ port.onMessage.addListener(function (msg) {
             }
             break
         case 'goto':
-            const {url} = msg
-            if (url) {
-                window.location = url
+            const { citation } = msg
+            if (citation?.source?.url) {
+                if (window.location === citation.source.url) {
+                    port.postMessage({ action: 'ready' })
+                } else {
+                    window.location = citation.source.url
+                }
             } else {
+                console.error("goto failed because we couldn't find the URL", msg)
                 port.postMessage({ action: 'error', message: 'received no URL' })
             }
             break
         case 'select':
-            const { selection : toSelect } = msg
+            const { selection: toSelect } = msg
             if (toSelect) {
                 if (!highlightSelection(toSelect)) {
                     port.postMessage({ action: 'error', message: 'could not find citation on page' })
                 }
             } else {
+                console.error("select failed because we didn't receive a selection", msg)
                 port.postMessage({ action: 'error', message: 'received no citation' })
             }
             break

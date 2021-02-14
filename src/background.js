@@ -24,6 +24,8 @@ function handlePopupMessage(msg) {
             state.contentPort.postMessage({ action: 'getSelection' })
             break
         case 'goto':
+            state.contentPort?.postMessage(msg)
+            break
         case 'select':
             state.contentPort.postMessage(msg)
             break
@@ -60,6 +62,10 @@ function handleContentMessage(msg) {
                 state.popupPort.postMessage(msg)
             }
             break
+        case 'ready':
+            if (state.connected) {
+                state.popupPort.postMessage(msg)
+            }
     }
 }
 

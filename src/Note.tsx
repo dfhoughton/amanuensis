@@ -30,8 +30,10 @@ class Note extends React.Component<NoteProps, NoteState> {
     savedState: NoteState
     app: App
     debouncedCheckSavedState: () => void
+    focusing: CitationRecord | null
     constructor(props: Readonly<NoteProps>) {
-        super(props);
+        super(props)
+        this.focusing = null
         this.app = props.app
         const visit = this.app.recentHistory()
         if (visit) {
@@ -45,7 +47,9 @@ class Note extends React.Component<NoteProps, NoteState> {
         }
         this.app.switchboard.addActions("note", {
             selection: (msg) => { this.showSelection(msg) },
-            // _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
+            reloaded: (msg) => { this.focused(msg.url) },
+            ready: (_msg) => { this.focused(this.currentCitation().source.url) },
+            _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
@@ -53,7 +57,6 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     render() {
         const hasWord = this.hasWord()
-        console.log("rendering this note:", this.state)
         return (
             <div className="note">
                 <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />
@@ -78,6 +81,12 @@ class Note extends React.Component<NoteProps, NoteState> {
         );
     }
 
+    // bring a citation into focus
+    focus() {
+        this.focusing = this.currentCitation()
+        this.app.switchboard.send({ action: 'goto', citation: this.focusing })
+    }
+
     componentDidMount() {
         if (!this.state.everSaved) {
             this.app.switchboard.then(() => {
@@ -90,7 +99,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     componentWillUnmount() {
         this.app.makeHistory(this.state, this.savedState)
-        this.app.switchboard.removeActions("note", ["selection", "_"])
+        this.app.switchboard.removeActions("note", ["selection", "_", "focused", "reloaded", "ready"])
     }
 
     checkSavedState() {
@@ -169,6 +178,14 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     star() {
         this.setState({ starred: !this.state.starred }, () => this.checkSavedState())
+    }
+
+    focused(url: string) {
+        const citation = this.currentCitation()
+        if (citation.source.url === url) {
+            this.focusing = null
+            this.app.switchboard.send({ action: 'select', selection: citation })
+        }
     }
 
     showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
@@ -315,7 +332,7 @@ function StarWidget({ app, n }: { n: Note, app: App }) {
             callback: () => {
                 app.removeNote(n.state)
                 n.savedState = nullState()
-                const state : NoteState = deepClone(n.state)
+                const state: NoteState = deepClone(n.state)
                 state.relations = {}
                 state.everSaved = false
                 state.unsavedContent = true
@@ -365,7 +382,6 @@ function Nav({ app, n }: { app: App, n: Note }) {
     if (app.state.history.length < 2) {
         return null
     }
-    console.log('history', app.state.history)
     const classes = navStyles()
     const open = Boolean(anchorEl);
     const id = open ? 'simple-popover' : undefined;
@@ -381,7 +397,7 @@ function Nav({ app, n }: { app: App, n: Note }) {
                 onClose={() => setAnchorEl(null)}
             >
                 <div className={classes.nav}>
-                    <div className={classes.focus}>
+                    <div className={classes.focus} onClick={() => n.focus()}>
                         <FilterCenterFocus color="primary" />
                     </div>
                     {app.state.history.map((v) => <HistoryLink v={v} app={app} n={n} />)}
