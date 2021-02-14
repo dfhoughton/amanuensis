@@ -314,6 +314,12 @@ function StarWidget({ app, n }: { n: Note, app: App }) {
             text: `Delete this note concerning "${n.state.citations[0].phrase}"?`,
             callback: () => {
                 app.removeNote(n.state)
+                n.savedState = nullState()
+                const state : NoteState = deepClone(n.state)
+                state.relations = {}
+                state.everSaved = false
+                state.unsavedContent = true
+                n.setState(state)
                 return true
             }
         })

@@ -291,7 +291,7 @@ export class App extends React.Component<AppProps, AppState> {
       this.switchboard.index?.find(search)
         .catch((e) => reject(e))
         .then((found) => {
-          const changes: any = { tab: 2, search, historyIndex: 0 }
+          const changes: any = { search, historyIndex: 0 }
           if (found) {
             switch (found.type) {
               case "none":
