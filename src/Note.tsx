@@ -66,11 +66,10 @@ class Note extends React.Component<NoteProps, NoteState> {
                     citationNoteHandler={(e) => {
                         const citations = deepClone(this.state.citations)
                         citations[this.state.citationIndex].note = e.target.value
-                        this.setState({ citations })
-                        this.debouncedCheckSavedState()
+                        this.setState({ citations }, this.debouncedCheckSavedState)
                     }}
-                    gistHandler={(e) => { this.setState({ gist: e.target.value }); this.debouncedCheckSavedState() }}
-                    notesHandler={(e) => { this.setState({ details: e.target.value }); this.debouncedCheckSavedState() }}
+                    gistHandler={(e) => this.setState({ gist: e.target.value }, this.debouncedCheckSavedState)}
+                    notesHandler={(e) => this.setState({ details: e.target.value }, this.debouncedCheckSavedState)}
                 />
                 <Tags note={this} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
@@ -134,8 +133,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                                                 delete relations[k]
                                             }
                                         }
-                                        this.setState({ relations })
-                                        this.checkSavedState()
+                                        this.setState({ relations }, () => this.checkSavedState())
                                         this.app.notify("some relations have been deleted")
                                     }
                                 })
@@ -170,8 +168,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     star() {
-        this.setState({ starred: !this.state.starred })
-        this.checkSavedState()
+        this.setState({ starred: !this.state.starred }, () => this.checkSavedState())
     }
 
     showSelection({ selection, source }: { selection: ContentSelection, source: SourceRecord }) {
@@ -473,7 +470,7 @@ function Tags(props: { note: Note }) {
             className={classes.text}
             options={options}
             value={tags}
-            onChange={(_event, tags) => { note.setState({ tags }); note.checkSavedState() }}
+            onChange={(_event, tags) => note.setState({ tags }, () => note.checkSavedState())}
             multiple
             freeSolo
             autoComplete
@@ -529,16 +526,16 @@ function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
     return (
         <Grid container spacing={1} key={key}>
             <Grid item xs={2} className={cz} onClick={cb}>
-                <Expando text={c.phrase} id={`${key}-phrase`} className={classes.cell}/>
+                <Expando text={c.phrase} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={3}>
-                <Expando text={c.source.title} id={`${key}-phrase`} className={classes.cell}/>
+                <Expando text={c.source.title} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={5}>
-                <Expando text={c.source.url} id={`${key}-phrase`} className={classes.cell}/>
+                <Expando text={c.source.url} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={2} className={classes.date}>
-                <Expando text={formatDates(c.when)} id={`${key}-phrase`} className={classes.cell}/>
+                <Expando text={formatDates(c.when)} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
         </Grid>
     )
