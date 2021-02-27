@@ -3,8 +3,8 @@ Some utility functions for cloning state and diffing state
 */
 
 // make a deep copy of an object, possibly nullifying certain object keys at whatever depth they might appear
-// note the only non-simple object expected is Dates
 // this is meant for cloning the sorts of things that can be stored in chrome.storage.local
+// this should handle all types that serialization covers
 export function deepClone(obj: any, ...except: string[]): any {
     if (typeof obj === 'object') {
         if (obj == null) {
@@ -17,6 +17,14 @@ export function deepClone(obj: any, ...except: string[]): any {
             for (let i = 0; i < rv.length; i++) {
                 rv[i] = deepClone(rv[i], ...except)
             }
+            return rv
+        } else if (obj instanceof Set) {
+            const rv = new Set()
+            obj.forEach((k, _v, _s) => { rv.add(deepClone(k, ...except)) })
+            return rv
+        } else if (obj instanceof Map) {
+            const rv = new Map()
+            obj.forEach((k, v, _m) => { rv.set(k, deepClone(v, ...except)) })
             return rv
         } else {
             const rv: { [key: string]: any } = {}
@@ -33,8 +41,8 @@ export function deepClone(obj: any, ...except: string[]): any {
 }
 
 // to find whether there has been any change since the last save, possibly ignoring certain object keys at whatever depth they might appear
-// note the only non-simple object expected is Dates
 // this is meant for comparing the sorts of things that can be stored in chrome.storage.local
+// this should handle all the types that serialization covers
 export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolean {
     if (Object.is(obj1, obj2)) {
         return false
@@ -66,6 +74,32 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
                 }
             }
             return false
+        }
+        if (obj1 instanceof Set) {
+            if (obj2 instanceof Set) {
+                if (obj1.size === obj2.size) {
+                    for (const v of obj1) {
+                        if (!obj2.has(v)) {
+                            return true
+                        }
+                    }
+                    return false
+                }
+            }
+            return true
+        }
+        if (obj1 instanceof Map) {
+            if (obj2 instanceof Map) {
+                if (obj1.size === obj2.size) {
+                    for (const [k, v] of obj1) {
+                        if (anyDifference(v, obj2.get(k), ...except)) {
+                            return true
+                        }
+                    }
+                    return false
+                }
+            }
+            return true
         }
         const entries1 = Object.entries(obj1)
         if (entries1.length !== Object.keys(obj2).length) {
