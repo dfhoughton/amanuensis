@@ -116,3 +116,57 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
     } else { return obj1 !== obj2 }
 }
 
+// do this to anything going into storage
+// NOTE no cycles!
+export function serialize(obj: any): any {
+    if (typeof obj === 'object') {
+        if (obj == null) {
+            return null
+        } else if (obj instanceof Date) {
+            return { __class__: 'Date', args: obj.getTime() }
+        } else if (obj instanceof Set) {
+            return { __class__: 'Set', args: Array.from(obj).map((v) => serialize(v)) }
+        } else if (obj instanceof Map) {
+            return { __class__: 'Map', args: Array.from(obj).map(([k, v]) => [serialize(k), serialize(v)]) }
+        } else if (Array.isArray(obj)) {
+            return obj.map((v) => serialize(v))
+        } else {
+            const rv: { [key: string]: any } = {}
+            for (const [k, v] of Object.entries(obj)) {
+                rv[k] = serialize(v)
+            }
+            return rv
+        }
+    } else {
+        return obj
+    }
+}
+
+// do this to anything coming out of storage
+export function deserialize(obj: any): any {
+    if (typeof obj === 'object') {
+        if (obj == null) {
+            return null
+        } else if (Array.isArray(obj)) {
+            return obj.map((v) => deserialize(v))
+        } else {
+            switch (obj.__class__) {
+                case 'Date':
+                    return new Date(obj.args)
+                case 'Set':
+                    return new Set(deserialize(obj.args))
+                case 'Map':
+                    return new Map(deserialize(obj.args))
+                default:
+                    const rv: { [key: string]: any } = {}
+                    for (const [k, v] of Object.entries(obj)) {
+                        rv[k] = deserialize(v)
+                    }
+                    return rv
+            }
+        }
+    } else {
+        return obj
+    }
+}
+

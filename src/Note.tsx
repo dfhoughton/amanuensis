@@ -49,7 +49,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             selection: (msg) => { this.showSelection(msg) },
             reloaded: (msg) => { this.focused(msg.url) },
             ready: (_msg) => { this.focused(this.currentCitation().source.url) },
-            _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
+            // _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())

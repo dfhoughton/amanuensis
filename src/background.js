@@ -71,6 +71,7 @@ function handleContentMessage(msg) {
 
 chrome.extension.onConnect.addListener(function (port) {
     port.onMessage.addListener(function (msg) {
+        console.log(port.name, msg)
         switch (port.name) {
             case "content":
                 state.contentPort = port
@@ -83,6 +84,7 @@ chrome.extension.onConnect.addListener(function (port) {
         }
     });
     port.onDisconnect.addListener(function () {
+        console.log(port.name, 'disconnect')
         switch (port.name) {
             case "popup":
                 state.connected = false
