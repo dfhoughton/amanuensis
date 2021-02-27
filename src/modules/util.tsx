@@ -245,3 +245,107 @@ export function count(ar: any[], test: (v: any) => boolean): number {
 export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {
     return n1.key[0] === n2.key[0] && n1.key[1] === n2.key[1]
 }
+
+// generate a modified Levenshtein distance calculator that optionally discounts modifications to the edges of words and
+// substitutions of particular characters, e.g., a vowel for a vowel, so the distance between "woman" and "women" is less than
+// that between "woman" and "wodan"
+// the first two parameters are the prefix and suffix lengths
+// the last is a list of character sets within which substitution is cheap
+// the parameters 0, 0, [] should just give you a levenshtein distance calculator
+export function buildEditDistanceMetric(prefix: number, suffix: number, similarChars: string[]): (w1: string, w2: string) => number {
+    const cheapos = new Map<string, Set<string>>()
+    for (const group of similarChars) {
+        for (let i = 0, l = group.length; i < l; i++) {
+            const c = group.charAt(i)
+            let set = cheapos.get(c)
+            if (!set) {
+                set = new Set()
+                cheapos.set(c, set)
+            }
+            for (let j = 0; j < l; j++) {
+                const c2 = group.charAt(j)
+                if (c2 !== c) {
+                    set.add(c2)
+                }
+            }
+        }
+    }
+    function max(v1: number, v2: number): number {
+        return v1 < v2 ? v2 : v1
+    }
+    function min(v1: number, v2: number, v3: number): number {
+        return v1 < v2 ? (v1 < v3 ? v1 : v3) : (v2 < v3 ? v2 : v3)
+    }
+    // at this point are we in a suffix or prefix?
+    function marginal(i1: number, i2: number, w1: string, w2: string): boolean {
+        return max(i1, i2) < prefix || max(w1.length - i1, w2.length - i2) <= suffix
+    }
+    // the cost of adding or subtracting a character at this position
+    function insertionCost(i1: number, i2: number, w1: string, w2: string): number {
+        return marginal(i1, i2, w1, w2) ? 0.5 : 1
+    }
+    // the cost of substituting one character for another at this position
+    function substitutionCost(i1: number, i2: number, w1: string, w2: string): number {
+        const c1 = w1.charAt(i1), c2 = w2.charAt(i2)
+        if (c1 === c2) return 0
+        let weight = marginal(i1, i2, w1, w2) ? 0.5 : 1
+        if (cheapos.get(c1)?.has(c2)) weight *= 0.5
+        return weight
+    }
+    return function (w1: string, w2: string): number {
+        const matrix: number[][] = []
+        for (let i1 = 0, l = w1.length; i1 <= l; i1++) {
+            const row: number[] = []
+            matrix.push(row)
+            for (let i2 = 0, l2 = w2.length; i2 <= l2; i2++) {
+                let other
+                if (!(i1 && i2)) { // we are in either the first row or the first column
+                    if (!(i1 || i2)) { // we are in cell [0, 0]
+                        row.push(0)
+                    } else {
+                        // the cost of pure deletion or insertion in the first column or row
+                        other = i1 ? matrix[i1 - 1][0] : row[i2 - 1]
+                        row.push(other + insertionCost(i1 - 1, i2 - 1, w1, w2))
+                    }
+                } else {
+                    other = min(
+                        matrix[i1][i2 - 1] + insertionCost(i1, i2 - 1, w1, w2),
+                        matrix[i1 - 1][i2 - 1] + substitutionCost(i1 - 1, i2 - 1, w1, w2),
+                        matrix[i1 - 1][i2] + insertionCost(i1 - 1, i2, w1, w2)
+                    )
+                    row.push(other)
+                }
+            }
+        }
+        return matrix[w1.length - 1][w2.length - 1]
+    }
+}
+
+// for memoizing expensive similarity metrics used in sorting
+export function cachedSorter(metric: (w1: string, w2: string) => number): (w1: string, w2: string) => number {
+    const wordCache: Map<string, number> = new Map()
+    const metricCache: Map<string, number> = new Map()
+    function id(w: string): number {
+        let i = wordCache.get(w)
+        if (i === undefined) {
+            i = wordCache.size
+            wordCache.set(w, i)
+        }
+        return i
+    }
+    return function (w1: string, w2: string): number {
+        let i1 = id(w1), i2 = id(w2)
+        if (i2 < i1) {
+            const i3 = i1
+            i2 = i1
+            i1 = i3
+        }
+        const i = `${i1}:${i2}`
+        let m = metricCache.get(i)
+        if (m === undefined) {
+            m = metric(w1, w2)
+            metricCache.set(i, m)
+        }
+        return m
+    }
+}
