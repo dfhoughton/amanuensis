@@ -126,7 +126,9 @@ export function Expando({ text, id, className }: ExpandoOpts) {
                 onClose={() => setAnchorEl(null)}
             >
                 <div className={classes.wrapper}>
-                    <span className={classes.closer} onClick={() => setAnchorEl(null)}>&times;</span>
+                    <span className={classes.closer} onClick={() => setAnchorEl(null)}>
+                        &times;
+                    </span>
                     {text}
                 </div>
             </Popover>
