@@ -95,9 +95,21 @@ const expandoStyles = makeStyles((theme) => ({
         minWidth: 0,
         cursor: 'pointer',
     },
+    closer: {
+        float: 'right',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        marginLeft: theme.spacing(1),
+    }
 }))
 
-export function Expando({ text, id, className }: { text: string | ReactElement | React.ReactElement[], id: string, className?: string }) {
+type ExpandoOpts = {
+    text: string | ReactElement | React.ReactElement[],
+    id: string,
+    className?: string,
+}
+
+export function Expando({ text, id, className }: ExpandoOpts) {
     const classes = expandoStyles()
     const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
     const open = Boolean(anchorEl);
@@ -114,6 +126,7 @@ export function Expando({ text, id, className }: { text: string | ReactElement |
                 onClose={() => setAnchorEl(null)}
             >
                 <div className={classes.wrapper}>
+                    <span className={classes.closer} onClick={() => setAnchorEl(null)}>&times;</span>
                     {text}
                 </div>
             </Popover>
