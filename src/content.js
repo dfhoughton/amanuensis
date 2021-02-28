@@ -344,16 +344,13 @@ port.onMessage.addListener(function (msg) {
             const { citation } = msg
             if (citation?.source?.url) {
                 if (window.location.href === citation.source.url) {
-                    if (highlightSelection(citation)) {
-                        console.log('highlighed selection', citation)
-                    } else {
+                    if (!!highlightSelection(citation)) {
                         port.postMessage({ action: 'error', message: 'could not find citation on page' })
                     }
                 } else {
                     window.location = citation.source.url
                 }
             } else {
-                console.error("goto failed because we couldn't find the URL", msg)
                 port.postMessage({ action: 'error', message: 'received no URL' })
             }
             break
@@ -364,7 +361,6 @@ port.onMessage.addListener(function (msg) {
                     port.postMessage({ action: 'error', message: 'could not find citation on page' })
                 }
             } else {
-                console.error("select failed because we didn't receive a selection", msg)
                 port.postMessage({ action: 'error', message: 'received no citation' })
             }
             break
