@@ -379,7 +379,7 @@ const navStyles = makeStyles((theme) => ({
 
 function Nav({ app, n }: { app: App, n: Note }) {
     const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
-    if (app.state.history.length < 2) {
+    if (app.state.history.length < 1) {
         return null
     }
     const classes = navStyles()
