@@ -344,7 +344,7 @@ port.onMessage.addListener(function (msg) {
             const { citation } = msg
             if (citation?.source?.url) {
                 if (window.location.href === citation.source.url) {
-                    if (!!highlightSelection(citation)) {
+                    if (!highlightSelection(citation)) {
                         port.postMessage({ action: 'error', message: 'could not find citation on page' })
                     }
                 } else {

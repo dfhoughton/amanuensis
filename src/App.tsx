@@ -145,7 +145,7 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard.then(() => this.setState({ defaultProject: this.switchboard.index!.currentProject }))
     this.switchboard.addActions("app", {
       url: ({ url }) => this.setState({ url }),
-      error: ({ message }: { message: string }) => this.error(`There was an error in the currently active page: ${message}`)
+      error: ({ message }: { message: string }) => this.error(message)
     })
   }
 
