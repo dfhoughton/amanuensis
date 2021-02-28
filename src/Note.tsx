@@ -59,10 +59,10 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
-                <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />
-                <StarWidget app={this.props.app} n={this} />
+                {hasWord && <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />}
+                {hasWord && <StarWidget app={this.props.app} n={this} />}
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
-                <Annotations
+                {hasWord && <Annotations
                     gist={this.state.gist}
                     details={this.state.details}
                     citationNote={this.currentCitation()?.note || ''}
@@ -73,7 +73,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     }}
                     gistHandler={(e) => this.setState({ gist: e.target.value }, this.debouncedCheckSavedState)}
                     notesHandler={(e) => this.setState({ details: e.target.value }, this.debouncedCheckSavedState)}
-                />
+                />}
                 <Tags note={this} />
                 <Relations relations={this.state.relations} hasWord={hasWord} />
                 <Citations note={this} />
