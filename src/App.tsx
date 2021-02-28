@@ -16,7 +16,7 @@ import {
   DialogTitle, Snackbar, Tab, Tabs, Typography
 } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { Chrome, NoteRecord, Query } from './modules/types'
+import { AdHocQuery, Chrome, NoteRecord, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
 import { enkey } from './modules/storage'
 import { flatten, sameNote } from './modules/util'
@@ -46,6 +46,7 @@ interface ConfirmationState {
 
 interface AppState {
   tab: number,
+  url: string | null,
   message: Message | null,
   history: Visit[],
   historyIndex: number,
@@ -87,6 +88,7 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard = new Switchboard(chrome)
     this.state = {
       tab: 0,
+      url: null,
       message: null,
       history: [],
       historyIndex: -1,
@@ -143,6 +145,7 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard.then(() => this.setState({ defaultProject: this.switchboard.index!.currentProject }))
     this.switchboard.addActions("app", {
       reloaded: (msg) => this.highlight(msg),
+      url: ({ url }) => this.setState({ url }),
       error: ({ message }: { message: string }) => this.error(`There was an error in the currently active page: ${message}`)
     })
   }
@@ -186,6 +189,31 @@ export class App extends React.Component<AppProps, AppState> {
     // TODO
     // check to make sure the URL is what is currently in the history
     // if so, send the select action with the relevant citation
+  }
+
+  // search for any citations from the current URL
+  urlSearch() {
+    const index = this.switchboard.index
+    if (this.state.url && index) {
+      const search: AdHocQuery = {
+        type: 'ad hoc',
+        url: this.state.url
+      }
+      index.find(search)
+        .then((found) => {
+          switch (found.type) {
+            case "none":
+              this.setState({ search, tab: 2, searchResults: [] })
+              break
+            case "ambiguous":
+              this.setState({ search, tab: 2, searchResults: found.matches })
+              break
+            case "found":
+              this.setState({ search, tab: 2, searchResults: [found.match] })
+          }
+        })
+        .catch((e) => this.error(e))
+    }
   }
 
   recentHistory(): Visit | undefined {

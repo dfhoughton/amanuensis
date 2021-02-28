@@ -21,7 +21,14 @@ function handlePopupMessage(msg) {
     switch (msg.action) {
         case 'open':
             state.connected = true
-            state.contentPort.postMessage({ action: 'getSelection' })
+            chrome.tabs.query({ active: true }, (tabs) => {
+                const tab = tabs[0]
+                if (tab) {
+                    const { url } = tab
+                    state.contentPort.postMessage({ action: 'getSelection' })
+                    state.popupPort.postMessage({ action: 'url', url })
+                }
+            })
             break
         case 'goto':
             state.contentPort?.postMessage(msg)
@@ -57,15 +64,13 @@ function handleContentMessage(msg) {
                 })
             }
             break
+        case 'noSelection':
         case 'error':
-            if (state.connected) {
-                state.popupPort.postMessage(msg)
-            }
-            break
         case 'ready':
             if (state.connected) {
                 state.popupPort.postMessage(msg)
             }
+            break
     }
 }
 

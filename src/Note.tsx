@@ -48,8 +48,8 @@ class Note extends React.Component<NoteProps, NoteState> {
         this.app.switchboard.addActions("note", {
             selection: (msg) => { this.showSelection(msg) },
             reloaded: (msg) => { this.focused(msg.url) },
+            noSelection: (msg) => { this.app.urlSearch() },
             ready: (_msg) => { this.focused(this.currentCitation().source.url) },
-            // _: (msg) => { this.app.notify(`action: ${msg.action}`); console.log(msg) },
         })
         // make a debounced function that checks to see whether the note is dirty and needs a save
         this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
@@ -99,7 +99,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     componentWillUnmount() {
         this.app.makeHistory(this.state, this.savedState)
-        this.app.switchboard.removeActions("note", ["selection", "_", "focused", "reloaded", "ready"])
+        this.app.switchboard.removeActions("note", ["selection", "focused", "reloaded", "ready", "noSelection"])
     }
 
     checkSavedState() {

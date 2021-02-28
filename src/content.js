@@ -336,6 +336,8 @@ port.onMessage.addListener(function (msg) {
             const selection = wrapSelection()
             if (selection) {
                 port.postMessage({ action: 'selection', selection })
+            } else {
+                port.postMessage({ action: 'noSelection' })
             }
             break
         case 'goto':
