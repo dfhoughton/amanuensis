@@ -151,11 +151,11 @@ export function formatDates(dates: Date[]): string | React.ReactElement {
 // create a debounced version of a function
 //   debounce()(() => this.setState({ foo: 1 }))
 export function debounce(interval: number = 200): (f: () => void) => () => void {
-    let i: NodeJS.Timeout | undefined
+    let i: unknown
     return function (f: () => void) {
         return function () {
             if (i) {
-                clearInterval(i)
+                clearInterval(i as number)
             }
             i = setTimeout(f, interval)
         }
@@ -267,9 +267,15 @@ export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean 
 // the first two parameters are the prefix and suffix lengths
 // the last is a list of character sets within which substitution is cheap
 // the parameters 0, 0, [] should just give you a levenshtein distance calculator
-export function buildEditDistanceMetric(prefix: number, suffix: number, similarChars: string[]): (w1: string, w2: string) => number {
+type EditDistanceProps = {
+    prefix?: number,
+    suffix?: number,
+    insertables?: string,
+    similars?: string[],
+}
+export function buildEditDistanceMetric({ prefix = 0, suffix = 0, insertables = '', similars = [] }: EditDistanceProps): (w1: string, w2: string) => number {
     const cheapos = new Map<string, Set<string>>()
-    for (const group of similarChars) {
+    for (const group of similars) {
         for (let i = 0, l = group.length; i < l; i++) {
             const c = group.charAt(i)
             let set = cheapos.get(c)
@@ -285,6 +291,10 @@ export function buildEditDistanceMetric(prefix: number, suffix: number, similarC
             }
         }
     }
+    const intruders = new Set<String>()
+    for (let i = 0, l = insertables.length; i < l; i++) {
+        intruders.add(insertables.charAt(i))
+    }
     function max(v1: number, v2: number): number {
         return v1 < v2 ? v2 : v1
     }
@@ -297,14 +307,19 @@ export function buildEditDistanceMetric(prefix: number, suffix: number, similarC
     }
     // the cost of adding or subtracting a character at this position
     function insertionCost(i1: number, i2: number, w1: string, w2: string): number {
-        return marginal(i1, i2, w1, w2) ? 0.5 : 1
+        let w = 1
+        if (intruders.size && Math.abs(i1 - i2) === 1) {
+            const c = i1 < i2 ? w2[i2] : w1[i1]
+            w = intruders.has(c) ? 0.5 : 1
+        }
+        return w * (marginal(i1, i2, w1, w2) ? 0.5 : 1)
     }
     // the cost of substituting one character for another at this position
     function substitutionCost(i1: number, i2: number, w1: string, w2: string): number {
         const c1 = w1.charAt(i1), c2 = w2.charAt(i2)
         if (c1 === c2) return 0
         let weight = marginal(i1, i2, w1, w2) ? 0.5 : 1
-        if (cheapos.get(c1)?.has(c2)) weight *= 0.5
+        if (cheapos.size && cheapos.get(c1)?.has(c2)) weight *= 0.5
         return weight
     }
     return function (w1: string, w2: string): number {
@@ -324,15 +339,15 @@ export function buildEditDistanceMetric(prefix: number, suffix: number, similarC
                     }
                 } else {
                     other = min(
-                        matrix[i1][i2 - 1] + insertionCost(i1, i2 - 1, w1, w2),
+                        matrix[i1][i2 - 1] + insertionCost(i1 - 1, i2 - 1, w1, w2),
                         matrix[i1 - 1][i2 - 1] + substitutionCost(i1 - 1, i2 - 1, w1, w2),
-                        matrix[i1 - 1][i2] + insertionCost(i1 - 1, i2, w1, w2)
+                        matrix[i1 - 1][i2] + insertionCost(i1 - 1, i2 - 1, w1, w2)
                     )
                     row.push(other)
                 }
             }
         }
-        return matrix[w1.length - 1][w2.length - 1]
+        return matrix[w1.length][w2.length]
     }
 }
 
