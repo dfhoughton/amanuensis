@@ -343,8 +343,12 @@ port.onMessage.addListener(function (msg) {
         case 'goto':
             const { citation } = msg
             if (citation?.source?.url) {
-                if (window.location === citation.source.url) {
-                    port.postMessage({ action: 'ready' })
+                if (window.location.href === citation.source.url) {
+                    if (highlightSelection(citation)) {
+                        console.log('highlighed selection', citation)
+                    } else {
+                        port.postMessage({ action: 'error', message: 'could not find citation on page' })
+                    }
                 } else {
                     window.location = citation.source.url
                 }

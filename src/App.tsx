@@ -144,7 +144,6 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard.mounted()
     this.switchboard.then(() => this.setState({ defaultProject: this.switchboard.index!.currentProject }))
     this.switchboard.addActions("app", {
-      reloaded: (msg) => this.highlight(msg),
       url: ({ url }) => this.setState({ url }),
       error: ({ message }: { message: string }) => this.error(`There was an error in the currently active page: ${message}`)
     })
@@ -183,12 +182,6 @@ export class App extends React.Component<AppProps, AppState> {
   // pop open the confirmation modal
   confirm(confirmation: ConfirmationState) {
     this.setState({ confirmation })
-  }
-
-  highlight({ url }: { url: string }) {
-    // TODO
-    // check to make sure the URL is what is currently in the history
-    // if so, send the select action with the relevant citation
   }
 
   // search for any citations from the current URL

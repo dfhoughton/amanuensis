@@ -66,7 +66,6 @@ function handleContentMessage(msg) {
             break
         case 'noSelection':
         case 'error':
-        case 'ready':
             if (state.connected) {
                 state.popupPort.postMessage(msg)
             }
