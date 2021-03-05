@@ -8,7 +8,7 @@ import Search from './Search'
 import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles'
 import { withStyles } from '@material-ui/core/styles'
 
-import { Build, Edit, LocalLibrary, Search as SearchIcon } from '@material-ui/icons'
+import { Build, Edit, LocalLibrary, Search as SearchIcon, Sort } from '@material-ui/icons'
 
 import { amber, indigo } from '@material-ui/core/colors'
 import {
@@ -20,6 +20,7 @@ import { AdHocQuery, Chrome, NoteRecord, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
 import { enkey } from './modules/storage'
 import { flatten, sameNote } from './modules/util'
+import Sorting from './Sorting'
 
 export const projectName = "Notorious"
 
@@ -116,6 +117,7 @@ export class App extends React.Component<AppProps, AppState> {
               <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
               <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />
               <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
+              <Tab icon={<Sort/>} {...a11yProps(4)} value={4} />
               <Tab icon={<Build />} {...a11yProps(3)} value={3} />
             </Tabs>
           </AppBar>
@@ -130,6 +132,9 @@ export class App extends React.Component<AppProps, AppState> {
           </TabPanel>
           <TabPanel value={this.state.tab} index={3}>
             <Config classes={classes} app={this} />
+          </TabPanel>
+          <TabPanel value={this.state.tab} index={4}>
+            <Sorting app={this} />
           </TabPanel>
           <Snackbar open={!!this.state.message} autoHideDuration={6000} onClose={closeBar}>
             <Alert onClose={closeBar} severity={this.state.message?.level || 'info'}>{this.state.message?.text}</Alert>

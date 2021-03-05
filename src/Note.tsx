@@ -14,8 +14,6 @@ import { debounce, Expando, formatDates, Mark, sameNote, TT } from './modules/ut
 import { App, Visit } from './App'
 import { enkey } from './modules/storage'
 
-const hash = require('object-hash')
-
 interface NoteProps {
     app: App,
 }

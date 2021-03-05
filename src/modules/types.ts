@@ -104,13 +104,23 @@ export interface LookupQuery {
 export interface AdHocQuery {
     type: "ad hoc",
     phrase?: string,
-    strictness?: "exact" | "substring" | "fuzzy",
+    strictness?: "exact" | "substring" | "fuzzy" | "similar",
+    sorter?: Sorter,
     project?: number[],
     tags?: string[],
     after?: Date,
     before?: Date,
     url?: string,
     starred?: boolean,
+}
+
+// an edit distance algorithm together with its name and description
+// this is to be used to sort morphologically related words near each other
+export type Sorter = {
+    pk: number,
+    name: string,
+    description: string,
+    metric: (w1: string, w2: string) => number
 }
 
 export type Query = LookupQuery | AdHocQuery

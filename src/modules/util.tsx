@@ -39,7 +39,7 @@ const detailsStyles = makeStyles((theme) => ({
 }))
 
 // a widget that displays the contents of a tab, a help button, and some expandable help text
-export function Details({ children, header, otherAccordions }: { children: ReactElement, header?: string, otherAccordions?: ReactElement[] }): ReactElement {
+export function Details({ children, header }: { children: ReactElement | ReactElement[], header?: string }): ReactElement {
     const classes = detailsStyles()
     const headerElement = !header ? null :
         <Typography>
@@ -58,7 +58,6 @@ export function Details({ children, header, otherAccordions }: { children: React
                         </div>
                     </Typography>
                 </AccordionDetails>
-                {otherAccordions}
             </Accordion>
         </div>
     )
@@ -267,7 +266,7 @@ export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean 
 // the first two parameters are the prefix and suffix lengths
 // the last is a list of character sets within which substitution is cheap
 // the parameters 0, 0, [] should just give you a levenshtein distance calculator
-type EditDistanceProps = {
+export type EditDistanceProps = {
     prefix?: number,
     suffix?: number,
     insertables?: string,

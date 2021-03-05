@@ -1,7 +1,7 @@
 import { App } from './App'
 import { Details, flatten, Mark, sameNote, TT, uniq, ymd, formatDates as fd, Expando } from './modules/util'
-import { AdHocQuery, CitationRecord, NoteRecord } from './modules/types'
-import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, Radio, RadioGroup, TextField } from '@material-ui/core'
+import { AdHocQuery, CitationRecord, NoteRecord, Sorter } from './modules/types'
+import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, MenuItem, Radio, RadioGroup, TextField } from '@material-ui/core'
 import { enkey, normalizers } from './modules/storage'
 import React from 'react'
 import { deepClone } from './modules/clone'
@@ -70,10 +70,7 @@ const formStyles = makeStyles((theme) => ({
 }))
 
 function Form({ app }: { app: App }) {
-    const { index } = app.switchboard
-    if (index === null) {
-        return null
-    }
+    const index = app.switchboard.index!
     const classes = formStyles()
     let search: AdHocQuery
     switch (app.state.search.type) {
@@ -92,6 +89,7 @@ function Form({ app }: { app: App }) {
     }
     const { phrase, starred, after, before, tags: tagRequired, url } = search
     const strictness = search.strictness || "exact"
+    const [showSorter, setShowSorter] = React.useState(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
     const project = search.project || []
     const projects = Array.from(index.reverseProjectIndex.keys())
     const tags = Array.from(index.tags).sort()
@@ -113,23 +111,52 @@ function Form({ app }: { app: App }) {
                 }}
             />
             <div className={classes.centered}>
-                <FormControl component="fieldset">
-                    <RadioGroup row value={strictness} onChange={(v) => {
-                        switch (v.target.value) {
-                            case 'exact':
-                            case 'fuzzy':
-                            case 'substring':
-                                search = deepClone(search)
-                                search.strictness = v.target.value
-                                app.setState({ search })
-                                break
+                <Grid container justify="space-between">
+                    <Grid item>
+                        <FormControl component="fieldset">
+                            <RadioGroup row value={strictness} onChange={(v) => {
+                                switch (v.target.value) {
+                                    case 'exact':
+                                    case 'fuzzy':
+                                    case 'substring':
+                                        search = deepClone(search)
+                                        search.strictness = v.target.value
+                                        delete search.sorter
+                                        app.setState({ search })
+                                        break
+                                    case 'similar':
+                                        search = deepClone(search)
+                                        search.strictness = v.target.value
+                                        search.sorter = app.switchboard.index!.defaultSorter()
+                                        app.setState({ search }, () => {
+                                            if (app.switchboard.index!.sorters.size === 1) {
+                                                setShowSorter(true)
+                                            }
+                                        })
+                                        break
+                                }
+                            }}>
+                                <FormControlLabel value="exact" disabled={!phrase} control={<Radio />} label="exact" />
+                                <FormControlLabel value="fuzzy" disabled={!phrase} control={<Radio />} label="fuzzy" />
+                                <FormControlLabel value="substring" disabled={!phrase} control={<Radio />} label="substring" />
+                                <FormControlLabel value="similar" disabled={!phrase} control={<Radio />} label="similar" />
+                            </RadioGroup>
+                        </FormControl>
+                    </Grid>
+                    {showSorter && <TextField
+                        select
+                        onChange={(e) => {
+                            search.sorter = app.switchboard.index!.sorters.get(Number.parseInt(e.target.value))
+                            app.setState({search})
+                        }}
+                    >
+                        {
+                            Array.from(app.switchboard.index!.sorters.values())
+                                .sort((a, b) => a.name < b.name ? -1 : 1)
+                                .map((s) => <SorterOption app={app} search={search} sorter={s} />)
                         }
-                    }}>
-                        <FormControlLabel value="exact" disabled={!phrase} control={<Radio />} label="exact" />
-                        <FormControlLabel value="fuzzy" disabled={!phrase} control={<Radio />} label="fuzzy" />
-                        <FormControlLabel value="substring" disabled={!phrase} control={<Radio />} label="substring" />
-                    </RadioGroup>
-                </FormControl>
+                    </TextField>}
+                </Grid>
             </div>
             {(projects.length > 1 || '') && <Autocomplete
                 id="project"
@@ -340,7 +367,7 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
     const classes = resultStyles()
     const index = app.switchboard.index;
     const project = index!.projects.get(index!.reverseProjectIndex.get(note.key[0]) || '');
-    const key= enkey(note.key)
+    const key = enkey(note.key)
     return (
         <Card className={classes.root} key={key}>
             <CardContent>
@@ -435,8 +462,17 @@ function Url({ c, i, key }: { c: CitationRecord, i: number, key: string }) {
     const classes = urlStyles()
     return (
         <Grid container key={i} spacing={1} className={classes.root}>
-            <Grid item xs={6}><Expando text={c.source.title} id={`${key}:${i}-title`}/></Grid>
-            <Grid item xs={6} className={classes.url}><Expando text={c.source.url} id={`${key}:${i}-url`}/></Grid>
+            <Grid item xs={6}><Expando text={c.source.title} id={`${key}:${i}-title`} /></Grid>
+            <Grid item xs={6} className={classes.url}><Expando text={c.source.url} id={`${key}:${i}-url`} /></Grid>
         </Grid>
+    )
+}
+
+function SorterOption({ app, sorter, search }: { app: App, sorter: Sorter, search: AdHocQuery }) {
+    const selected = search.sorter?.pk === sorter.pk || search.sorter == null && app.switchboard.index!.currentSorter === sorter.pk
+    return (
+        <MenuItem key={sorter.pk} selected={selected}>
+            {sorter.name}
+        </MenuItem>
     )
 }

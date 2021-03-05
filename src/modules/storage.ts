@@ -1,6 +1,6 @@
 import { deepClone, deserialize, serialize } from './clone'
-import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord } from './types'
-import { all, any, none } from './util'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter } from './types'
+import { all, any, buildEditDistanceMetric, none } from './util'
 
 type FindResponse =
     { type: "found", match: NoteRecord } |
@@ -21,12 +21,16 @@ export class Index {
     tags: Set<string>                                // the set of all tags used in a phrase in any project
     reverseProjectIndex: Map<number, string>         // an index from ProjectInfo primary keys to names
     cache: Map<string, NoteRecord>                   // a mechanism to avoid unnecessary calls to fetch things from chrome storage
-    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, projectIndices: Map<number, Map<string, number>>, tags: Set<string>) {
+    sorters: Map<number, Sorter>                     // all available sorters
+    currentSorter: number                            // the index of the currently preferred sorter
+    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, projectIndices: Map<number, Map<string, number>>, tags: Set<string>, sorters: Map<number, Sorter>, currentSorter: number) {
         this.chrome = chrome
         this.projects = projects
         this.currentProject = currentProject
         this.projectIndices = projectIndices
         this.tags = tags
+        this.sorters = sorters
+        this.currentSorter = currentSorter
         if (this.projectIndices.size === 0) {
             // add the default project
             const project = this.makeDefaultProject()
@@ -48,6 +52,48 @@ export class Index {
             normalizer: '',
             relations: [["see also", "see also"]]
         }
+    }
+
+    defaultSorter(): Sorter {
+        return this.sorters.get(this.currentSorter)!
+    }
+
+    async saveSorter(sorter: Sorter) {
+        sorter.name = sorter.name.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
+        if (this.sorters.has(sorter.pk)) {
+            if (sorter.pk === 0) {
+                throw "the Levenshtein sorter cannot be changed";
+            }
+            // make sure the name is still unique
+            this.sorters.forEach((k, v) => {
+                if (v !== sorter.pk && k.name === sorter.name) {
+                    throw `the name ${k.name} is already in use`
+                }
+            })
+        } else {
+            // find the next available primary key
+            let pk = 1
+            this.sorters.forEach((k, v) => {
+                if (k.name === sorter.name) throw `the name ${k.name} is already in use`
+                if (v > pk) pk = v + 1
+            })
+            sorter.pk = pk
+        }
+        this.sorters.set(sorter.pk, sorter)
+        this.chrome.storage.local.set({ sorters: serialize(this.sorters) })
+    }
+
+    async deleteSorter(sorter: Sorter) {
+        if (sorter.pk === 0) {
+            throw "the Levenshtein sorter cannot be deleted"
+        }
+        const storable: { [key: string]: any } = {}
+        if (sorter.pk === this.currentSorter) {
+            storable.currentSorter = 0
+        }
+        this.sorters.delete(sorter.pk)
+        storable.sorters = serialize(this.sorters)
+        this.chrome.storage.local.set(storable)
     }
 
     // return the set of relations known to the project
@@ -899,11 +945,20 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['projects', 'currentProject', 'tags'], (result) => {
+        chrome.storage.local.get(['projects', 'currentProject', 'tags', 'sorters', 'currentSorter'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { projects = new Map(), currentProject = 0, tags = new Set() } = deserialize(result) || {}
+                let { projects = new Map(), currentProject = 0, tags = new Set(), sorters = new Map(), currentSorter = 0 } = deserialize(result) || {}
+                if (sorters.size === 0) {
+                    const lev: Sorter = {
+                        pk: 0,
+                        name: 'Levenshtein',
+                        description: 'A language-agnostic sorter.',
+                        metric: buildEditDistanceMetric({}),
+                    }
+                    sorters.set(lev.pk, lev)
+                }
                 // now that we have the project we can fetch the project indices
                 const indices: string[] = []
                 for (const [, projectInfo] of projects) {
@@ -917,7 +972,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         for (const [idx, ridx] of Object.entries(result)) {
                             projectIndices.set(Number.parseInt(idx), deserialize(ridx))
                         }
-                        resolve(new Index(chrome, projects, currentProject, projectIndices, tags))
+                        resolve(new Index(chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter))
                     }
                 })
             }

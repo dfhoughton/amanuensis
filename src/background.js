@@ -14,27 +14,30 @@ chrome.runtime.onInstalled.addListener(function () {
 const state = {
     contentPort: null,
     popupPort: null,
-    connected: false,
+}
+
+function sendToContent(msg) {
+    state.contentPort?.postMessage(msg)
+}
+function sendToPopup(msg) {
+    state.popupPort?.postMessage(msg)
 }
 
 function handlePopupMessage(msg) {
     switch (msg.action) {
         case 'open':
-            state.connected = true
             chrome.tabs.query({ active: true }, (tabs) => {
                 const tab = tabs[0]
                 if (tab) {
                     const { url } = tab
-                    state.contentPort.postMessage({ action: 'getSelection' })
-                    state.popupPort.postMessage({ action: 'url', url })
+                    sendToContent({ action: 'getSelection' })
+                    sendToPopup({ action: 'url', url })
                 }
             })
             break
         case 'goto':
-            state.contentPort?.postMessage(msg)
-            break
         case 'select':
-            state.contentPort.postMessage(msg)
+            sendToContent(msg)
             break
     }
 }
@@ -42,33 +45,27 @@ function handlePopupMessage(msg) {
 function handleContentMessage(msg) {
     switch (msg.action) {
         case 'selection':
-            if (state.connected) {
-                chrome.tabs.query({ active: true }, (tabs) => {
-                    const tab = tabs[0]
-                    if (tab) {
-                        const { title, url } = tab
-                        state.popupPort.postMessage({ ...msg, source: { title, url } })
-                    }
-                })
-            }
+            chrome.tabs.query({ active: true }, (tabs) => {
+                const tab = tabs[0]
+                if (tab) {
+                    const { title, url } = tab
+                    sendToPopup({ ...msg, source: { title, url } })
+                }
+            })
             break
         case 'open':
-            if (state.connected) {
-                // this should be a reload, but send back the active URL to confirm it's what the popup expects
-                chrome.tabs.query({ active: true }, (tabs) => {
-                    const tab = tabs[0]
-                    if (tab) {
-                        const { url } = tab
-                        state.popupPort.postMessage({ action: 'reloaded', url })
-                    }
-                })
-            }
+            // this should be a reload, but send back the active URL to confirm it's what the popup expects
+            chrome.tabs.query({ active: true }, (tabs) => {
+                const tab = tabs[0]
+                if (tab) {
+                    const { url } = tab
+                    sendToPopup({ action: 'reloaded', url })
+                }
+            })
             break
         case 'noSelection':
         case 'error':
-            if (state.connected) {
-                state.popupPort.postMessage(msg)
-            }
+            sendToPopup(msg)
             break
     }
 }
@@ -91,7 +88,10 @@ chrome.extension.onConnect.addListener(function (port) {
         console.log(port.name, 'disconnect')
         switch (port.name) {
             case "popup":
-                state.connected = false
+                state.popupPort = null
+                break
+            case "content":
+                state.contentPort = null
                 break
         }
     })
