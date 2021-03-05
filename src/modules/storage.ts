@@ -217,7 +217,7 @@ export class Index {
                 })
             case "ad hoc":
                 return new Promise((resolve, reject) => {
-                    const { phrase, starred, url, tags, before, after } = query
+                    const { phrase, url, tags, before, after } = query
                     const strictness = query.strictness || "fuzzy"
                     const [project, allProjects] = query.project?.length ?
                         [query.project, query.project.length == this.allProjects().length] :
@@ -243,13 +243,6 @@ export class Index {
                     let candidates: NoteRecord[] = []
                     const test = (note: NoteRecord): boolean => {
                         // proceed from easy to hard
-                        if (starred != null) {
-                            if (starred) {
-                                if (!note.starred) return false
-                            } else {
-                                if (note.starred) return false
-                            }
-                        }
                         if (!allProjects) {
                             if (none(project, (pk: number) => note.key[0] === pk)) return false
                         }

@@ -57,7 +57,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         return (
             <div className="note">
                 {hasWord && <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />}
-                {hasWord && <StarWidget app={this.props.app} n={this} />}
+                {hasWord && <Widgets app={this.props.app} n={this} />}
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
                 {hasWord && <Annotations
                     gist={this.state.gist}
@@ -171,10 +171,6 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     hasWord(): boolean {
         return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
-    }
-
-    star() {
-        this.setState({ starred: !this.state.starred }, () => this.checkSavedState())
     }
 
     focused(url: string) {
@@ -319,7 +315,7 @@ const widgetStyles = makeStyles((theme) => ({
     },
 }))
 
-function StarWidget({ app, n }: { n: Note, app: App }) {
+function Widgets({ app, n }: { n: Note, app: App }) {
     const classes = widgetStyles()
 
     const t = () => {
@@ -351,7 +347,6 @@ function StarWidget({ app, n }: { n: Note, app: App }) {
         <div onClick={t}><Delete className={classes.delete} /></div>
     return (
         <div className={classes.root}>
-            <div onClick={() => n.star()} className={classes.star}><TT msg="bookmark" placement="left"><Mark starred={n.state.starred} /></TT></div>
             <Nav app={app} n={n} />
             {saveWidget}
             {deleteWidget}
@@ -660,7 +655,6 @@ export function nullState(): NoteState {
         tags: [], // tags used to categorize phrases
         citations: [], // instances this *particular* phrase, after normalization, has been found
         relations: {},
-        starred: false,
         unsavedContent: false,
         everSaved: false,
         citationIndex: 0,

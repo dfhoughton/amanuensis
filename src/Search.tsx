@@ -87,7 +87,7 @@ function Form({ app }: { app: App }) {
             search.type = "ad hoc"
             break
     }
-    const { phrase, starred, after, before, tags: tagRequired, url } = search
+    const { phrase, after, before, tags: tagRequired, url } = search
     const strictness = search.strictness || "exact"
     const [showSorter, setShowSorter] = React.useState(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
     const project = search.project || []
@@ -184,32 +184,6 @@ function Form({ app }: { app: App }) {
                     return chips
                 }}
             />}
-            <div className={classes.centered}>
-                <FormControl component="fieldset">
-                    <RadioGroup row value={starred === undefined ? "either" : starred ? "starred" : "unstarred"} onChange={(v) => {
-                        let value
-                        switch (v.target.value) {
-                            case "starred":
-                                value = true
-                                break
-                            case "unstarred":
-                                value = false
-                                break
-                        }
-                        search = deepClone(search)
-                        if (value === undefined) {
-                            delete search.starred
-                        } else {
-                            search.starred = value
-                        }
-                        app.setState({ search })
-                    }}>
-                        <FormControlLabel value="starred" control={<Radio />} label="starred" />
-                        <FormControlLabel value="unstarred" control={<Radio />} label="unstarred" />
-                        <FormControlLabel value="either" control={<Radio />} label="either" />
-                    </RadioGroup>
-                </FormControl>
-            </div>
             {(tags.length || '') && <Autocomplete
                 id="tags-required"
                 className={classes.item}
@@ -378,11 +352,8 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
                     <Grid item xs={3} className={classes.navlinker}>
                         <NavLinker note={note} app={app} />
                     </Grid>
-                    <Grid item xs={3} className={classes.project}>
+                    <Grid item xs={4} className={classes.project}>
                         {project!.name}
-                    </Grid>
-                    <Grid item xs={1} className={classes.star}>
-                        <Mark starred={note.starred} style={{ fontSize: '1rem' }} />
                     </Grid>
                     <Grid item xs={5} className={classes.dates}>
                         {formatDates(note)}

@@ -40,7 +40,6 @@ export interface NoteRecord {
     tags: string[],                           // closed-class tags categorizing the phrase
     citations: CitationRecord[],              // all the times this phrase has been looked up
     relations: { [name: string]: KeyPair[] }, // relations of this phrase to other phrases
-    starred: boolean,                         // whether this phrase is marked as of particular interest
 }
 
 export interface ProjectInfo {
@@ -111,7 +110,6 @@ export interface AdHocQuery {
     after?: Date,
     before?: Date,
     url?: string,
-    starred?: boolean,
 }
 
 // an edit distance algorithm together with its name and description
