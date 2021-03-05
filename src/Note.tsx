@@ -1,11 +1,11 @@
-import React, { ChangeEvent } from 'react'
+import React, { ChangeEvent, useState } from 'react'
 
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
-import { Grid, Popover, Typography as T } from '@material-ui/core'
-import { Delete, FilterCenterFocus, Navigation, Save } from '@material-ui/icons'
+import { Collapse, Grid, Popover, Typography as T } from '@material-ui/core'
+import { Delete, FilterCenterFocus, Navigation, Save, UnfoldLess, UnfoldMore } from '@material-ui/icons'
 
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
@@ -563,6 +563,17 @@ function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
 const annotationStyles = makeStyles((theme) => ({
     note: {
         width: "100%"
+    },
+    unfolder: {
+        cursor: 'pointer',
+    },
+    centering: {
+        display: 'flex',
+        alignItems: 'center',
+    },
+    centered: {
+        display: 'table',
+        margin: 'auto auto',
     }
 }))
 
@@ -576,36 +587,54 @@ function Annotations(
         notesHandler: (e: ChangeEvent<HTMLTextAreaElement>) => void
     }) {
     const classes = annotationStyles();
+    const [showMore, setShowMore] = useState(false)
+    const showerOpts = {
+        className: classes.unfolder,
+        onClick: () => setShowMore(!showMore)
+    }
     return <div>
-        <TextField
-            label="Note on Citation"
-            id="citation-note"
-            placeholder="Notes on the citation above"
-            className={classes.note}
-            rowsMax={2}
-            value={citationNote}
-            onChange={citationNoteHandler}
-        />
-        <TextField
-            label="Gist"
-            id="gist"
-            multiline
-            placeholder="Essential information about this topic"
-            className={classes.note}
-            rowsMax={2}
-            value={gist}
-            onChange={gistHandler}
-        />
-        <TextField
-            label="Elaboration"
-            id="details"
-            multiline
-            placeholder="Further observations about this topic"
-            className={classes.note}
-            rowsMax={6}
-            value={details}
-            onChange={notesHandler}
-        />
+        <Collapse in={showMore}>
+            <TextField
+                label="Note on Citation"
+                id="citation-note"
+                placeholder="Notes on the citation above"
+                className={classes.note}
+                rowsMax={2}
+                value={citationNote}
+                onChange={citationNoteHandler}
+            />
+        </Collapse>
+        <Grid container>
+            <Grid item xs={11}>
+                <TextField
+                    label="Gist"
+                    id="gist"
+                    multiline
+                    placeholder="Essential information about this topic"
+                    className={classes.note}
+                    rowsMax={2}
+                    value={gist}
+                    onChange={gistHandler}
+                />
+            </Grid>
+            <Grid item xs={1} className={classes.centering}>
+                <div className={classes.centered}>
+                    {showMore ? <UnfoldMore {...showerOpts} /> : <UnfoldLess {...showerOpts} />}
+                </div>
+            </Grid>
+        </Grid>
+        <Collapse in={showMore}>
+            <TextField
+                label="Elaboration"
+                id="details"
+                multiline
+                placeholder="Further observations about this topic"
+                className={classes.note}
+                rowsMax={6}
+                value={details}
+                onChange={notesHandler}
+            />
+        </Collapse>
     </div>
 }
 
