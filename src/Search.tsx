@@ -110,7 +110,7 @@ function Form({ app }: { app: App }) {
                     app.setState({ search })
                 }}
             />
-            <div className={classes.centered}>
+            { /\S/.test(phrase || '') && <div className={classes.centered}>
                 <Grid container justify="space-between">
                     <Grid item>
                         <FormControl component="fieldset">
@@ -147,7 +147,7 @@ function Form({ app }: { app: App }) {
                         select
                         onChange={(e) => {
                             search.sorter = app.switchboard.index!.sorters.get(Number.parseInt(e.target.value))
-                            app.setState({search})
+                            app.setState({ search })
                         }}
                     >
                         {
@@ -157,8 +157,8 @@ function Form({ app }: { app: App }) {
                         }
                     </TextField>}
                 </Grid>
-            </div>
-            {(projects.length > 1 || '') && <Autocomplete
+            </div>}
+            {projects.length > 1 && <Autocomplete
                 id="project"
                 className={classes.item}
                 options={projects}
@@ -184,7 +184,7 @@ function Form({ app }: { app: App }) {
                     return chips
                 }}
             />}
-            {(tags.length || '') && <Autocomplete
+            {!!tags.length && <Autocomplete
                 id="tags-required"
                 className={classes.item}
                 options={tags}
