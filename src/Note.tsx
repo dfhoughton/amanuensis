@@ -319,7 +319,7 @@ function Header({ note }: { note: Note }) {
     const project = note.app.switchboard.index?.reverseProjectIndex.get(realm)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     let changer
-    if (note.state.unsavedCitation) {
+    if (note.state.unsavedCitation || note.app.switchboard.index!.projects.size > 1) {
         const open = Boolean(anchorEl);
         const handleClick = (event: React.MouseEvent<HTMLElement>) => {
             setAnchorEl(event.currentTarget);
