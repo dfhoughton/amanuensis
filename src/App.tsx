@@ -271,6 +271,7 @@ export class App extends React.Component<AppProps, AppState> {
       everSaved: true,
       citationIndex: 0,
       unsavedContent: false,
+      unsavedCitation: false,
     }
     const saved: NoteState = deepClone(current)
     history.push({ current, saved })
@@ -352,7 +353,7 @@ export class App extends React.Component<AppProps, AppState> {
             if (retrieved) {
               if (otherNotesModified) {
                 // erase any unsaved changes (Gordian Knot solution -- we could do better)
-                current = { ...retrieved, unsavedContent: false, everSaved: true, citationIndex: visit.current.citationIndex }
+                current = { ...retrieved, unsavedContent: false, unsavedCitation: false, everSaved: true, citationIndex: visit.current.citationIndex }
                 saved = deepClone(current)
                 history[i] = { current, saved }
               }

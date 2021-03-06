@@ -4,8 +4,8 @@ import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
-import { Collapse, Grid, Popover, Typography as T } from '@material-ui/core'
-import { Delete, FilterCenterFocus, Navigation, Save, UnfoldLess, UnfoldMore } from '@material-ui/icons'
+import { Collapse, Fade, Grid, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
+import { Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldLess, UnfoldMore } from '@material-ui/icons'
 
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
@@ -21,6 +21,7 @@ interface NoteProps {
 export interface NoteState extends NoteRecord {
     unsavedContent: boolean,
     everSaved: boolean,
+    unsavedCitation: boolean,
     citationIndex: number,
 }
 
@@ -56,7 +57,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         const hasWord = this.hasWord()
         return (
             <div className="note">
-                {hasWord && <Header time={this.currentCitation()?.when} switchboard={this.app.switchboard} project={this.state.key[0]} />}
+                {hasWord && <Header note={this} />}
                 {hasWord && <Widgets app={this.props.app} n={this} />}
                 <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
                 {hasWord && <Annotations
@@ -101,7 +102,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     checkSavedState() {
         this.setState({
-            unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "citationIndex", "everSaved")
+            unsavedContent: anyDifference(this.state, this.savedState, "unsavedContent", "citationIndex", "everSaved", "unsavedCitation")
         })
     }
 
@@ -128,7 +129,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                             this.app.switchboard.index?.missing(keys)
                                 .then((missing) => {
                                     if (missing.size) {
-                                        this.savedState = { unsavedContent: false, everSaved: true, citationIndex: 0, ...response.match }
+                                        this.savedState = { unsavedContent: false, unsavedCitation: false, everSaved: true, citationIndex: 0, ...response.match }
                                         const relations = deepClone(this.state.relations)
                                         for (let [k, v] of Object.entries(relations)) {
                                             let ar = v as KeyPair[]
@@ -196,31 +197,16 @@ class Note extends React.Component<NoteProps, NoteState> {
                         const foundState: NoteState = {
                             unsavedContent: true,
                             everSaved: true,
+                            unsavedCitation: true,
                             citationIndex: 0,
                             ...found.match,
                         }
-                        // look for an earlier citation identical to this
-                        let match: CitationRecord | null = null
-                        const { source, selection } = citation
-                        for (let i = 0; i < foundState.citations.length; i++) {
-                            const c = foundState.citations[i]
-                            if (citation.phrase === c.phrase &&
-                                citation.before === c.before &&
-                                citation.after === c.after &&
-                                source.title === c.source.title &&
-                                source.url === c.source.url &&
-                                selection.path === c.selection.path &&
-                                !anyDifference(selection.anchor, c.selection.anchor) &&
-                                !anyDifference(selection.focus, c.selection.focus)
-                            ) {
-                                match = c
-                                break
-                            }
-                        }
-                        if (match) {
-                            match.when.unshift(citation.when[0])
+                        const index = mergeCitation(foundState, citation)
+                        if (index === undefined) {
+                            foundState.citationIndex = foundState.citations.length - 1
                         } else {
-                            foundState.citations.unshift(citation)
+                            foundState.citationIndex = index
+                            foundState.unsavedCitation = false
                         }
                         this.app.setState({ search: query, searchResults: [found.match] })
                         this.setState(foundState)
@@ -228,6 +214,8 @@ class Note extends React.Component<NoteProps, NoteState> {
                     case "none":
                         this.app.setState({ search: query, searchResults: [] })
                         const newState = nullState()
+                        newState.unsavedCitation = true
+                        newState.key[0] = this.app.state.defaultProject
                         newState.unsavedContent = true
                         newState.citations.push(citation)
                         this.setState(newState)
@@ -258,6 +246,47 @@ class Note extends React.Component<NoteProps, NoteState> {
     allTags() {
         return Array.from(this.app.switchboard.index?.tags || []).sort()
     }
+
+    // move the current unsaved citation to a new project
+    changeProject(pk: number) {
+        if (!this.state.unsavedCitation) {
+            this.app.error('once a citation is saved with a note, its project cannot be changed')
+            return
+        }
+        const citation = deepClone(this.state.citations[this.state.citations.length - 1])
+        this.app.switchboard.index!.find({ type: 'lookup', phrase: '' })
+            .then((result) => {
+                let previousNote: NoteRecord | undefined
+                switch (result.type) {
+                    case 'ambiguous':
+                        previousNote = result.matches.find((n) => n.key[0] === pk)
+                        break
+                    case 'found':
+                        if (result.match.key[0] === pk) {
+                            previousNote = result.match
+                        }
+                        break
+                }
+                if (previousNote) {
+                    // merge the new citation into those already present
+                    const index = mergeCitation(previousNote, citation)
+                    let state: NoteState = { ...nullState(), ...previousNote }
+                    if (index === undefined) {
+                        state = { ...state, citationIndex: state.citations.length - 1, unsavedCitation: true }
+                    } else {
+                        state = { ...state, citationIndex: index }
+                    }
+                    this.setState({ ...state, everSaved: true, unsavedContent: true })
+                } else {
+                    const state = nullState()
+                    state.citations.push(citation)
+                    state.key[0] = pk
+                    state.unsavedCitation = true
+                    state.unsavedContent = true
+                    this.setState(state)
+                }
+            })
+    }
 }
 
 export default Note;
@@ -272,18 +301,56 @@ const headerStyles = makeStyles((theme) => ({
         fontSize: 'smaller',
         width: '100%',
         color: theme.palette.grey[500],
-    }
+    },
+    projectPicker: {
+        fontSize: '12pt',
+    },
+    defaultProject: {
+        fontStyle: "italic",
+        color: theme.palette.grey[500],
+    },
 }))
 
-function Header(props: { time?: Date[], switchboard: SwitchBoard, project: number }) {
-    const { time, switchboard, project: realm } = props
+function Header({ note }: { note: Note }) {
+    const time = note.currentCitation()?.when
+    const realm = note.state.key[0]
     const classes = headerStyles()
-    let t = time ? time[0] : null, date
-    const project = switchboard.index?.reverseProjectIndex.get(realm)
+    let t = time ? time[0] : null
+    const project = note.app.switchboard.index?.reverseProjectIndex.get(realm)
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    let changer
+    if (note.state.unsavedCitation) {
+        const open = Boolean(anchorEl);
+        const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+            setAnchorEl(event.currentTarget);
+        };
+        const closer = (i: number) => {
+            return () => {
+                setAnchorEl(null)
+                note.changeProject(i)
+            }
+        }
+        changer = <>
+            <span onClick={handleClick} className={classes.projectPicker}><ExpandMore fontSize="inherit" /></span>
+            <Menu
+                anchorEl={anchorEl}
+                keepMounted
+                open={open}
+                onClose={() => setAnchorEl(null)}
+                TransitionComponent={Fade}
+            >
+                {Array.from(note.app.switchboard.index!.projects.values()).map((pi) =>
+                    <MenuItem key={pi.pk} onClick={closer(pi.pk)} selected={pi.pk === note.state.key[0]}>
+                        {pi.name ? pi.name : <span className={classes.defaultProject}>default</span>}
+                    </MenuItem>)}
+            </Menu>
+        </>
+    }
     return (
         <Grid container spacing={1}>
             <Grid container item xs>
-                <TT msg="project"><T className={classes.project}>{project}</T></TT> {/* TODO make this a selector */}
+                <T className={classes.project}>{project}</T> {/* TODO make this a selector */}
+                {changer}
             </Grid>
             <Grid container item xs>
                 <T align="right" className={classes.date}>
@@ -657,7 +724,36 @@ export function nullState(): NoteState {
         relations: {},
         unsavedContent: false,
         everSaved: false,
+        unsavedCitation: false,
         citationIndex: 0,
     }
 }
 
+// add a new citation to an existing record
+function mergeCitation(note: NoteRecord, citation: CitationRecord): number | undefined {
+    let match: CitationRecord | null = null
+    let index: number | undefined
+    const { source, selection } = citation
+    for (let i = 0; i < note.citations.length; i++) {
+        const c = note.citations[i]
+        if (citation.phrase === c.phrase &&
+            citation.before === c.before &&
+            citation.after === c.after &&
+            source.title === c.source.title &&
+            source.url === c.source.url &&
+            selection.path === c.selection.path &&
+            !anyDifference(selection.anchor, c.selection.anchor) &&
+            !anyDifference(selection.focus, c.selection.focus)
+        ) {
+            index = i
+            match = c
+            break
+        }
+    }
+    if (match) {
+        match.when.unshift(citation.when[0])
+    } else {
+        note.citations.unshift(citation)
+    }
+    return index
+}
