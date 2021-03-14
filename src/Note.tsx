@@ -176,7 +176,7 @@ class Note extends React.Component<NoteProps, NoteState> {
 
     focused(url: string) {
         const citation = this.currentCitation()
-        if (citation.source.url === url) {
+        if (citation?.source.url === url) {
             this.focusing = null
             this.app.switchboard.send({ action: 'select', selection: citation })
         }
@@ -390,14 +390,16 @@ function Widgets({ app, n }: { n: Note, app: App }) {
             title: `Delete this note?`,
             text: `Delete this note concerning "${n.state.citations[0].phrase}"?`,
             callback: () => {
-                app.removeNote(n.state)
-                n.savedState = nullState()
-                const state: NoteState = deepClone(n.state)
-                state.relations = {}
-                state.everSaved = false
-                state.unsavedContent = true
-                n.setState(state)
-                return true
+                return new Promise((resolve, _reject) => {
+                    app.removeNote(n.state)
+                    n.savedState = nullState()
+                    const state: NoteState = deepClone(n.state)
+                    state.relations = {}
+                    state.everSaved = false
+                    state.unsavedContent = true
+                    n.setState(state)
+                    resolve(undefined)
+                })
             }
         })
     }

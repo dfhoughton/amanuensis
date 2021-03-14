@@ -39,6 +39,7 @@ export interface NoteRecord {
     details: string,                          // free-form notes on the phrase -- an elaboration on the gist
     tags: string[],                           // closed-class tags categorizing the phrase
     citations: CitationRecord[],              // all the times this phrase has been looked up
+    canonicalCitation?: number,               // the index of the canonical citation for the note
     relations: { [name: string]: KeyPair[] }, // relations of this phrase to other phrases
 }
 
@@ -104,7 +105,7 @@ export interface AdHocQuery {
     type: "ad hoc",
     phrase?: string,
     strictness?: "exact" | "substring" | "fuzzy" | "similar",
-    sorter?: Sorter,
+    sorter?: number,
     project?: number[],
     tags?: string[],
     after?: Date,
@@ -112,9 +113,16 @@ export interface AdHocQuery {
     url?: string,
 }
 
+export interface EditDistanceProperties {
+    prefix?: number, // prefix length
+    suffix?: number, // suffix length
+    insertables?: string, // characters that can be cheaply inserted into or removed from a string
+    similars?: string[], // sets of characters that can cheaply transform into each other
+}
+
 // an edit distance algorithm together with its name and description
 // this is to be used to sort morphologically related words near each other
-export type Sorter = {
+export interface Sorter extends EditDistanceProperties {
     pk: number,
     name: string,
     description: string,

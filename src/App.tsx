@@ -39,7 +39,7 @@ interface AppProps {
 }
 
 interface ConfirmationState {
-  callback?: () => boolean,
+  callback?: () => Promise<string | undefined>,
   title?: string,
   text?: string | ReactElement,
   ok?: string,
@@ -117,7 +117,7 @@ export class App extends React.Component<AppProps, AppState> {
               <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
               <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />
               <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
-              <Tab icon={<Sort/>} {...a11yProps(4)} value={4} />
+              <Tab icon={<Sort />} {...a11yProps(4)} value={4} />
               <Tab icon={<Build />} {...a11yProps(3)} value={3} />
             </Tabs>
           </AppBar>
@@ -131,7 +131,7 @@ export class App extends React.Component<AppProps, AppState> {
             <Search app={this} />
           </TabPanel>
           <TabPanel value={this.state.tab} index={3}>
-            <Config classes={classes} app={this} />
+            <Config app={this} />
           </TabPanel>
           <TabPanel value={this.state.tab} index={4}>
             <Sorting app={this} />
@@ -421,7 +421,23 @@ function ConfirmationModal({ app, confOps, cancel }: { app: App, confOps: Confir
         <Button onClick={cancel} >
           Cancel
         </Button>
-        <Button onClick={() => callback() && app.setState({ confirmation: {} })} color="primary" autoFocus>{ok}</Button>
+        <Button
+          onClick={
+            () => {
+              callback()
+                .then((message) => app.setState({ confirmation: {} }, () => {
+                  if (message) {
+                    app.success(message)
+                  }
+                }))
+                .catch((e) => app.error(e.message))
+            }
+          }
+          color="primary"
+          autoFocus
+        >
+          {ok}
+        </Button>
       </DialogActions>
     </Dialog>
   )

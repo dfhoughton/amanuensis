@@ -2,7 +2,7 @@ import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Popover, Typ
 import Tooltip from '@material-ui/core/Tooltip'
 import { Help, Star, StarBorder } from '@material-ui/icons'
 import React, { ReactElement } from 'react'
-import { EssentialNoteBits } from './types'
+import { EditDistanceProperties, EssentialNoteBits } from './types'
 
 interface TTProps {
     children: ReactElement,
@@ -75,7 +75,7 @@ const starStyles = makeStyles((theme) => ({
 // for making a gold/grey-bordered star for bookmarks and such
 export function Mark({ starred, onClick, fontSize, style }: { starred: boolean, style?: any, fontSize?: any, onClick?: () => void }) {
     const classes = starStyles()
-    const cz = onClick ? (starred ? classes.pointy : `${classes.unstarred} ${classes.pointy}`) : (starred ? '' : classes.unstarred)
+    const cz = onClick ? (starred ? undefined : `${classes.unstarred} ${classes.pointy}`) : (starred ? undefined : classes.unstarred)
     const opts = { onClick, fontSize, style, className: cz }
     return starred ? <Star color="secondary" {...opts} /> : <StarBorder {...opts} />
 }
@@ -210,6 +210,10 @@ export function minmax(val: any, comparator?: (a: any, b: any) => number): [min:
     return [ar[0], ar[ar.length - 1]]
 }
 
+export function squish(s: string): string {
+    return s.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
+}
+
 // convert a date into the format that date inputs expect -- there must be a better way
 export function ymd(date: Date | null | undefined): string | undefined {
     if (date) {
@@ -263,16 +267,7 @@ export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean 
 // generate a modified Levenshtein distance calculator that optionally discounts modifications to the edges of words and
 // substitutions of particular characters, e.g., a vowel for a vowel, so the distance between "woman" and "women" is less than
 // that between "woman" and "wodan"
-// the first two parameters are the prefix and suffix lengths
-// the last is a list of character sets within which substitution is cheap
-// the parameters 0, 0, [] should just give you a levenshtein distance calculator
-export type EditDistanceProps = {
-    prefix?: number,
-    suffix?: number,
-    insertables?: string,
-    similars?: string[],
-}
-export function buildEditDistanceMetric({ prefix = 0, suffix = 0, insertables = '', similars = [] }: EditDistanceProps): (w1: string, w2: string) => number {
+export function buildEditDistanceMetric({ prefix = 0, suffix = 0, insertables = '', similars = [] }: EditDistanceProperties): (w1: string, w2: string) => number {
     const cheapos = new Map<string, Set<string>>()
     for (const group of similars) {
         for (let i = 0, l = group.length; i < l; i++) {

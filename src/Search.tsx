@@ -1,5 +1,5 @@
 import { App } from './App'
-import { Details, flatten, Mark, sameNote, TT, uniq, ymd, formatDates as fd, Expando } from './modules/util'
+import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando } from './modules/util'
 import { AdHocQuery, CitationRecord, NoteRecord, Sorter } from './modules/types'
 import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, MenuItem, Radio, RadioGroup, TextField } from '@material-ui/core'
 import { enkey } from './modules/storage'
@@ -66,7 +66,10 @@ const formStyles = makeStyles((theme) => ({
         '&:first-child': {
             marginLeft: 0,
         }
-    }
+    },
+    sorter: {
+        minWidth: '5rem',
+    },
 }))
 
 function Form({ app }: { app: App }) {
@@ -83,13 +86,12 @@ function Form({ app }: { app: App }) {
             app.setState({ search })
             break
         default:
-            search = app.state.search
-            search.type = "ad hoc"
+            search = deepClone(app.state.search)
             break
     }
     const { phrase, after, before, tags: tagRequired, url } = search
     const strictness = search.strictness || "exact"
-    const [showSorter, setShowSorter] = React.useState(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
+    const showSorter = !!(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
     const project = search.project || []
     const projects = Array.from(index.reverseProjectIndex.keys())
     const tags = Array.from(index.tags).sort()
@@ -101,7 +103,6 @@ function Form({ app }: { app: App }) {
                 className={classes.item}
                 value={phrase || ''}
                 onChange={(event) => {
-                    search = deepClone(search)
                     if (/\S/.test(event.target.value)) {
                         search.phrase = event.target.value
                     } else {
@@ -119,43 +120,41 @@ function Form({ app }: { app: App }) {
                                     case 'exact':
                                     case 'fuzzy':
                                     case 'substring':
-                                        search = deepClone(search)
                                         search.strictness = v.target.value
                                         delete search.sorter
                                         app.setState({ search })
                                         break
                                     case 'similar':
-                                        search = deepClone(search)
                                         search.strictness = v.target.value
-                                        search.sorter = app.switchboard.index!.defaultSorter()
-                                        app.setState({ search }, () => {
-                                            if (app.switchboard.index!.sorters.size === 1) {
-                                                setShowSorter(true)
-                                            }
-                                        })
+                                        search.sorter = app.switchboard.index!.currentSorter
+                                        app.setState({ search })
                                         break
                                 }
                             }}>
                                 <FormControlLabel value="exact" disabled={!phrase} control={<Radio />} label="exact" />
                                 <FormControlLabel value="fuzzy" disabled={!phrase} control={<Radio />} label="fuzzy" />
                                 <FormControlLabel value="substring" disabled={!phrase} control={<Radio />} label="substring" />
-                                <FormControlLabel value="similar" disabled={!phrase} control={<Radio />} label="similar" />
+                                <FormControlLabel
+                                    label={<TT msg={"using " + index.sorters.get(search.sorter || index.currentSorter)!.name}><span>similar</span></TT>}
+                                    value="similar"
+                                    disabled={!phrase}
+                                    control={<Radio />}
+                                />
                             </RadioGroup>
                         </FormControl>
+                        {showSorter && <TextField
+                            label="Sorter"
+                            select
+                            className={classes.sorter}
+                            size="small"
+                        >
+                            {
+                                Array.from(app.switchboard.index!.sorters.values())
+                                    .sort((a, b) => a.name < b.name ? -1 : 1)
+                                    .map((s) => <SorterOption app={app} search={search} sorter={s} />)
+                            }
+                        </TextField>}
                     </Grid>
-                    {showSorter && <TextField
-                        select
-                        onChange={(e) => {
-                            search.sorter = app.switchboard.index!.sorters.get(Number.parseInt(e.target.value))
-                            app.setState({ search })
-                        }}
-                    >
-                        {
-                            Array.from(app.switchboard.index!.sorters.values())
-                                .sort((a, b) => a.name < b.name ? -1 : 1)
-                                .map((s) => <SorterOption app={app} search={search} sorter={s} />)
-                        }
-                    </TextField>}
                 </Grid>
             </div>}
             {projects.length > 1 && <Autocomplete
@@ -440,9 +439,16 @@ function Url({ c, i, key }: { c: CitationRecord, i: number, key: string }) {
 }
 
 function SorterOption({ app, sorter, search }: { app: App, sorter: Sorter, search: AdHocQuery }) {
-    const selected = search.sorter?.pk === sorter.pk || search.sorter == null && app.switchboard.index!.currentSorter === sorter.pk
+    const selected = search.sorter === sorter.pk || search.sorter == null && app.switchboard.index!.currentSorter === sorter.pk
     return (
-        <MenuItem key={sorter.pk} selected={selected}>
+        <MenuItem
+            key={sorter.pk}
+            selected={selected}
+            onClick={() => {
+                search.sorter = sorter.pk
+                app.setState({ search })
+            }}
+        >
             {sorter.name}
         </MenuItem>
     )

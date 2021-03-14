@@ -1,6 +1,6 @@
 import { deepClone, deserialize, serialize } from './clone'
 import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter } from './types'
-import { all, any, buildEditDistanceMetric, none } from './util'
+import { all, any, buildEditDistanceMetric, cachedSorter, none } from './util'
 
 type FindResponse =
     { type: "found", match: NoteRecord } |
@@ -54,46 +54,80 @@ export class Index {
         }
     }
 
-    defaultSorter(): Sorter {
-        return this.sorters.get(this.currentSorter)!
+    saveSorter(sorter: Sorter): Promise<number> {
+        return new Promise((resolve, reject) => {
+            sorter.name = sorter.name.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
+            try {
+                if (this.sorters.has(sorter.pk)) {
+                    if (sorter.pk === 0) {
+                        throw "the Levenshtein sorter cannot be changed";
+                    }
+                    // make sure the name is still unique
+                    this.sorters.forEach((k, v) => {
+                        if (v !== sorter.pk && k.name === sorter.name) {
+                            throw `the name ${k.name} is already in use`
+                        }
+                    })
+                } else {
+                    // find the next available primary key
+                    let pk = 1
+                    this.sorters.forEach((k, v) => {
+                        if (k.name === sorter.name) throw `the name ${k.name} is already in use`
+                        if (v > pk) pk = v + 1
+                    })
+                    sorter.pk = pk
+                }
+                sorter.metric = buildEditDistanceMetric(sorter)
+                this.sorters.set(sorter.pk, sorter)
+                this.chrome.storage.local.set({ sorters: serialize(this.sorters) }, () => {
+                    if (this.chrome.runtime.lastError) {
+                        reject(this.chrome.runtime.lastError)
+                    } else {
+                        resolve(sorter.pk)
+                    }
+                })
+            } catch (e) {
+                reject(e)
+            }
+        })
     }
 
-    async saveSorter(sorter: Sorter) {
-        sorter.name = sorter.name.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
-        if (this.sorters.has(sorter.pk)) {
-            if (sorter.pk === 0) {
-                throw "the Levenshtein sorter cannot be changed";
+    setDefaultSorter(pk: number): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (this.currentSorter === pk) {
+                resolve()
+            } else {
+                this.chrome.storage.local.set({ currentSorter: pk }, () => {
+                    if (this.chrome.runtime.lastError) {
+                        reject(this.chrome.runtime.lastError)
+                    } else {
+                        resolve()
+                    }
+                })
             }
-            // make sure the name is still unique
-            this.sorters.forEach((k, v) => {
-                if (v !== sorter.pk && k.name === sorter.name) {
-                    throw `the name ${k.name} is already in use`
+        })
+    }
+
+    deleteSorter(sorter: Sorter): Promise<void>{
+        return new Promise((resolve, reject) => {
+            if (sorter.pk === 0) {
+                throw "the Levenshtein sorter cannot be deleted"
+            }
+            const storable: { [key: string]: any } = {}
+            if (sorter.pk === this.currentSorter) {
+                this.currentSorter = 0
+                storable.currentSorter = 0
+            }
+            this.sorters.delete(sorter.pk)
+            storable.sorters = serialize(this.sorters)
+            this.chrome.storage.local.set(storable, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve()
                 }
             })
-        } else {
-            // find the next available primary key
-            let pk = 1
-            this.sorters.forEach((k, v) => {
-                if (k.name === sorter.name) throw `the name ${k.name} is already in use`
-                if (v > pk) pk = v + 1
-            })
-            sorter.pk = pk
-        }
-        this.sorters.set(sorter.pk, sorter)
-        this.chrome.storage.local.set({ sorters: serialize(this.sorters) })
-    }
-
-    async deleteSorter(sorter: Sorter) {
-        if (sorter.pk === 0) {
-            throw "the Levenshtein sorter cannot be deleted"
-        }
-        const storable: { [key: string]: any } = {}
-        if (sorter.pk === this.currentSorter) {
-            storable.currentSorter = 0
-        }
-        this.sorters.delete(sorter.pk)
-        storable.sorters = serialize(this.sorters)
-        this.chrome.storage.local.set(storable)
+        })
     }
 
     // return the set of relations known to the project
@@ -289,9 +323,9 @@ export class Index {
                                 if (candidates.length === 1) {
                                     resolve({ type: "found", match: candidates[0] })
                                 } else {
-                                    // return candidates sorted by project and then normalized phrase
                                     const sortMap = new Map<string, string>()
-                                    candidates.sort((a, b) => {
+                                    // candidates sorted by project and then normalized phrase
+                                    const fallbackSort = (a: NoteRecord, b: NoteRecord) => {
                                         const pkA = a.key[0], pkB = b.key[0]
                                         if (pkA === pkB) {
                                             if (a.key[1] === b.key[1]) return 0 // should be unreachable
@@ -314,7 +348,30 @@ export class Index {
                                         } else {
                                             return pkA - pkB
                                         }
-                                    })
+                                    }
+                                    if (query.sorter !== undefined && this.sorters.has(query.sorter)) {
+                                        // sort by the chosen similarity metric applied to case- and whitespace-normalized strings
+                                        const sorter = cachedSorter(this.sorters.get(query.sorter)!.metric)
+                                        const normMap: Map<string, string> = new Map()
+                                        function norm(s: string): string {
+                                            let ns = normMap.get(s)
+                                            if (ns === undefined) {
+                                                ns = s.toLowerCase().replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
+                                                normMap.set(s, ns)
+                                            }
+                                            return ns
+                                        }
+                                        const p = norm(phrase!)
+                                        candidates.sort((a: NoteRecord, b: NoteRecord) => {
+                                            const an = sorter(p, norm(a.citations[a.canonicalCitation || 0].phrase))
+                                            const bn = sorter(p, norm(b.citations[b.canonicalCitation || 0].phrase))
+                                            const delta = an - bn
+                                            if (delta) return delta
+                                            return fallbackSort(a, b)
+                                        })
+                                    } else {
+                                        candidates.sort(fallbackSort)
+                                    }
                                     resolve({ type: "ambiguous", matches: candidates })
                                 }
                             } else {
@@ -661,14 +718,14 @@ export class Index {
 
     // how much memory do we have left?
     // useful for warning the user
-    // success value of promise will be the number of bytes remaining
-    memfree(): Promise<number> {
+    // success value of promise will be [bytes available, bytes used]
+    memfree(): Promise<[number, number]> {
         return new Promise((resolve, reject) => {
             this.chrome.storage.local.getBytesInUse(null, (bytes: number) => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
-                    resolve(5242880 - bytes)
+                    resolve([5242880, bytes])
                 }
             })
         })
@@ -951,6 +1008,10 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         metric: buildEditDistanceMetric({}),
                     }
                     sorters.set(lev.pk, lev)
+                } else {
+                    for (const v of sorters.values()) {
+                        v.metric = buildEditDistanceMetric(v)
+                    }
                 }
                 // now that we have the project we can fetch the project indices
                 const indices: string[] = []
