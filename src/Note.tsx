@@ -254,6 +254,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             return
         }
         const citation = deepClone(this.state.citations[this.state.citations.length - 1])
+        const state = deepClone(this.state, "relations")
         this.app.switchboard.index!.find({ type: 'lookup', phrase: '' })
             .then((result) => {
                 let previousNote: NoteRecord | undefined
