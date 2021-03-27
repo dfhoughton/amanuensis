@@ -1,7 +1,7 @@
 import { App } from './App'
 import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando } from './modules/util'
-import { AdHocQuery, CitationRecord, NoteRecord, Sorter } from './modules/types'
-import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, MenuItem, Radio, RadioGroup, TextField } from '@material-ui/core'
+import { AdHocQuery, allPeriods, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
+import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, MenuItem, Radio, RadioGroup, Switch, TextField, Typography as T } from '@material-ui/core'
 import { enkey } from './modules/storage'
 import React from 'react'
 import { deepClone } from './modules/clone'
@@ -70,6 +70,9 @@ const formStyles = makeStyles((theme) => ({
     sorter: {
         minWidth: '5rem',
     },
+    time: {
+        marginTop: theme.spacing(1),
+    }
 }))
 
 function Form({ app }: { app: App }) {
@@ -79,20 +82,26 @@ function Form({ app }: { app: App }) {
     switch (app.state.search.type) {
         case "lookup":
             // convert the lookup search into an ad hoc search
-            search = { type: "ad hoc", phrase: app.state.search.phrase, strictness: 'exact' }
-            if (app.state.search !== undefined) {
-                search.project = [app.state.search.project || 0]
-            }
+            search = { type: "ad hoc", phrase: app.state.search.phrase }
             app.setState({ search })
             break
         default:
             search = deepClone(app.state.search)
             break
     }
-    const { phrase, after, before, tags: tagRequired, url } = search
-    const strictness = search.strictness || "exact"
+    const {
+        phrase,
+        after,
+        before,
+        url,
+        tags: tagRequired,
+        project = [],
+        relativeTime = true,
+        relativeInterpretation = "since",
+        relativePeriod = "ever",
+        strictness = "exact"
+    } = search
     const showSorter = !!(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
-    const project = search.project || []
     const projects = Array.from(index.reverseProjectIndex.keys())
     const tags = Array.from(index.tags).sort()
     return (
@@ -111,7 +120,7 @@ function Form({ app }: { app: App }) {
                     app.setState({ search })
                 }}
             />
-            { /\S/.test(phrase || '') && <div className={classes.centered}>
+            { phrase && /\S/.test(phrase) && <div className={classes.centered}>
                 <Grid container justify="space-between">
                     <Grid item>
                         <FormControl component="fieldset">
@@ -204,7 +213,59 @@ function Form({ app }: { app: App }) {
                     (obj, i) => <Chip variant="outlined" size="small" label={obj} {...getTagProps({ index: i })} />
                 )}
             />}
-            <Grid container justify="space-between" className={classes.item}>
+            <Grid container justify="center" className={classes.time}>
+                <Grid item>
+                    <Grid component="label" container alignItems="center" spacing={1}>
+                        <Grid item>Relative Time</Grid>
+                        <Grid item>
+                            <Switch checked={!relativeTime} onChange={() => {
+                                search.relativeTime = !relativeTime
+                                app.setState({ search })
+                            }} />
+                        </Grid>
+                        <Grid item>Absolute Time</Grid>
+                    </Grid>
+                </Grid>
+            </Grid>
+            {relativeTime && <Grid container alignItems="center" justify="space-evenly" className={classes.item}>
+                <Grid item>
+                    <Grid component="label" container alignItems="center" spacing={1}>
+                        <Grid item>Since</Grid>
+                        <Grid item>
+                            <Switch
+                                checked={relativeInterpretation === "on"}
+                                disabled={relativeInterpretation === "since" && relativePeriod === "ever"}
+                                onChange={() => {
+                                    search.relativeInterpretation = relativeInterpretation === "on" ? "since" : "on"
+                                    app.setState({ search })
+                                }}
+                            />
+                        </Grid>
+                        <Grid item>On</Grid>
+                    </Grid>
+                </Grid>
+                <Grid item>
+                    <TextField
+                        onChange={(event) => {
+                            search.relativePeriod = event.target.value as RelativePeriod
+                            app.setState({ search })
+                        }}
+                        value={relativePeriod}
+                        select
+                    >
+                        {allPeriods.map((p) => (
+                            <MenuItem
+                                key={p}
+                                value={p}
+                                disabled={p === "ever" && relativeInterpretation === "on"}
+                            >
+                                {p}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </Grid>
+            </Grid>}
+            {!relativeTime && <Grid container justify="space-between" className={classes.item}>
                 <TextField
                     id="after"
                     label="After"
@@ -241,7 +302,7 @@ function Form({ app }: { app: App }) {
                         shrink: true,
                     }}
                 />
-            </Grid>
+            </Grid>}
             <TextField
                 id="url"
                 label="URL"

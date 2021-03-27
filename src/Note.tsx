@@ -5,10 +5,10 @@ import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
 import { Collapse, Fade, Grid, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
-import { Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldLess, UnfoldMore } from '@material-ui/icons'
+import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldLess, UnfoldMore } from '@material-ui/icons'
 
 import { deepClone, anyDifference } from './modules/clone'
-import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query } from './modules/types'
+import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
 import SwitchBoard from './modules/switchboard'
 import { debounce, Expando, formatDates, Mark, sameNote, TT } from './modules/util'
 import { App, Visit } from './App'
@@ -510,7 +510,7 @@ const phraseStyles = makeStyles((theme) => ({
     }
 }))
 
-function Phrase({ hasWord, phrase }: { hasWord: boolean; phrase: CitationRecord; }) {
+export function Phrase({ hasWord, phrase }: { hasWord: boolean, phrase: PhraseInContext }) {
     const classes = phraseStyles()
     if (hasWord) {
         return (
@@ -591,6 +591,9 @@ const citationsStyles = makeStyles((theme) => ({
     date: {
         color: theme.palette.grey[500]
     },
+    remover: {
+        cursor: 'pointer'
+    }
 }))
 
 function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
@@ -607,6 +610,21 @@ function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
         cb = () => note.setState({ citationIndex: i })
     }
     const key = `${note.state.key[0]}:${note.state.key[1]}:${i}`
+    const onlyCitation = note.state.citations.length === 1
+    const starred = i === note.state.canonicalCitation
+    let makeCanonical, removeCitation
+    if (!(onlyCitation || starred)) {
+        makeCanonical = () => note.setState({ canonicalCitation: i })
+        removeCitation = () => {
+            const citations = deepClone(note.state.citations)
+            citations.splice(i, 1)
+            const changes: any = { citations }
+            if (i === note.state.canonicalCitation) {
+                changes.canonicalCitation = undefined
+            }
+            note.setState(changes)
+        }
+    }
     return (
         <Grid container spacing={1} key={key}>
             <Grid item xs={2} className={cz} onClick={cb}>
@@ -615,12 +633,16 @@ function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
             <Grid item xs={3}>
                 <Expando text={c.source.title} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
-            <Grid item xs={5}>
+            <Grid item xs={onlyCitation ? 5 : 3}>
                 <Expando text={c.source.url} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={2} className={classes.date}>
                 <Expando text={formatDates(c.when)} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
+            {!onlyCitation && <Grid item xs={2}>
+                <Mark starred={starred} onClick={makeCanonical} fontSize="small" />
+                <Clear fontSize="small" className={classes.remover} onClick={removeCitation} />
+            </Grid>}
         </Grid>
     )
 }

@@ -1,5 +1,5 @@
-import { deepClone, deserialize, serialize } from './clone'
-import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter } from './types'
+import { anyDifference, deepClone, deserialize, serialize } from './clone'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter, CardStack } from './types'
 import { all, any, buildEditDistanceMetric, cachedSorter, none } from './util'
 
 type FindResponse =
@@ -23,7 +23,8 @@ export class Index {
     cache: Map<string, NoteRecord>                   // a mechanism to avoid unnecessary calls to fetch things from chrome storage
     sorters: Map<number, Sorter>                     // all available sorters
     currentSorter: number                            // the index of the currently preferred sorter
-    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, projectIndices: Map<number, Map<string, number>>, tags: Set<string>, sorters: Map<number, Sorter>, currentSorter: number) {
+    stacks: Map<string, CardStack>                   // the saved flashcard stacks
+    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, projectIndices: Map<number, Map<string, number>>, tags: Set<string>, sorters: Map<number, Sorter>, currentSorter: number, stacks: Map<string, CardStack>) {
         this.chrome = chrome
         this.projects = projects
         this.currentProject = currentProject
@@ -31,27 +32,22 @@ export class Index {
         this.tags = tags
         this.sorters = sorters
         this.currentSorter = currentSorter
+        this.stacks = stacks
         if (this.projectIndices.size === 0) {
             // add the default project
-            const project = this.makeDefaultProject()
+            const project = makeDefaultProject()
             this.projects.set(project.name, project)
             this.projectIndices.set(project.pk, new Map())
             const storable = { projects: this.projects }
             this.chrome.storage.local.set(serialize(storable))
         }
+        if (this.sorters.size === 0) {
+            const lev: Sorter = makeDefaultSorter()
+            sorters.set(lev.pk, lev)
+        }
         this.reverseProjectIndex = new Map()
         this.projects.forEach((value, key) => this.reverseProjectIndex.set(value.pk, key))
         this.cache = new Map()
-    }
-
-    makeDefaultProject(): ProjectInfo {
-        return {
-            pk: 0,
-            name: '',
-            description: 'A project for notes that have no project.',
-            normalizer: '',
-            relations: [["see also", "see also"]]
-        }
     }
 
     saveSorter(sorter: Sorter): Promise<number> {
@@ -108,7 +104,7 @@ export class Index {
         })
     }
 
-    deleteSorter(sorter: Sorter): Promise<void>{
+    deleteSorter(sorter: Sorter): Promise<void> {
         return new Promise((resolve, reject) => {
             if (sorter.pk === 0) {
                 throw "the Levenshtein sorter cannot be deleted"
@@ -251,8 +247,95 @@ export class Index {
                 })
             case "ad hoc":
                 return new Promise((resolve, reject) => {
-                    const { phrase, url, tags, before, after } = query
-                    const strictness = query.strictness || "fuzzy"
+                    const {
+                        phrase,
+                        url,
+                        tags,
+                        before,
+                        after,
+                        strictness = "fuzzy",
+                        relativeTime = true,
+                        relativeInterpretation = "since",
+                        relativePeriod = "ever",
+                    } = query
+                    let startTime: Date | undefined, endTime: Date | undefined
+                    if (relativeTime && relativePeriod !== "ever" || !relativeTime && (before || after)) {
+                        if (relativeTime) {
+                            // initially we set the start time
+                            startTime = new Date()
+                            startTime.setHours(0)
+                            startTime.setMinutes(0)
+                            startTime.setMilliseconds(0)
+                            switch (relativePeriod) {
+                                case "today":
+                                    // startTime is already correctly set
+                                    break
+                                case "yesterday":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        24 * 60 * 60 * 1000 // retreat a day
+                                    )
+                                    break
+                                case "the day before yesterday":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        2 * 24 * 60 * 60 * 1000
+                                    )
+                                    break
+                                case "a week ago":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        7 * 24 * 60 * 60 * 1000
+                                    )
+                                    break
+                                case "two weeks ago":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        14 * 24 * 60 * 60 * 1000
+                                    )
+                                    break
+                                case "a month ago":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        365 * 24 * 60 * 60 * 1000 / 12 // a 12th of a typical year
+                                    )
+                                    break
+                                case "six months ago":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        365 * 24 * 60 * 60 * 1000 / 2 // half a typical year
+                                    )
+                                    break
+                                case "a year ago":
+                                    startTime.setTime(
+                                        startTime.getTime() -
+                                        365 * 24 * 60 * 60 * 1000 // a typical year
+                                    )
+                                    break
+                                default:
+                                    throw "unreachable"
+                            }
+                            if (relativeInterpretation === "on") {
+                                switch (relativePeriod) {
+                                    case "today":
+                                    case "yesterday":
+                                    case "the day before yesterday":
+                                    case "a week ago":
+                                    case "two weeks ago":
+                                        endTime = new Date(startTime.getTime() + 24 * 60 * 60 * 1000) // just a day
+                                        break
+                                    case "a month ago":
+                                        endTime = new Date(startTime.getTime() + 7 * 24 * 60 * 60 * 1000) // a whole week
+                                        break
+                                    default:
+                                        endTime = new Date(startTime.getTime() + 30 * 24 * 60 * 60 * 1000) // a whole month
+                                }
+                            }
+                        } else {
+                            startTime = after
+                            endTime = before
+                        }
+                    }
                     const [project, allProjects] = query.project?.length ?
                         [query.project, query.project.length == this.allProjects().length] :
                         [this.allProjects(), true]
@@ -289,11 +372,11 @@ export class Index {
                         if (url != null) {
                             if (all(note.citations, (c) => c.source.url.indexOf(url) === -1)) return false
                         }
-                        if (before != null) {
-                            if (all(note.citations, (c) => all(c.when, (w) => w > before))) return false
+                        if (endTime) {
+                            if (all(note.citations, (c) => all(c.when, (w) => w > endTime!))) return false
                         }
-                        if (after != null) {
-                            if (all(note.citations, (c) => all(c.when, (w) => w < after))) return false
+                        if (startTime) {
+                            if (all(note.citations, (c) => all(c.when, (w) => w < startTime!))) return false
                         }
                         if (phrase != null) {
                             const pk = note.key[0]
@@ -514,6 +597,22 @@ export class Index {
         })
     }
 
+    // just save a particular note
+    save(note: NoteRecord): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const key = enkey(note.key)
+            const storable: { [key: string]: any } = {}
+            storable[key] = serialize(note)
+            this.chrome.storage.local.set(storable, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve()
+                }
+            })
+        })
+    }
+
     // boolean parameter of returned promise indicates whether other notes were modified when deleting this one
     delete({ phrase, project }: { phrase: string, project: ProjectInfo }): Promise<boolean> {
         return new Promise((resolve, reject) => {
@@ -728,6 +827,98 @@ export class Index {
                     resolve([5242880, bytes])
                 }
             })
+        })
+    }
+    // retrieve the stack associated with the given query
+    // if there is no stack, and it is not a lookup query, create an ad hoc stack
+    stackForQuery(query: Query): Promise<void | { stack: CardStack, notes: NoteRecord[] }> {
+        return new Promise((resolve, reject) => {
+            if (query.type === 'lookup') {
+                resolve()
+            } else {
+                const existingStack = Array.from(this.stacks.values()).find(stack =>
+                    !anyDifference(query, stack.query)
+                )
+                const stack: CardStack = existingStack ? existingStack : {
+                    name: '',
+                    lastAccess: new Date(),
+                    description: 'ad hoc',
+                    query
+                }
+                const name = existingStack ? existingStack.name : ''
+                this.stacks.set(name, stack)
+                this.retrieveStack(name)
+                    .then(results => resolve(results))
+                    .catch(e => reject(e))
+            }
+        })
+    }
+    // retrieve the set of note records for a flashcard stack
+    retrieveStack(name: string): Promise<{ stack: CardStack, notes: NoteRecord[] }> {
+        return new Promise((resolve, reject) => {
+            const stack = this.stacks.get(name)
+            if (stack) {
+                this.find(stack.query)
+                    .then(result => {
+                        let notes: NoteRecord[] = []
+                        switch (result.type) {
+                            case 'ambiguous':
+                                notes = result.matches
+                                break
+                            case 'found':
+                                notes = [result.match]
+                                break
+                        }
+                        resolve({ stack, notes })
+                    })
+                    .catch(e => reject(e))
+            } else {
+                reject(name ? `there is no flashcard stack named "${name}"` : 'there is no current flashcard stack')
+            }
+        });
+    }
+    // save a particular stack
+    saveStack(name: string, stack: CardStack): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const newStacks: Map<string, CardStack> = deepClone(this.stacks)
+            newStacks.set(name, stack)
+            // remove the ad hoc stack
+            let adHoc: CardStack | undefined
+            if (newStacks.has('')) {
+                adHoc = newStacks.get('')
+                newStacks.delete('')
+            }
+            const storable = { stacks: serialize(newStacks) }
+            this.chrome.storage.local.set(storable, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    this.stacks = newStacks
+                    // restore the ad hoc stack
+                    if (adHoc) newStacks.set('', adHoc)
+                    resolve()
+                }
+            })
+        })
+    }
+    // delete a particular stack
+    deleteStack(name: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (this.stacks.has(name)) {
+                const newStacks: Map<string, CardStack> = deepClone(this.stacks)
+                newStacks.delete(name)
+                const storable = { stacks: serialize(newStacks) }
+                this.chrome.storage.local.set(storable, () => {
+                    if (this.chrome.runtime.lastError) {
+                        reject(this.chrome.runtime.lastError)
+                    } else {
+                        this.stacks = newStacks
+                        resolve()
+                    }
+                })
+            } else {
+                reject(`there is no flashcard stack named "${name}"`)
+            }
         })
     }
     // convert a project in any representation, name, index, or info, into a [name, info] pair
@@ -981,10 +1172,13 @@ export class Index {
                     this.reverseProjectIndex.clear()
                     this.tags.clear()
                     // restore the default project
-                    const project = this.makeDefaultProject()
+                    const project = makeDefaultProject()
                     this.projects.set(project.name, project)
                     this.projectIndices.set(project.pk, new Map())
-                    this.chrome.storage.local.set(serialize({ projects: this.projects })) // if this fails no harm done
+                    this.stacks.clear()
+                    this.sorters.clear()
+                    const lev: Sorter = makeDefaultSorter()
+                    this.sorters.set(lev.pk, lev)
                     resolve()
                 }
             })
@@ -995,23 +1189,13 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['projects', 'currentProject', 'tags', 'sorters', 'currentSorter'], (result) => {
+        chrome.storage.local.get(['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { projects = new Map(), currentProject = 0, tags = new Set(), sorters = new Map(), currentSorter = 0 } = deserialize(result) || {}
-                if (sorters.size === 0) {
-                    const lev: Sorter = {
-                        pk: 0,
-                        name: 'Levenshtein',
-                        description: 'A language-agnostic sorter.',
-                        metric: buildEditDistanceMetric({}),
-                    }
-                    sorters.set(lev.pk, lev)
-                } else {
-                    for (const v of sorters.values()) {
-                        v.metric = buildEditDistanceMetric(v)
-                    }
+                let { projects = new Map(), currentProject = 0, tags = new Set(), sorters = new Map(), currentSorter = 0, stacks = new Map() } = deserialize(result) || {}
+                for (const v of sorters.values()) {
+                    v.metric = buildEditDistanceMetric(v)
                 }
                 // now that we have the project we can fetch the project indices
                 const indices: string[] = []
@@ -1026,12 +1210,31 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         for (const [idx, ridx] of Object.entries(result)) {
                             projectIndices.set(Number.parseInt(idx), deserialize(ridx))
                         }
-                        resolve(new Index(chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter))
+                        resolve(new Index(chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks))
                     }
                 })
             }
         })
     })
+}
+
+function makeDefaultProject(): ProjectInfo {
+    return {
+        pk: 0,
+        name: '',
+        description: 'A project for notes that have no project.',
+        normalizer: '',
+        relations: [["see also", "see also"]]
+    }
+}
+
+function makeDefaultSorter(): Sorter {
+    return {
+        pk: 0,
+        name: 'Levenshtein',
+        description: 'A language-agnostic sorter.',
+        metric: buildEditDistanceMetric({}),
+    }
 }
 
 function stripDiacrics(s: string): string {
