@@ -23,7 +23,7 @@ import { flatten, sameNote } from './modules/util'
 import Sorting from './Sorting'
 import FlashCards from './FlashCards'
 
-export const projectName = "Notorious"
+export const projectName = "Amanuensis"
 
 const theme = createMuiTheme({
   palette: {

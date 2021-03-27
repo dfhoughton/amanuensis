@@ -1,5 +1,5 @@
 {
-  "name": "Notorious",
+  "name": "Amanuensis",
   "description": "Takes notes on page contents.",
   "version": "0.0.1",
   "icons": {
@@ -20,7 +20,7 @@
     "default_icon": {
       "512": "logo512.png"
     },
-    "default_title": "Notorious",
+    "default_title": "Amanuensis",
     "default_popup": "popup.html"
   },
   "commands": {
