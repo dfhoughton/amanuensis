@@ -20,11 +20,11 @@ export function deepClone(obj: any, ...except: string[]): any {
             return rv
         } else if (obj instanceof Set) {
             const rv = new Set()
-            obj.forEach((k, _v, _s) => { rv.add(deepClone(k, ...except)) })
+            obj.forEach((k, _v, _s) => rv.add(deepClone(k, ...except)))
             return rv
         } else if (obj instanceof Map) {
             const rv = new Map()
-            obj.forEach((k, v, _m) => { rv.set(k, deepClone(v, ...except)) })
+            obj.forEach((v, k, _m) => rv.set(k, deepClone(v, ...except)))
             return rv
         } else {
             const rv: { [key: string]: any } = {}

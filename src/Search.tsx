@@ -1,12 +1,12 @@
 import { App } from './App'
-import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando } from './modules/util'
-import { AdHocQuery, allPeriods, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
-import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, MenuItem, Radio, RadioGroup, Switch, TextField, Typography as T } from '@material-ui/core'
+import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any } from './modules/util'
+import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
+import { Button, Card, CardContent, Chip, Collapse, FormControl, FormControlLabel, Grid, IconButton, makeStyles, MenuItem, Radio, RadioGroup, Switch, TextField, Typography as T } from '@material-ui/core'
 import { enkey } from './modules/storage'
 import React, { useState } from 'react'
-import { deepClone } from './modules/clone'
+import { anyDifference, deepClone } from './modules/clone'
 import { Autocomplete, Pagination } from '@material-ui/lab'
-import { Search as SearchIcon, Visibility, Link } from '@material-ui/icons'
+import { Search as SearchIcon, Visibility, Link, School, Save, Delete } from '@material-ui/icons'
 
 interface SearchProps {
     app: App
@@ -96,6 +96,14 @@ const formStyles = makeStyles((theme) => ({
     },
     time: {
         marginTop: theme.spacing(1),
+    },
+    saveSearchForm: {
+        margin: theme.spacing(3),
+        marginTop: theme.spacing(0),
+        marginBottom: theme.spacing(2),
+    },
+    discard: {
+        backgroundColor: theme.palette.error.light,
     }
 }))
 
@@ -113,6 +121,8 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
             search = deepClone(app.state.search)
             break
     }
+    const findSearch = () => Array.from(index.stacks.values()).find((s) => !anyDifference(s.query, search))
+    const [savedSearch, setSavedSearch] = useState<CardStack | undefined>(findSearch())
     const {
         phrase,
         after,
@@ -128,8 +138,64 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
     const showSorter = !!(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
     const projects = Array.from(index.reverseProjectIndex.keys())
     const tags = Array.from(index.tags).sort()
+    const [showSaveSearchForm, setShowSaveSearchForm] = useState<boolean>(false)
+    const [searchName, setSearchName] = useState<string | undefined>(savedSearch?.name)
+    const [searchDescription, setSearchDescription] = useState<string | null>(savedSearch?.description || null)
+    const reset = (s: AdHocQuery, ss?: CardStack | undefined) => {
+        setSavedSearch(ss || findSearch())
+        search = s
+        resetter()
+        setShowSaveSearchForm(false)
+        setSearchName((ss || savedSearch)?.name)
+        setSearchDescription((ss || savedSearch)?.description || null)
+    }
+    const anyResults = !!app.state.searchResults.length
+    let searchNameError
+    if (/\S/.test(searchName || '')) {
+        if (!savedSearch && any(Array.from(index.stacks.values()), (s: CardStack) => s.name === searchName)) {
+            searchNameError = "this is already the name of a different search"
+        }
+    } else {
+        searchNameError = "saved searches must be named"
+    }
+    // index.stacks = new Map()
+    const savedSearchNames = Array.from(index.stacks.keys()).sort()
     return (
         <div className={classes.root}>
+            {!!index.stacks.size && <TextField
+                label="Saved Searches"
+                select
+                className={classes.item}
+                value={savedSearch?.name}
+                onChange={(e) => {
+                    const stack = index.stacks.get(e.target.value)!
+                    index.find(stack.query)
+                        .then((results) => {
+                            let searchResults: NoteRecord[]
+                            switch (results.type) {
+                                case 'none':
+                                    searchResults = []
+                                    break
+                                case 'found':
+                                    searchResults = [results.match]
+                                    break
+                                case 'ambiguous':
+                                    searchResults = results.matches
+                                    break
+                            }
+                            const newState = { searchResults, stack: e.target.value, search: stack.query }
+                            app.setState(newState, () => reset(stack.query, stack))
+                        })
+                        .catch(e => app.error(e))
+                }}
+            >
+                {savedSearchNames.map(n => <MenuItem
+                    key={n}
+                    value={n}
+                >
+                    {n}
+                </MenuItem>)}
+            </TextField>}
             <TextField
                 id="phrase"
                 label="Phrase"
@@ -344,6 +410,14 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
             />
             <div className={classes.centered}>
                 <Grid container justify="space-evenly" className={classes.item}>
+                    {anyResults && <IconButton
+                        className={classes.inCentered}
+                        onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
+                    >
+                        <TT msg="save search">
+                            <Save color={showSaveSearchForm ? 'secondary' : 'primary'} />
+                        </TT>
+                    </IconButton>}
                     <Button
                         color="primary"
                         className={classes.inCentered}
@@ -354,13 +428,13 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                                 .then((found) => {
                                     switch (found.type) {
                                         case "none":
-                                            app.setState({ searchResults: [] }, resetter)
+                                            app.setState({ searchResults: [] }, () => reset(search))
                                             break
                                         case "ambiguous":
-                                            app.setState({ searchResults: found.matches }, resetter)
+                                            app.setState({ searchResults: found.matches }, () => reset(search))
                                             break
                                         case "found":
-                                            app.setState({ searchResults: [found.match] }, resetter)
+                                            app.setState({ searchResults: [found.match] }, () => reset(search))
                                     }
                                 })
                                 .catch((e) => app.error(e))
@@ -372,12 +446,106 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         color="secondary"
                         className={classes.inCentered}
                         variant="contained"
-                        onClick={() => app.setState({ search: { type: 'ad hoc' } }, resetter)}
+                        onClick={() => app.setState({ search: { type: 'ad hoc' } }, () => reset(search))}
                     >
                         Clear
                     </Button>
+                    {anyResults && <IconButton
+                        className={classes.inCentered}
+                        onClick={() => {
+                            if (savedSearch) {
+                                app.setState({ tab: 5, stack: savedSearch.name })
+                            } else {
+                                index.stacks.set('', {
+                                    name: '',
+                                    description: '',
+                                    lastAccess: new Date(),
+                                    query: search
+                                })
+                                app.setState({ tab: 5, stack: '' })
+                            }
+                        }}
+                    >
+                        <TT msg="make search results into flash card stack">
+                            <School color='primary' />
+                        </TT>
+                    </IconButton>}
                 </Grid>
             </div>
+            <Collapse in={showSaveSearchForm} className={classes.saveSearchForm}>
+                <div className={classes.centered}>
+                    <h3>Save This Search</h3>
+                </div>
+                <TextField
+                    label="Name"
+                    value={searchName}
+                    InputLabelProps={{ shrink: /\S/.test(searchName || '') }}
+                    className={classes.item}
+                    error={!!searchNameError}
+                    helperText={searchNameError}
+                    onChange={(e) => setSearchName(e.target.value)}
+                />
+                <TextField
+                    label="Description"
+                    value={searchDescription}
+                    InputLabelProps={{ shrink: /\S/.test(searchDescription || '') }}
+                    className={classes.item}
+                    onChange={(e) => setSearchDescription(e.target.value)}
+                />
+                <div className={classes.centered}>
+                    <Button
+                        color="primary"
+                        variant="contained"
+                        className={classes.inCentered}
+                        disabled={!!searchNameError}
+                        onClick={() => {
+                            const name = searchName!.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
+                            index.saveStack({
+                                name,
+                                description: searchDescription,
+                                lastAccess: new Date(),
+                                query: search
+                            })
+                                .then(() => {
+                                    setSearchName(name)
+                                    app.setState({ stack: name }, () => {
+                                        app.success(`saved search "${name}"`)
+                                        setShowSaveSearchForm(false)
+                                    })
+                                })
+                                .catch(e => app.error(e))
+                        }}
+                    >
+                        Save
+                    </Button>
+                    <Button
+                        color="secondary"
+                        variant="contained"
+                        className={classes.inCentered}
+                        onClick={() => setShowSaveSearchForm(false)}
+                    >
+                        Cancel
+                    </Button>
+                    {!!savedSearch && <TT msg="remove this from the saved searches">
+                        <IconButton
+                            className={classes.inCentered}
+                            onClick={() => {
+                                index.deleteStack(savedSearch!.name)
+                                    .then(() => {
+                                        if (app.state.stack === savedSearch!.name) {
+                                            app.setState({ stack: undefined })
+                                        }
+                                        app.success(`discarded saved search "${savedSearch!.name}"`)
+                                        setShowSaveSearchForm(false)
+                                    })
+                                    .catch(e => app.error(e))
+                            }}
+                        >
+                            <Delete />
+                        </IconButton>
+                    </TT>}
+                </div>
+            </Collapse>
         </div>
     )
 }

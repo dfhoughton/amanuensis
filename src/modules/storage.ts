@@ -878,16 +878,18 @@ export class Index {
         });
     }
     // save a particular stack
-    saveStack(name: string, stack: CardStack): Promise<void> {
+    saveStack(stack: CardStack): Promise<void> {
         return new Promise((resolve, reject) => {
             const newStacks: Map<string, CardStack> = deepClone(this.stacks)
-            newStacks.set(name, stack)
+            console.log("old stacks", this.stacks)
+            newStacks.set(stack.name, stack)
             // remove the ad hoc stack
             let adHoc: CardStack | undefined
             if (newStacks.has('')) {
                 adHoc = newStacks.get('')
                 newStacks.delete('')
             }
+            console.log("new stacks", newStacks)
             const storable = { stacks: serialize(newStacks) }
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {
@@ -919,6 +921,18 @@ export class Index {
             } else {
                 reject(`there is no flashcard stack named "${name}"`)
             }
+        })
+    }
+    // delete all saved searches
+    clearStacks(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.chrome.storage.local.set({stacks: serialize(new Map())}, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve()
+                }
+            })
         })
     }
     // convert a project in any representation, name, index, or info, into a [name, info] pair
