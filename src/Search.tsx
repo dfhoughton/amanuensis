@@ -3,9 +3,9 @@ import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando }
 import { AdHocQuery, allPeriods, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
 import { Button, Card, CardContent, Chip, FormControl, FormControlLabel, Grid, makeStyles, MenuItem, Radio, RadioGroup, Switch, TextField, Typography as T } from '@material-ui/core'
 import { enkey } from './modules/storage'
-import React from 'react'
+import React, { useState } from 'react'
 import { deepClone } from './modules/clone'
-import { Autocomplete } from '@material-ui/lab'
+import { Autocomplete, Pagination } from '@material-ui/lab'
 import { Search as SearchIcon, Visibility, Link } from '@material-ui/icons'
 
 interface SearchProps {
@@ -19,25 +19,49 @@ const projectStyles = makeStyles((theme) => ({
     results: {
         marginTop: theme.spacing(3),
     },
-    noNotes: {
+    message: {
         display: "table",
         margin: "0 auto",
         fontStyle: "italic",
     },
+    pagination: {
+        display: "table",
+        margin: "0 auto",
+        marginTop: theme.spacing(2),
+    }
 }))
 
 
 function Search({ app }: SearchProps) {
     const classes = projectStyles();
+    const results = app.state.searchResults
+    const paginate = results.length > 10
+    const [page, setPage] = useState<number>(1)
+    const offset = (page - 1) * 10
+    let end = offset + 10
+    if (end > results.length) end = results.length
+    const pagedResults = paginate ? results.slice(offset, end) : results
     return (
         <div className={classes.root}>
             <Details header="Search">
                 <p></p>
             </Details>
-            <Form app={app} />
+            <Form app={app} resetter={() => setPage(1)} />
             <div className={classes.results}>
-                {app.state.searchResults.map(r => <Result note={r} app={app} />)}
-                {!app.state.searchResults.length && <div className={classes.noNotes}>no notes found</div>}
+                {!!results.length && <div className={classes.message}>
+                    Notes {offset + 1} <>&ndash;</> {end} of {results.length}
+                </div>}
+                {!results.length && <div className={classes.message}>no notes found</div>}
+                {pagedResults.map(r => <Result note={r} app={app} />)}
+                {paginate && <div className={classes.pagination}>
+                    <Pagination
+                        count={Math.ceil(results.length / 10)}
+                        size="small"
+                        defaultPage={page}
+                        siblingCount={0}
+                        onChange={(_e, p) => setPage(p)}
+                    />
+                </div>}
             </div>
         </div>
     )
@@ -75,7 +99,7 @@ const formStyles = makeStyles((theme) => ({
     }
 }))
 
-function Form({ app }: { app: App }) {
+function Form({ app, resetter }: { app: App, resetter: () => void }) {
     const index = app.switchboard.index!
     const classes = formStyles()
     let search: AdHocQuery
@@ -330,13 +354,13 @@ function Form({ app }: { app: App }) {
                                 .then((found) => {
                                     switch (found.type) {
                                         case "none":
-                                            app.setState({ searchResults: [] })
+                                            app.setState({ searchResults: [] }, resetter)
                                             break
                                         case "ambiguous":
-                                            app.setState({ searchResults: found.matches })
+                                            app.setState({ searchResults: found.matches }, resetter)
                                             break
                                         case "found":
-                                            app.setState({ searchResults: [found.match] })
+                                            app.setState({ searchResults: [found.match] }, resetter)
                                     }
                                 })
                                 .catch((e) => app.error(e))
@@ -348,7 +372,7 @@ function Form({ app }: { app: App }) {
                         color="secondary"
                         className={classes.inCentered}
                         variant="contained"
-                        onClick={() => app.setState({ search: { type: 'ad hoc' } })}
+                        onClick={() => app.setState({ search: { type: 'ad hoc' } }, resetter)}
                     >
                         Clear
                     </Button>
