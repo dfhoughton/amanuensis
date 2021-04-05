@@ -1,4 +1,4 @@
-import { Box, Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
+import { Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
 import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
 import { useState } from "react";
 import { App, Section } from "./App";
@@ -98,14 +98,8 @@ const currentCardStyles = makeStyles((theme) => {
         good: {
             color: theme.palette.success.dark,
         },
-        goodGlow: {
-            boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.success.dark}`,
-        },
         bad: {
             color: theme.palette.error.dark,
-        },
-        badGlow: {
-            boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.error.dark}`,
         },
         next: {
             color: theme.palette.primary.main,
@@ -158,6 +152,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 gist={note.gist}
                 showingGist={s.showingGist}
                 phrase={note.citations[note.canonicalCitation || 0]}
+                judgment={s.judgement}
                 hovered={() => {
                     if (!s.revealed) {
                         s.revealed = true
@@ -177,7 +172,6 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     <Collapse in={s.revealed}>
                         <IconButton
                             disabled={s.judgement === false}
-                            className={s.judgement === false ? classes.badGlow : undefined}
                             onClick={() => addTrial(false, note, app, s, setState)}
                         >
                             <SentimentVeryDissatisfied fontSize="large" className={classes.bad} />
@@ -227,7 +221,6 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     <Collapse in={s.revealed}>
                         <IconButton
                             disabled={s.judgement === true}
-                            className={s.judgement === true ? classes.goodGlow : undefined}
                             onClick={() => {
                                 addTrial(true, note, app, s, setState)
                                 if (done(s)) {
@@ -337,6 +330,14 @@ const cardStyles = makeStyles((theme) => ({
         borderColor: theme.palette.primary.dark,
         padding: theme.spacing(1),
     },
+    good: {
+        boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.secondary.dark}`,
+        transition: 'box-shadow 1s'
+    },
+    bad: {
+        boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.error.dark}`,
+        transition: 'box-shadow 1s',
+    }
 }))
 
 type FlashCardProps = {
@@ -344,19 +345,23 @@ type FlashCardProps = {
     phrase: PhraseInContext
     gist: string
     hovered?: () => void
+    judgment?: boolean | null
 }
-function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { } }: FlashCardProps) {
+function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { }, judgment }: FlashCardProps) {
     const classes = cardStyles()
     const citation = <Phrase hasWord={true} phrase={phraseInContext} trim={80} />
     const definition = <span>{gist}</span>
+    const glow = judgment == null ? '' : judgment ? classes.good : classes.bad
+    const cz1 = `${showingGist ? classes.gist : classes.phrase} ${classes.flipCardCommon} ${glow}`
+    const cz2 = `${showingGist ? classes.phrase : classes.gist} ${classes.flipCardBack} ${classes.flipCardCommon} ${glow}`
     return (
         <div className={classes.root} onMouseOver={hovered}>
             <div className={classes.flipCard}>
                 <div className={`${classes.flipCardInner} flip-card-inner`}>
-                    <div className={`${showingGist ? classes.gist : classes.phrase} ${classes.flipCardCommon}`}>
+                    <div className={cz1}>
                         {showingGist ? definition : citation}
                     </div>
-                    <div className={`${showingGist ? classes.phrase : classes.gist} ${classes.flipCardBack} ${classes.flipCardCommon}`}>
+                    <div className={cz2}>
                         {showingGist ? citation : definition}
                     </div>
                 </div>
