@@ -332,11 +332,11 @@ const cardStyles = makeStyles((theme) => ({
     },
     good: {
         boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.secondary.dark}`,
-        transition: 'box-shadow 1s'
+        transition: 'box-shadow 0.5s'
     },
     bad: {
         boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.error.dark}`,
-        transition: 'box-shadow 1s',
+        transition: 'box-shadow 0.5s',
     }
 }))
 
