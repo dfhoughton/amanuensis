@@ -10,8 +10,8 @@ import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldL
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
 import SwitchBoard from './modules/switchboard'
-import { debounce, Expando, formatDates, Mark, sameNote, TT } from './modules/util'
-import { App, Visit } from './App'
+import { debounce, Expando, formatDates, Mark, nws, sameNote, TT } from './modules/util'
+import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'
 
 interface NoteProps {
@@ -171,7 +171,7 @@ class Note extends React.Component<NoteProps, NoteState> {
     }
 
     hasWord(): boolean {
-        return !!(this.currentCitation()?.phrase && /\S/.test(this.currentCitation().phrase))
+        return !!(this.currentCitation()?.phrase && nws(this.currentCitation().phrase))
     }
 
     focused(url: string) {
@@ -221,7 +221,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                         this.setState(newState)
                         break
                     case "ambiguous":
-                        this.app.setState({ tab: 2, search: query, searchResults: found.matches })
+                        this.app.setState({ tab: Section.search, search: query, searchResults: found.matches })
                         break
                 }
             })
@@ -350,7 +350,7 @@ function Header({ note }: { note: Note }) {
     return (
         <Grid container spacing={1}>
             <Grid container item xs>
-                <T className={classes.project}>{project}</T> {/* TODO make this a selector */}
+                <T className={classes.project}>{project}</T>
                 {changer}
             </Grid>
             <Grid container item xs>
@@ -510,14 +510,25 @@ const phraseStyles = makeStyles((theme) => ({
     }
 }))
 
-export function Phrase({ hasWord, phrase }: { hasWord: boolean, phrase: PhraseInContext }) {
+export function Phrase({ hasWord, phrase, trim }: { hasWord: boolean, phrase: PhraseInContext, trim?: number }) {
     const classes = phraseStyles()
     if (hasWord) {
+        let { before, after } = phrase ?? {}
+        if (trim) {
+            if (before && before.length > trim) {
+                console.log(">>" + before + "<<")
+                before = '\u2026' + before.substr(before.length - trim, trim)
+                console.log(">>" + before + "<<")
+            }
+            if (after && after.length > trim) {
+                after = after.substr(0, trim) + '\u2026'
+            }
+        }
         return (
             <div className={classes.root}>
-                <span>{phrase.before}</span>
+                <span>{before}</span>
                 <span className={classes.word}>{phrase.phrase}</span>
-                <span>{phrase.after}</span>
+                <span>{after}</span>
             </div>
         )
     } else {

@@ -1,28 +1,270 @@
-import { makeStyles } from "@material-ui/core";
+import { Box, Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
+import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
 import { useState } from "react";
-import { App } from "./App";
+import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
 import { enkey } from "./modules/storage";
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types";
 import { Details } from "./modules/util";
 import { Phrase } from "./Note";
+const confetti = require('canvas-confetti')
+let myConfetti : any
+const confettiPrep = () => {
+    document.querySelector('#confetti-canvas')?.remove()
+    const myCanvas = document.createElement('canvas')
+    myCanvas.id = "confetti-canvas"
+    document.body.appendChild(myCanvas)
+    myConfetti = confetti.create(myCanvas, {
+        resize: true,
+        useWorker: true
+    });
+}
+
+
+interface FlashCardState {
+    stack: CardStack | null   // metadata about the current stack
+    notes: NoteRecord[]       // the note records in the stack
+    index: number             // -1 means there are no cards left to try
+    showingGist: boolean      // is the gist the thing being tested or is it the phrase?
+    done: Set<string>         // those cards in the stack that we are done with, either temporarily or permanently
+    revealed: boolean         // whether we've flipped the current card yet
+    initialize: boolean       // whether to init on render
+    judgement: boolean | null // the result of the last self-assessment on the current flashcard
+    total: number             // the total number of cards to flip
+    which: number             // the index displayed
+}
 
 export default function FlashCards({ app }: { app: App }) {
-    const [stack, setStack] = useState<CardStack | null>(null)
-    const [notes, setNotes] = useState<NoteRecord[]>([])
-    const [index, setIndex] = useState<number>(-1) // -1 will mean there are no more cards to try
-    const [showingGist, setShowingGist] = useState<boolean>(false)
-    const [done, setDone] = useState<Set<string>>(new Set())
-    const [revealed, setRevealed] = useState<boolean>(false)
-    const next = nextNote(notes, index, done, setIndex, showingGist, setShowingGist)
-    const initFlashCardStack = init({ app, setStack, setNotes, setShowingGist, setDone, next })
-    initFlashCardStack(app.state.stack)
+    const [state, setState] = useState<FlashCardState>({
+        stack: null,
+        notes: [],
+        index: -1,
+        showingGist: true,
+        done: new Set(),
+        revealed: false,
+        initialize: true,
+        judgement: null,
+        total: 0,
+        which: 0,
+    })
+    if (state.initialize) {
+        confettiPrep()
+        init(app, state, setState)
+    }
     return (
-        <div>
+        <>
             <Details header="Flashcards">
                 <DetailsContent />
             </Details>
-        </div>
+            {!!state.notes.length && <CurrentCard app={app} state={state} setState={setState} />}
+            {!state.notes.length && <NoResults state={state} app={app} />}
+        </>
+    )
+}
+
+const confettiColors: string[] = []
+
+const currentCardStyles = makeStyles((theme) => {
+    confettiColors.push(theme.palette.primary.dark)
+    confettiColors.push(theme.palette.primary.light)
+    confettiColors.push(theme.palette.primary.main)
+    confettiColors.push(theme.palette.secondary.dark)
+    confettiColors.push(theme.palette.secondary.light)
+    confettiColors.push(theme.palette.secondary.main)
+    confettiColors.push(theme.palette.error.dark)
+    confettiColors.push(theme.palette.error.light)
+    confettiColors.push(theme.palette.error.main)
+    confettiColors.push(theme.palette.success.dark)
+    confettiColors.push(theme.palette.success.light)
+    confettiColors.push(theme.palette.success.main)
+    return {
+        exhausted: {
+            padding: theme.spacing(2),
+        },
+        name: {
+
+        },
+        description: {
+            fontStyle: "italic",
+        },
+        stats: {
+            fontWeight: 'bold',
+            color: theme.palette.grey[500],
+            marginBottom: theme.spacing(2),
+        },
+        icons: {
+            marginTop: theme.spacing(2),
+        },
+        good: {
+            color: theme.palette.success.dark,
+        },
+        goodGlow: {
+            boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.success.dark}`,
+        },
+        bad: {
+            color: theme.palette.error.dark,
+        },
+        badGlow: {
+            boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.error.dark}`,
+        },
+        next: {
+            color: theme.palette.primary.main,
+        },
+        done: {
+            color: theme.palette.secondary.main,
+        },
+    }
+})
+
+function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState, setState: (s: FlashCardState) => void }) {
+    const classes = currentCardStyles()
+    if (state.index === -1) {
+        return (
+            <Grid container spacing={2} className={classes.exhausted}>
+                <Grid container justify="center" className={classes.exhausted}>
+                    You're done with this stack.
+                </Grid>
+                <Grid container justify="center" className={classes.exhausted}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => init(app, state, setState)}
+                    >
+                        Restart?
+                    </Button>
+                </Grid>
+            </Grid>
+        )
+    }
+    const s: FlashCardState = deepClone(state)
+    const note = s.notes[s.index]
+    return (
+        <>
+            {!!s.stack?.name && <Grid container justify="center" className={classes.name}>
+                <T variant="h3">{s.stack?.name}</T>
+            </Grid>}
+            {!!s.stack?.description && <Grid container justify="center" className={classes.description}>
+                <p>{s.stack.description}</p>
+            </Grid>}
+            <Grid container className={classes.stats} justify="space-between">
+                <Grid item>
+                    {app.switchboard.index!.reverseProjectIndex.get(note.key[0])}
+                </Grid>
+                <Grid item>
+                    {state.which} of {state.total}
+                </Grid>
+            </Grid>
+            <FlashCard
+                gist={note.gist}
+                showingGist={s.showingGist}
+                phrase={note.citations[note.canonicalCitation || 0]}
+                hovered={() => {
+                    if (!s.revealed) {
+                        s.revealed = true
+                        setState(s)
+                    }
+                    if (done(s)) {
+                        myConfetti({ colors: confettiColors })
+                    }
+                }}
+            />
+            <Grid
+                container
+                justify="space-evenly"
+                className={classes.icons}
+            >
+                <Grid item>
+                    <Collapse in={s.revealed}>
+                        <IconButton
+                            disabled={s.judgement === false}
+                            className={s.judgement === false ? classes.badGlow : undefined}
+                            onClick={() => addTrial(false, note, app, s, setState)}
+                        >
+                            <SentimentVeryDissatisfied fontSize="large" className={classes.bad} />
+                        </IconButton>
+                    </Collapse>
+                </Grid>
+                <Grid item>
+                    <IconButton
+                        onClick={() => next(s, setState)}
+                    >
+                        <ArrowForward fontSize="large" className={classes.next} />
+                    </IconButton>
+                </Grid>
+                <Grid item>
+                    <IconButton
+                        onClick={() => {
+                            app.confirm({
+                                title: "Remove from all flashcard decks?",
+                                text: <>
+                                    Remove "{note.citations[note.canonicalCitation || 0].phrase}"
+                                    from all flashcard decks? You can add any removed card back
+                                    to the decks by clicking the <Done className={classes.good} fontSize="small" />
+                                    mark in search results.
+                                    </>,
+                                callback: () => {
+                                    return new Promise((resolve, reject) => {
+                                        note.done = true
+                                        app.switchboard.index!.save(note)
+                                            .then(() => {
+                                                s.done.add(enkey(note.key))
+                                                next(s, setState)
+                                                resolve(`
+                                                    Removed
+                                                    "${note.citations[note.canonicalCitation || 0].phrase}"
+                                                    from flashcard decks.`)
+                                            })
+                                            .catch(e => reject(e))
+                                    })
+                                }
+                            })
+                        }}
+                    >
+                        <Done fontSize="large" className={classes.done} />
+                    </IconButton>
+                </Grid>
+                <Grid item>
+                    <Collapse in={s.revealed}>
+                        <IconButton
+                            disabled={s.judgement === true}
+                            className={s.judgement === true ? classes.goodGlow : undefined}
+                            onClick={() => {
+                                addTrial(true, note, app, s, setState)
+                                if (done(s)) {
+                                    myConfetti({ colors: confettiColors })
+                                }
+                            }}
+                        >
+                            <SentimentVerySatisfied fontSize="large" className={classes.good} />
+                        </IconButton>
+                    </Collapse>
+                </Grid>
+            </Grid>
+        </>
+    )
+}
+
+const noResultStyles = makeStyles((theme) => ({
+    root: {
+        padding: theme.spacing(2)
+    },
+    link: {
+        margin: '0 1ch',
+    },
+}))
+
+function NoResults({ state, app }: { state: FlashCardState, app: App }) {
+    const classes = noResultStyles()
+    return (
+        <Grid container justify="center" className={classes.root}>
+            There is nothing to show. To obtain some flashcards
+            <Link onClick={() => app.setState({ tab: Section.search })} className={classes.link}>
+                search
+            </Link>
+            for some notes and then click the
+            <School color="primary" fontSize="small" className={classes.link} />
+            button that appears when you find some.
+        </Grid>
     )
 }
 
@@ -42,13 +284,13 @@ function DetailsContent() {
                 gist="a small, carnivorous mammal that likes laser pointers"
             />
             <p>
-                Below each flashcard are two 
+                Below each flashcard are two
             </p>
         </>
     )
 }
 
-const phraseStyles = makeStyles((theme) => ({
+const cardStyles = makeStyles((theme) => ({
     root: {
         display: 'flex',
         alignItems: 'center',
@@ -97,13 +339,18 @@ const phraseStyles = makeStyles((theme) => ({
     },
 }))
 
-
-function FlashCard({ showingGist, phrase: phraseInContext, gist }: { showingGist: boolean, phrase: PhraseInContext, gist: string }) {
-    const classes = phraseStyles()
-    const citation = <Phrase hasWord={true} phrase={phraseInContext} />
+type FlashCardProps = {
+    showingGist: boolean
+    phrase: PhraseInContext
+    gist: string
+    hovered?: () => void
+}
+function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { } }: FlashCardProps) {
+    const classes = cardStyles()
+    const citation = <Phrase hasWord={true} phrase={phraseInContext} trim={80} />
     const definition = <span>{gist}</span>
     return (
-        <div className={classes.root}>
+        <div className={classes.root} onMouseOver={hovered}>
             <div className={classes.flipCard}>
                 <div className={`${classes.flipCardInner} flip-card-inner`}>
                     <div className={`${showingGist ? classes.gist : classes.phrase} ${classes.flipCardCommon}`}>
@@ -118,64 +365,104 @@ function FlashCard({ showingGist, phrase: phraseInContext, gist }: { showingGist
     )
 }
 
-interface initProps {
-    app: App
-    setStack: (stack: CardStack) => void
-    setNotes: (notes: NoteRecord[]) => void
-    setShowingGist: (showingGist: boolean) => void
-    setDone: (done: Set<string>) => void
-    next: () => void
-}
-function init({ app, setStack, setNotes, setShowingGist, setDone, next }: initProps): (name: string | undefined) => void {
-    return (name) => {
-        if (name !== undefined) {
-            app.switchboard.index!.retrieveStack(name)
-                .then(({ stack, notes }) => {
-                    setStack(stack)
-                    const done: Set<string> = new Set();
-                    for (const n of notes) {
-                        if (n.done) {
-                            done.add(enkey(n.key))
-                        }
+function init(app: App, state: FlashCardState, setState: (s: FlashCardState) => void): void {
+    const name = app.state.stack
+    if (name !== undefined) {
+        const s: FlashCardState = deepClone(state)
+        app.switchboard.index!.retrieveStack(name)
+            .then(({ stack, notes }) => {
+                s.stack = stack
+                stack.lastAccess = new Date()
+                app.switchboard.index!.saveStack(stack)
+                    .catch(e => app.error(`could not save last stack access time: ${e}`))
+                const done: Set<string> = new Set();
+                for (const n of notes) {
+                    if (n.done) {
+                        done.add(enkey(n.key))
                     }
-                    setDone(done)
-                    setShowingGist(false)
-                    notes.sort(sortNotes(false, done))
-                    setNotes(notes)
-                    next()
-                })
-                .catch(e => app.error(e))
-        }
-    }
-}
-
-// function that figures out the next card to show
-function nextNote(notes: NoteRecord[], index: number, done: Set<string>, setIndex: (i: number) => void, showingGist: boolean, setShowingGist: (b: boolean) => void): () => void {
-    const f = () => {
-        if (done.size === notes.length) {
-            setIndex(-1)
-        } else {
-            let i = index + 1
-            while (i < notes.length) {
-                if (done.has(enkey(notes[i].key))) {
-                    i++
-                } else {
-                    break
                 }
-            }
-            if (i === notes.length) {
-                setShowingGist(!showingGist)
-                setIndex(-1)
-                f()
+                s.total = notes.length - done.size
+                s.index = -1
+                s.revealed = false
+                s.done = done
+                s.showingGist = false
+                notes.sort(sortNotes(false, done))
+                s.notes = notes
+                s.initialize = false
+                s.which = 0
+                next(s, setState)
+            })
+            .catch(e => app.error(e))
+    }
+}
+
+// show the next card
+function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
+    const { done, notes } = s
+    s.revealed = false
+    s.judgement = null
+    if (done.size === notes.length) {
+        s.index = -1
+        setState(s)
+    } else {
+        let i = s.index + 1
+        while (i < notes.length) {
+            if (done.has(enkey(notes[i].key))) {
+                i++
             } else {
-                setIndex(i)
+                break
+            }
+        }
+        if (i === notes.length) {
+            s.showingGist = !s.showingGist
+            s.index = -1
+            s.which = 0
+            if (!s.showingGist) {
+                // we've done both sides of the stack, recalculate total
+                s.total = remaining(s)
+            }
+            next(s, setState)
+        } else {
+            s.index = i
+            s.which += 1
+            setState(s)
+        }
+    }
+}
+
+function addTrial(judgement: boolean, note: NoteRecord, app: App, state: FlashCardState, setState: (s: FlashCardState) => void) {
+    if (!note.trials) note.trials = []
+    if (state.judgement !== null) {
+        note.trials.pop()
+    }
+    state.judgement = judgement
+    note.trials.push({
+        result: judgement,
+        when: new Date(),
+        type: state.showingGist ? "gist" : "phrase"
+    })
+    // success with both sides?
+    if (state.showingGist) {
+        const prev = note.trials.find((t) => t.type === "phrase")
+        if (prev!.result) {
+            const key = enkey(note.key)
+            if (judgement) {
+                state.done.add(key)
+            } else {
+                state.done.delete(key)
             }
         }
     }
-    return f
+    setState(state)
+    app.switchboard.index!.save(note)
+        .catch(e => app.error(`could not save result of trial: ${e}`))
 }
 
-// try really hard to show first the stuff we've been having more trouble with
+const remaining = (state: FlashCardState) => state.notes.length - state.done.size
+
+const done = (state: FlashCardState) => remaining(state) === 0
+
+// try really hard to show the easy stuff first
 function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: NoteRecord) => number {
     return (a, b) => {
         // check to see if we've marked one or the other as done
@@ -204,11 +491,11 @@ function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: 
                                 // we know we have at least one success at each
                                 const aRatio = aFailure / aSuccess
                                 const bRatio = bFailure / bSuccess
-                                if (aRatio > bRatio) return -1 // we're worse at a
-                                if (bRatio > aRatio) return 1 // we're worse at b
+                                if (aRatio > bRatio) return 1 // we're worse at a
+                                if (bRatio > aRatio) return -1 // we're worse at b
                                 // maybe we failed more with one than the other?
-                                if (aFailure > bFailure) return -1
-                                if (bFailure > aFailure) return 1
+                                if (aFailure > bFailure) return 1
+                                if (bFailure > aFailure) return -1
                                 let aTimeTotal = 0, bTimeTotal = 0
                                 if (aFailure) {
                                     // maybe the failures with one were more recent than the failures with the other
@@ -218,8 +505,8 @@ function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: 
                                     for (const t of bThisShown) {
                                         if (!t.result) bTimeTotal += t.when.getTime()
                                     }
-                                    if (aTimeTotal < bTimeTotal) return -1 // a's failures are on net older
-                                    if (bTimeTotal < aTimeTotal) return 1 // b's failures are on net older
+                                    if (aTimeTotal < bTimeTotal) return 1 // a's failures are on net older
+                                    if (bTimeTotal < aTimeTotal) return -1 // b's failures are on net older
                                 }
                                 aTimeTotal = 0
                                 bTimeTotal = 0
@@ -230,11 +517,11 @@ function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: 
                                 for (const t of bThisShown) {
                                     if (t.result) bTimeTotal += t.when.getTime()
                                 }
-                                if (aTimeTotal < bTimeTotal) return -1 // a's successes are on net older
-                                if (bTimeTotal < aTimeTotal) return 1 // b's successes are on net older
+                                if (aTimeTotal < bTimeTotal) return 1 // a's successes are on net older
+                                if (bTimeTotal < aTimeTotal) return -1 // b's successes are on net older
                             } else {
-                                // if we last failed with one but not the other, show the one we failed with first
-                                return aThisShown[0].result ? 1 : -1
+                                // if we last failed with one but not the other, show the one we failed with last
+                                return aThisShown[0].result ? -1 : 1
                             }
                         } else {
                             // see if we're better at one than the other -- the most recent result for each was failure
@@ -251,11 +538,11 @@ function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: 
                             // we know we have at least one success at each
                             const aRatio = aSuccess / aFailure
                             const bRatio = bSuccess / bFailure
-                            if (aRatio < bRatio) return -1 // we're worse at a
-                            if (bRatio < aRatio) return 1 // we're worse at b
+                            if (aRatio < bRatio) return 1 // we're worse at a
+                            if (bRatio < aRatio) return -1 // we're worse at b
                             // maybe we failed more with one than the other?
-                            if (aFailure > bFailure) return -1
-                            if (bFailure > aFailure) return 1
+                            if (aFailure > bFailure) return 1
+                            if (bFailure > aFailure) return -1
                             let aTimeTotal = 0, bTimeTotal = 0
                             if (aFailure) {
                                 // maybe the failures with one were more recent than the failures with the other
@@ -277,8 +564,8 @@ function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: 
                             for (const t of bThisShown) {
                                 if (t.result) bTimeTotal += t.when.getTime()
                             }
-                            if (aTimeTotal < bTimeTotal) return -1 // a's successes are on net older
-                            if (bTimeTotal < aTimeTotal) return 1 // b's successes are on net older
+                            if (aTimeTotal < bTimeTotal) return 1 // a's successes are on net older
+                            if (bTimeTotal < aTimeTotal) return -1 // b's successes are on net older
                         }
                     } else {
                         // if we haven't tried one of them with this face showing, show that one

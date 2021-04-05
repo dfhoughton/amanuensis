@@ -1,5 +1,5 @@
 import { App } from './App'
-import { any, Details, Mark, squish, TT } from './modules/util'
+import { any, Details, Mark, nws, squish, TT } from './modules/util'
 import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, makeStyles, TextField, Typography as T } from '@material-ui/core'
 import React, { useState } from 'react'
 import { Sorter } from './modules/types'
@@ -48,7 +48,7 @@ function Sorting({ app }: SortingProps) {
 
     const nameError: string = (function () {
         if (editedSort === null) return ''
-        if (!/\S/.test(editedSort.name)) return "required"
+        if (!nws(editedSort.name)) return "required"
         const n = squish(editedSort.name)
         if (any(sorts, (s: Sorter) => s.pk !== editedSort.pk && s.name === n)) return "not unique"
         return ''

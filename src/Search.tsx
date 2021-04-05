@@ -1,12 +1,12 @@
-import { App } from './App'
-import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any } from './modules/util'
+import { App, Section } from './App'
+import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any, nws } from './modules/util'
 import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
 import { Button, Card, CardContent, Chip, Collapse, FormControl, FormControlLabel, Grid, IconButton, makeStyles, MenuItem, Radio, RadioGroup, Switch, TextField, Typography as T } from '@material-ui/core'
 import { enkey } from './modules/storage'
 import React, { useState } from 'react'
 import { anyDifference, deepClone } from './modules/clone'
 import { Autocomplete, Pagination } from '@material-ui/lab'
-import { Search as SearchIcon, Visibility, Link, School, Save, Delete } from '@material-ui/icons'
+import { Search as SearchIcon, Visibility, Link, School, Save, Delete, Done } from '@material-ui/icons'
 
 interface SearchProps {
     app: App
@@ -30,7 +30,6 @@ const projectStyles = makeStyles((theme) => ({
         marginTop: theme.spacing(2),
     }
 }))
-
 
 function Search({ app }: SearchProps) {
     const classes = projectStyles();
@@ -103,7 +102,7 @@ const formStyles = makeStyles((theme) => ({
         marginBottom: theme.spacing(2),
     },
     discard: {
-        backgroundColor: theme.palette.error.light,
+        color: theme.palette.error.dark,
     }
 }))
 
@@ -151,7 +150,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
     }
     const anyResults = !!app.state.searchResults.length
     let searchNameError
-    if (/\S/.test(searchName || '')) {
+    if (nws(searchName || '')) {
         if (!savedSearch && any(Array.from(index.stacks.values()), (s: CardStack) => s.name === searchName)) {
             searchNameError = "this is already the name of a different search"
         }
@@ -202,7 +201,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                 className={classes.item}
                 value={phrase || ''}
                 onChange={(event) => {
-                    if (/\S/.test(event.target.value)) {
+                    if (nws(event.target.value)) {
                         search.phrase = event.target.value
                     } else {
                         delete search.phrase
@@ -210,7 +209,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                     app.setState({ search })
                 }}
             />
-            { phrase && /\S/.test(phrase) && <div className={classes.centered}>
+            { phrase && nws(phrase) && <div className={classes.centered}>
                 <Grid container justify="space-between">
                     <Grid item>
                         <FormControl component="fieldset">
@@ -400,7 +399,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                 value={url || ''}
                 onChange={(event) => {
                     search = deepClone(search)
-                    if (/\S/.test(event.target.value)) {
+                    if (nws(event.target.value)) {
                         search.url = event.target.value
                     } else {
                         delete search.url
@@ -454,7 +453,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         className={classes.inCentered}
                         onClick={() => {
                             if (savedSearch) {
-                                app.setState({ tab: 5, stack: savedSearch.name })
+                                app.setState({ tab: Section.cards, stack: savedSearch.name })
                             } else {
                                 index.stacks.set('', {
                                     name: '',
@@ -462,7 +461,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                                     lastAccess: new Date(),
                                     query: search
                                 })
-                                app.setState({ tab: 5, stack: '' })
+                                app.setState({ tab: Section.cards, stack: '' })
                             }
                         }}
                     >
@@ -479,7 +478,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                 <TextField
                     label="Name"
                     value={searchName}
-                    InputLabelProps={{ shrink: /\S/.test(searchName || '') }}
+                    InputLabelProps={{ shrink: nws(searchName || '') }}
                     className={classes.item}
                     error={!!searchNameError}
                     helperText={searchNameError}
@@ -488,7 +487,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                 <TextField
                     label="Description"
                     value={searchDescription}
-                    InputLabelProps={{ shrink: /\S/.test(searchDescription || '') }}
+                    InputLabelProps={{ shrink: nws(searchDescription || '') }}
                     className={classes.item}
                     onChange={(e) => setSearchDescription(e.target.value)}
                 />
@@ -528,7 +527,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                     </Button>
                     {!!savedSearch && <TT msg="remove this from the saved searches">
                         <IconButton
-                            className={classes.inCentered}
+                            className={`${classes.inCentered} ${classes.discard}`}
                             onClick={() => {
                                 index.deleteStack(savedSearch!.name)
                                     .then(() => {
@@ -631,6 +630,10 @@ const linkerStyles = makeStyles((theme) => ({
     goto: {
         cursor: 'pointer',
     },
+    done: {
+        cursor: 'pointer',
+        color: theme.palette.success.dark,
+    }
 }))
 
 function NavLinker({ note, app }: { note: NoteRecord, app: App }): React.ReactElement {
@@ -651,6 +654,21 @@ function NavLinker({ note, app }: { note: NoteRecord, app: App }): React.ReactEl
                 <Visibility color="secondary" fontSize="small" className={classes.goto} onClick={() => app.goto(note)} />
             </TT>
             {link}
+            {!!note.done && <TT msg="Note has been removed from flashcards stacks. Click to restore.">
+                <Done
+                    className={classes.done}
+                    onClick={() => {
+                        const r: NoteRecord[] = deepClone(app.state.searchResults)
+                        const n = r.find((n) => sameNote(n, note))!
+                        delete n.done
+                        app.switchboard.index!.save(n)
+                            .then(() => {
+                                app.setState({ searchResults: r })
+                            })
+                            .catch(e => app.error(e))
+                    }}
+                />
+            </TT>}
         </div>
     )
 }

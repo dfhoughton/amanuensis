@@ -60,8 +60,9 @@ interface AppState {
 }
 
 interface Message {
-  text: string,
+  text: string | ReactElement
   level: MessageLevels
+  hideIn?: number
 }
 
 export interface Visit {
@@ -70,6 +71,16 @@ export interface Visit {
 }
 
 type MessageLevels = "error" | "warning" | "info" | "success"
+
+// an enum of the app tabs
+export const Section = {
+  note: 0,
+  search: 1,
+  projects: 2,
+  sorters: 3,
+  config: 4,
+  cards: 5,
+}
 
 const styles = (theme: any) => ({
   root: {
@@ -90,7 +101,7 @@ export class App extends React.Component<AppProps, AppState> {
     super(props)
     this.switchboard = new Switchboard(chrome)
     this.state = {
-      tab: 0,
+      tab: Section.note,
       url: null,
       message: null,
       history: [],
@@ -116,33 +127,33 @@ export class App extends React.Component<AppProps, AppState> {
         <div className={classes.root}>
           <AppBar position="sticky">
             <Tabs value={this.state.tab} onChange={handleChange} variant="fullWidth" aria-label={`${projectName} navigation`}>
-              <Tab icon={<Edit />} {...a11yProps(0)} value={0} />
-              <Tab icon={<SearchIcon />} {...a11yProps(2)} value={2} />
-              <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={1} />
-              <Tab icon={<Sort />} {...a11yProps(4)} value={4} />
-              <Tab icon={<School />} {...a11yProps(5)} value={5} />
-              <Tab icon={<Build />} {...a11yProps(3)} value={3} />
+              <Tab icon={<Edit />} {...a11yProps(0)} value={Section.note} />
+              <Tab icon={<SearchIcon />} {...a11yProps(2)} value={Section.search} />
+              <Tab icon={<School />} {...a11yProps(5)} value={Section.cards} />
+              <Tab icon={<LocalLibrary />} {...a11yProps(1)} value={Section.projects} />
+              <Tab icon={<Sort />} {...a11yProps(4)} value={Section.sorters} />
+              <Tab icon={<Build />} {...a11yProps(3)} value={Section.config} />
             </Tabs>
           </AppBar>
-          <TabPanel value={this.state.tab} index={0}>
+          <TabPanel value={this.state.tab} index={Section.note}>
             <Note app={this} />
           </TabPanel>
-          <TabPanel value={this.state.tab} index={1}>
+          <TabPanel value={this.state.tab} index={Section.projects}>
             <Projects app={this} />
           </TabPanel>
-          <TabPanel value={this.state.tab} index={2}>
+          <TabPanel value={this.state.tab} index={Section.search}>
             <Search app={this} />
           </TabPanel>
-          <TabPanel value={this.state.tab} index={3}>
+          <TabPanel value={this.state.tab} index={Section.config}>
             <Config app={this} />
           </TabPanel>
-          <TabPanel value={this.state.tab} index={4}>
+          <TabPanel value={this.state.tab} index={Section.sorters}>
             <Sorting app={this} />
           </TabPanel>
-          <TabPanel value={this.state.tab} index={5}>
+          <TabPanel value={this.state.tab} index={Section.cards}>
             <FlashCards app={this} />
           </TabPanel>
-          <Snackbar open={!!this.state.message} autoHideDuration={6000} onClose={closeBar}>
+          <Snackbar open={!!this.state.message} autoHideDuration={this.state.message?.hideIn || 6000} onClose={closeBar}>
             <Alert onClose={closeBar} severity={this.state.message?.level || 'info'}>{this.state.message?.text}</Alert>
           </Snackbar>
           <ConfirmationModal app={this} confOps={this.state.confirmation} cancel={() => this.setState({ confirmation: {} })} />
@@ -160,7 +171,7 @@ export class App extends React.Component<AppProps, AppState> {
     })
   }
 
-  notify(text: string, level: MessageLevels = "info") {
+  notify(text: string | ReactElement, level: MessageLevels = "info", hideIn?: number) {
     switch (level) {
       case 'error':
         console.error(text)
@@ -175,16 +186,16 @@ export class App extends React.Component<AppProps, AppState> {
         console.log(level, text)
         break
     }
-    this.setState({ message: { text, level } })
+    this.setState({ message: { text, level, hideIn } })
   }
-  success(message: string) {
-    this.notify(message, 'success')
+  success(message: string | ReactElement, hideIn?: number) {
+    this.notify(message, 'success', hideIn)
   }
-  error(message: string) {
-    this.notify(message, "error")
+  error(message: string | ReactElement, hideIn?: number) {
+    this.notify(message, "error", hideIn)
   }
-  warn(message: string) {
-    this.notify(message, "warning")
+  warn(message: string | ReactElement, hideIn?: number) {
+    this.notify(message, "warning", hideIn)
   }
   clearMessage() {
     this.setState({ message: null })
@@ -207,13 +218,13 @@ export class App extends React.Component<AppProps, AppState> {
         .then((found) => {
           switch (found.type) {
             case "none":
-              this.setState({ search, tab: 2, searchResults: [] })
+              this.setState({ search, tab: Section.search, searchResults: [] })
               break
             case "ambiguous":
-              this.setState({ search, tab: 2, searchResults: found.matches })
+              this.setState({ search, tab: Section.search, searchResults: found.matches })
               break
             case "found":
-              this.setState({ search, tab: 2, searchResults: [found.match] })
+              this.setState({ search, tab: Section.search, searchResults: [found.match] })
           }
         })
         .catch((e) => this.error(e))
@@ -268,7 +279,7 @@ export class App extends React.Component<AppProps, AppState> {
     for (let l = history.length; historyIndex < l; historyIndex++) {
       const v = this.state.history[historyIndex]
       if (sameNote(v.current, note)) {
-        this.setState({ history, historyIndex, tab: 0 }, callback)
+        this.setState({ history, historyIndex, tab: Section.note }, callback)
         return
       }
     }
@@ -281,7 +292,7 @@ export class App extends React.Component<AppProps, AppState> {
     }
     const saved: NoteState = deepClone(current)
     history.push({ current, saved })
-    this.setState({ tab: 0, history, historyIndex }, callback)
+    this.setState({ tab: Section.note, history, historyIndex }, callback)
   }
 
   removeNote(note: NoteState) {

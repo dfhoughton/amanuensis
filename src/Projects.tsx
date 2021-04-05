@@ -1,5 +1,5 @@
 import React from 'react'
-import { Details, Mark, TT } from './modules/util'
+import { Details, Mark, nws, TT } from './modules/util'
 import { App } from './App'
 import {
     Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
@@ -205,7 +205,6 @@ const relationFilterOptions = createFilterOptions({
     },
 })
 
-// TODO delegate to the app modal
 function ChangeModal({ proj }: { proj: Projects }) {
     const action = proj.state.action
     if (!(action === 'cloning' || action === 'editing')) {
@@ -221,7 +220,7 @@ function ChangeModal({ proj }: { proj: Projects }) {
     }
     allRelations = Array.from(new Set(allRelations.map((r) => JSON.stringify(r)))).map((r) => JSON.parse(r))
     let nameError: string | undefined
-    if (!/\S/.test(proj.state.modifying!.name)) {
+    if (!nws(proj.state.modifying!.name)) {
         nameError = "required"
     } else if (proj.state.projects[modifyingName] && (action !== 'editing' || name !== modifyingName)) {
         nameError = 'already in use'
@@ -235,7 +234,7 @@ function ChangeModal({ proj }: { proj: Projects }) {
             relationError = '"see also" can only be symmetric'
         } else if (right.indexOf('/') >= 0) {
             relationError = 'the character "/" can only be used to separate non-symmetric relations'
-        } else if (!(/\S/.test(left) && /\S/.test(right))) {
+        } else if (!(nws(left) && nws(right))) {
             relationError = 'relation names must not be blank'
         }
     }
@@ -380,7 +379,7 @@ function PairedRelation({ left, right }: { left: string, right: string }) {
     return <span>{left}<span className={classes.sep}>/</span>{right}</span>
 }
 
-// TODO delegate this to the app modal
+// TODO delegate this to app.confirm
 function DestroyModal({ proj }: { proj: Projects }) {
     if (proj.state.action !== 'destroying') {
         return null

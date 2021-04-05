@@ -210,6 +210,9 @@ export function minmax(val: any, comparator?: (a: any, b: any) => number): [min:
     return [ar[0], ar[ar.length - 1]]
 }
 
+// does this potential string contain some non-whitespace?
+export const nws = (s: string | null | undefined) => /\S/.test(s || '')
+
 export function squish(s: string): string {
     return s.replace(/^\s+|\s+$/g, '').replace(/\s+/, ' ')
 }
