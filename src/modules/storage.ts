@@ -881,7 +881,6 @@ export class Index {
     saveStack(stack: CardStack): Promise<void> {
         return new Promise((resolve, reject) => {
             const newStacks: Map<string, CardStack> = deepClone(this.stacks)
-            console.log("old stacks", this.stacks)
             newStacks.set(stack.name, stack)
             // remove the ad hoc stack
             let adHoc: CardStack | undefined
@@ -889,7 +888,6 @@ export class Index {
                 adHoc = newStacks.get('')
                 newStacks.delete('')
             }
-            console.log("new stacks", newStacks)
             const storable = { stacks: serialize(newStacks) }
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {

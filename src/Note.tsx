@@ -516,9 +516,7 @@ export function Phrase({ hasWord, phrase, trim }: { hasWord: boolean, phrase: Ph
         let { before, after } = phrase ?? {}
         if (trim) {
             if (before && before.length > trim) {
-                console.log(">>" + before + "<<")
                 before = '\u2026' + before.substr(before.length - trim, trim)
-                console.log(">>" + before + "<<")
             }
             if (after && after.length > trim) {
                 after = after.substr(0, trim) + '\u2026'

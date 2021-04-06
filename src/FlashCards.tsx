@@ -1,6 +1,6 @@
 import { Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
 import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
-import { useState } from "react";
+import React, { useState } from "react";
 import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
 import { enkey } from "./modules/storage";
@@ -8,18 +8,6 @@ import { CardStack, NoteRecord, PhraseInContext } from "./modules/types";
 import { Details } from "./modules/util";
 import { Phrase } from "./Note";
 const confetti = require('canvas-confetti')
-let myConfetti : any
-const confettiPrep = () => {
-    document.querySelector('#confetti-canvas')?.remove()
-    const myCanvas = document.createElement('canvas')
-    myCanvas.id = "confetti-canvas"
-    document.body.appendChild(myCanvas)
-    myConfetti = confetti.create(myCanvas, {
-        resize: true,
-        useWorker: true
-    });
-}
-
 
 interface FlashCardState {
     stack: CardStack | null   // metadata about the current stack
@@ -48,7 +36,6 @@ export default function FlashCards({ app }: { app: App }) {
         which: 0,
     })
     if (state.initialize) {
-        confettiPrep()
         init(app, state, setState)
     }
     return (
@@ -58,25 +45,44 @@ export default function FlashCards({ app }: { app: App }) {
             </Details>
             {!!state.notes.length && <CurrentCard app={app} state={state} setState={setState} />}
             {!state.notes.length && <NoResults state={state} app={app} />}
+            <canvas
+                id="confetti"
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    pointerEvents: 'none',
+                    width: '100%',
+                    height: '100%',
+                }}
+                />
         </>
     )
+}
+
+let confettiCannon : any
+
+const throwConfetti = () => {
+    if (!confettiCannon) {
+        const e = document.getElementById('confetti')
+        confettiCannon = confetti.create(e, {
+            resize: true,
+            useWorker: true
+        });
+    }
+    confettiCannon({ colors: confettiColors })
 }
 
 const confettiColors: string[] = []
 
 const currentCardStyles = makeStyles((theme) => {
     confettiColors.push(theme.palette.primary.dark)
-    confettiColors.push(theme.palette.primary.light)
-    confettiColors.push(theme.palette.primary.main)
+    confettiColors.push(theme.palette.primary.dark)
+    confettiColors.push(theme.palette.primary.dark)
     confettiColors.push(theme.palette.secondary.dark)
-    confettiColors.push(theme.palette.secondary.light)
-    confettiColors.push(theme.palette.secondary.main)
+    confettiColors.push(theme.palette.secondary.dark)
+    confettiColors.push(theme.palette.secondary.dark)
     confettiColors.push(theme.palette.error.dark)
-    confettiColors.push(theme.palette.error.light)
-    confettiColors.push(theme.palette.error.main)
     confettiColors.push(theme.palette.success.dark)
-    confettiColors.push(theme.palette.success.light)
-    confettiColors.push(theme.palette.success.main)
     return {
         exhausted: {
             padding: theme.spacing(2),
@@ -105,8 +111,13 @@ const currentCardStyles = makeStyles((theme) => {
             color: theme.palette.primary.main,
         },
         done: {
-            color: theme.palette.secondary.main,
+            color: theme.palette.secondary.dark,
         },
+        success: {
+            color: theme.palette.secondary.dark,
+            fontWeight: 'bold',
+            fontSize: 'larger',
+        }
     }
 })
 
@@ -135,7 +146,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
     return (
         <>
             {!!s.stack?.name && <Grid container justify="center" className={classes.name}>
-                <T variant="h3">{s.stack?.name}</T>
+                <T variant="h4">{s.stack?.name}</T>
             </Grid>}
             {!!s.stack?.description && <Grid container justify="center" className={classes.description}>
                 <p>{s.stack.description}</p>
@@ -143,6 +154,9 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
             <Grid container className={classes.stats} justify="space-between">
                 <Grid item>
                     {app.switchboard.index!.reverseProjectIndex.get(note.key[0])}
+                </Grid>
+                <Grid item>
+                    {done(s) && <T className={classes.success}>Success!</T>}
                 </Grid>
                 <Grid item>
                     {state.which} of {state.total}
@@ -159,7 +173,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                         setState(s)
                     }
                     if (done(s)) {
-                        myConfetti({ colors: confettiColors })
+                        throwConfetti()
                     }
                 }}
             />
@@ -177,13 +191,6 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                             <SentimentVeryDissatisfied fontSize="large" className={classes.bad} />
                         </IconButton>
                     </Collapse>
-                </Grid>
-                <Grid item>
-                    <IconButton
-                        onClick={() => next(s, setState)}
-                    >
-                        <ArrowForward fontSize="large" className={classes.next} />
-                    </IconButton>
                 </Grid>
                 <Grid item>
                     <IconButton
@@ -218,13 +225,20 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     </IconButton>
                 </Grid>
                 <Grid item>
+                    <IconButton
+                        onClick={() => next(s, setState)}
+                    >
+                        <ArrowForward fontSize="large" className={classes.next} />
+                    </IconButton>
+                </Grid>
+                <Grid item>
                     <Collapse in={s.revealed}>
                         <IconButton
                             disabled={s.judgement === true}
                             onClick={() => {
                                 addTrial(true, note, app, s, setState)
                                 if (done(s)) {
-                                    myConfetti({ colors: confettiColors })
+                                    throwConfetti()
                                 }
                             }}
                         >
