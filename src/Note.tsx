@@ -706,6 +706,7 @@ function Annotations(
                     label="Gist"
                     id="gist"
                     multiline
+                    autoFocus
                     placeholder="Essential information about this topic"
                     className={classes.note}
                     rowsMax={2}

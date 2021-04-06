@@ -1,6 +1,7 @@
 import { Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
 import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
-import React, { useState } from "react";
+import { LegacyRef, useRef, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
 import { enkey } from "./modules/storage";
@@ -123,6 +124,71 @@ const currentCardStyles = makeStyles((theme) => {
 
 function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState, setState: (s: FlashCardState) => void }) {
     const classes = currentCardStyles()
+    const s: FlashCardState = deepClone(state)
+    const removeMe = () => {
+        app.confirm({
+            title: "Remove from all flashcard decks?",
+            text: <>
+                Remove "{note.citations[note.canonicalCitation || 0].phrase}"
+                from all flashcard decks? You can add any removed card back
+                to the decks by clicking the <Done className={classes.good} fontSize="small" />
+                mark in search results.
+                </>,
+            callback: () => {
+                return new Promise((resolve, reject) => {
+                    note.done = true
+                    app.switchboard.index!.save(note)
+                        .then(() => {
+                            s.done.add(enkey(note.key))
+                            next(s, setState)
+                            resolve(`
+                                Removed
+                                "${note.citations[note.canonicalCitation || 0].phrase}"
+                                from flashcard decks.`)
+                        })
+                        .catch(e => reject(e))
+                })
+            }
+        })
+    }
+    const good = () => {
+        addTrial(true, note, app, s, setState)
+        if (done(s)) {
+            throwConfetti()
+        }
+    }
+    const keyCallback = (event: KeyboardEvent, handler: any) => {
+        switch(handler.key) {
+            case 'g':
+                if (s.revealed) good()
+                break
+            case 'b':
+                if (s.revealed) addTrial(false, note, app, s, setState)
+                break
+            case 'f':
+                const e = document.getElementById('flipper')
+                if (e) {
+                    e.classList.toggle('flipper')
+                    s.revealed = true
+                    setState(s)
+                    if (done(s)) {
+                        throwConfetti()
+                    }
+                }
+                break
+            case 'n':
+                next(s, setState)
+                break
+            case 'd':
+                removeMe()
+                break
+            default:
+                console.error('unhandled keyboard event, check code',{event, handler})
+        }
+    }
+    useHotkeys('g,b,f,n,d', keyCallback, {}, [s])
+    const note = s.notes[s.index]
+
     if (state.index === -1) {
         return (
             <Grid container spacing={2} className={classes.exhausted}>
@@ -141,8 +207,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
             </Grid>
         )
     }
-    const s: FlashCardState = deepClone(state)
-    const note = s.notes[s.index]
+
     return (
         <>
             {!!s.stack?.name && <Grid container justify="center" className={classes.name}>
@@ -167,6 +232,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 showingGist={s.showingGist}
                 phrase={note.citations[note.canonicalCitation || 0]}
                 judgment={s.judgement}
+                id="flipper"
                 hovered={() => {
                     if (!s.revealed) {
                         s.revealed = true
@@ -194,32 +260,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 </Grid>
                 <Grid item>
                     <IconButton
-                        onClick={() => {
-                            app.confirm({
-                                title: "Remove from all flashcard decks?",
-                                text: <>
-                                    Remove "{note.citations[note.canonicalCitation || 0].phrase}"
-                                    from all flashcard decks? You can add any removed card back
-                                    to the decks by clicking the <Done className={classes.good} fontSize="small" />
-                                    mark in search results.
-                                    </>,
-                                callback: () => {
-                                    return new Promise((resolve, reject) => {
-                                        note.done = true
-                                        app.switchboard.index!.save(note)
-                                            .then(() => {
-                                                s.done.add(enkey(note.key))
-                                                next(s, setState)
-                                                resolve(`
-                                                    Removed
-                                                    "${note.citations[note.canonicalCitation || 0].phrase}"
-                                                    from flashcard decks.`)
-                                            })
-                                            .catch(e => reject(e))
-                                    })
-                                }
-                            })
-                        }}
+                        onClick={removeMe}
                     >
                         <Done fontSize="large" className={classes.done} />
                     </IconButton>
@@ -235,12 +276,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     <Collapse in={s.revealed}>
                         <IconButton
                             disabled={s.judgement === true}
-                            onClick={() => {
-                                addTrial(true, note, app, s, setState)
-                                if (done(s)) {
-                                    throwConfetti()
-                                }
-                            }}
+                            onClick={good}
                         >
                             <SentimentVerySatisfied fontSize="large" className={classes.good} />
                         </IconButton>
@@ -310,6 +346,9 @@ const cardStyles = makeStyles((theme) => ({
         '&:hover .flip-card-inner': {
             transform: 'rotateY(180deg)'
         },
+        '&.flipper .flip-card-inner': {
+            transform: 'rotateY(180deg)'
+        },
     },
     flipCardInner: {
         position: 'relative',
@@ -360,8 +399,9 @@ type FlashCardProps = {
     gist: string
     hovered?: () => void
     judgment?: boolean | null
+    id?: string
 }
-function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { }, judgment }: FlashCardProps) {
+function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { }, judgment, id }: FlashCardProps) {
     const classes = cardStyles()
     const citation = <Phrase hasWord={true} phrase={phraseInContext} trim={80} />
     const definition = <span>{gist}</span>
@@ -370,7 +410,7 @@ function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () =>
     const cz2 = `${showingGist ? classes.phrase : classes.gist} ${classes.flipCardBack} ${classes.flipCardCommon} ${glow}`
     return (
         <div className={classes.root} onMouseOver={hovered}>
-            <div className={classes.flipCard}>
+            <div className={classes.flipCard} id={id}>
                 <div className={`${classes.flipCardInner} flip-card-inner`}>
                     <div className={cz1}>
                         {showingGist ? definition : citation}
