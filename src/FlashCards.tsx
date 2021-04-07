@@ -484,6 +484,7 @@ function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
         } else {
             s.index = i
             s.which += 1
+            document.getElementById('flipper')?.classList.remove('flipper')
             setState(s)
         }
     }
