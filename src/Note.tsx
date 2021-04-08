@@ -9,7 +9,6 @@ import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldL
 
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
-import SwitchBoard from './modules/switchboard'
 import { debounce, Expando, formatDates, Mark, nws, sameNote, TT } from './modules/util'
 import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'

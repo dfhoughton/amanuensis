@@ -1,6 +1,6 @@
 import { Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
 import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
-import { LegacyRef, useRef, useState } from "react";
+import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
@@ -21,6 +21,7 @@ interface FlashCardState {
     judgement: boolean | null // the result of the last self-assessment on the current flashcard
     total: number             // the total number of cards to flip
     which: number             // the index displayed
+    conceal: boolean          // whether the gist and phrase are momentarily concealed
 }
 
 export default function FlashCards({ app }: { app: App }) {
@@ -35,6 +36,7 @@ export default function FlashCards({ app }: { app: App }) {
         judgement: null,
         total: 0,
         which: 0,
+        conceal: false,
     })
     if (state.initialize) {
         init(app, state, setState)
@@ -221,7 +223,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     {app.switchboard.index!.reverseProjectIndex.get(note.key[0])}
                 </Grid>
                 <Grid item>
-                    {done(s) && <T className={classes.success}>Success!</T>}
+                    {done(s) && <T className={classes.success}>{success()}!</T>}
                 </Grid>
                 <Grid item>
                     {state.which} of {state.total}
@@ -231,6 +233,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 gist={note.gist}
                 showingGist={s.showingGist}
                 phrase={note.citations[note.canonicalCitation || 0]}
+                conceal={s.conceal}
                 judgment={s.judgement}
                 id="flipper"
                 hovered={() => {
@@ -249,7 +252,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 className={classes.icons}
             >
                 <Grid item>
-                    <Collapse in={s.revealed}>
+                    <Collapse in={s.revealed && !done(s)}>
                         <IconButton
                             disabled={s.judgement === false}
                             onClick={() => addTrial(false, note, app, s, setState)}
@@ -273,7 +276,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     </IconButton>
                 </Grid>
                 <Grid item>
-                    <Collapse in={s.revealed}>
+                    <Collapse in={s.revealed && !done(s)}>
                         <IconButton
                             disabled={s.judgement === true}
                             onClick={good}
@@ -285,6 +288,19 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
             </Grid>
         </>
     )
+}
+
+const successStrings = [
+    "Success",
+    "Good job",
+    "Excellent",
+    "Well done",
+    "Congratulations",
+]
+
+function success(): string {
+    const i = Math.floor(Math.random() * successStrings.length)
+    return successStrings[i]
 }
 
 const noResultStyles = makeStyles((theme) => ({
@@ -390,7 +406,7 @@ const cardStyles = makeStyles((theme) => ({
     bad: {
         boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.error.dark}`,
         transition: 'box-shadow 0.5s',
-    }
+    },
 }))
 
 type FlashCardProps = {
@@ -400,8 +416,9 @@ type FlashCardProps = {
     hovered?: () => void
     judgment?: boolean | null
     id?: string
+    conceal?: boolean
 }
-function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { }, judgment, id }: FlashCardProps) {
+function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { }, judgment, id, conceal }: FlashCardProps) {
     const classes = cardStyles()
     const citation = <Phrase hasWord={true} phrase={phraseInContext} trim={80} />
     const definition = <span>{gist}</span>
@@ -412,11 +429,12 @@ function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () =>
         <div className={classes.root} onMouseOver={hovered}>
             <div className={classes.flipCard} id={id}>
                 <div className={`${classes.flipCardInner} flip-card-inner`}>
-                    <div className={cz1}>
-                        {showingGist ? definition : citation}
+                    <div className={`in-flipper ${cz1}`}>
+                        {!conceal && <>{showingGist ? definition : citation}</>}
+                        
                     </div>
-                    <div className={cz2}>
-                        {showingGist ? citation : definition}
+                    <div className={`in-flipper ${cz2}`}>
+                        {!conceal && <>{showingGist ? citation : definition}</>}
                     </div>
                 </div>
             </div>
@@ -484,7 +502,15 @@ function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
         } else {
             s.index = i
             s.which += 1
-            document.getElementById('flipper')?.classList.remove('flipper')
+            const e = document.getElementById('flipper')
+            if (e) {
+                // if we've been using the keyboard flipper, we need to hide the text before
+                // unflipping it
+                s.conceal = true
+                const newState : FlashCardState = deepClone(s)
+                setTimeout(() => { newState.conceal = false; setState(newState) }, 250)
+                e.classList.remove('flipper')
+            }
             setState(s)
         }
     }
