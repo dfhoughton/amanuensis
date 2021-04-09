@@ -12,6 +12,7 @@ import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Qu
 import { debounce, Expando, formatDates, Mark, nws, sameNote, TT } from './modules/util'
 import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'
+import { useHotkeys } from 'react-hotkeys-hook'
 
 interface NoteProps {
     app: App,
@@ -52,31 +53,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
     }
 
-    render() {
-        const hasWord = this.hasWord()
-        return (
-            <div className="note">
-                {hasWord && <Header note={this} />}
-                {hasWord && <Widgets app={this.props.app} n={this} />}
-                <Phrase phrase={this.currentCitation()} hasWord={hasWord} />
-                {hasWord && <Annotations
-                    gist={this.state.gist}
-                    details={this.state.details}
-                    citationNote={this.currentCitation()?.note || ''}
-                    citationNoteHandler={(e) => {
-                        const citations = deepClone(this.state.citations)
-                        citations[this.state.citationIndex].note = e.target.value
-                        this.setState({ citations }, this.debouncedCheckSavedState)
-                    }}
-                    gistHandler={(e) => this.setState({ gist: e.target.value }, this.debouncedCheckSavedState)}
-                    notesHandler={(e) => this.setState({ details: e.target.value }, this.debouncedCheckSavedState)}
-                />}
-                <Tags note={this} />
-                <Relations relations={this.state.relations} hasWord={hasWord} />
-                <Citations note={this} />
-            </div>
-        );
-    }
+    render() { return <Editor note={this} /> }
 
     // bring a citation into focus
     focus() {
@@ -227,7 +204,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             .catch((error) => this.app.error(error))
     }
 
-    saveNote() {
+    save() {
         if (!this.state.unsavedContent) {
             return
         }
@@ -290,6 +267,34 @@ class Note extends React.Component<NoteProps, NoteState> {
 }
 
 export default Note;
+
+function Editor({ note }: { note: Note }) {
+    // overriding the filter option so we can save while in textareas and such
+    useHotkeys('s+ctrl', (_e, _h) => note.save(), { filter: (e) => true }, [note])
+    const hasWord = note.hasWord()
+    return (
+        <div className="note">
+            {hasWord && <Header note={note} />}
+            {hasWord && <Widgets app={note.props.app} n={note} />}
+            <Phrase phrase={note.currentCitation()} hasWord={hasWord} />
+            {hasWord && <Annotations
+                gist={note.state.gist}
+                details={note.state.details}
+                citationNote={note.currentCitation()?.note || ''}
+                citationNoteHandler={(e) => {
+                    const citations = deepClone(note.state.citations)
+                    citations[note.state.citationIndex].note = e.target.value
+                    note.setState({ citations }, note.debouncedCheckSavedState)
+                }}
+                gistHandler={(e) => note.setState({ gist: e.target.value }, note.debouncedCheckSavedState)}
+                notesHandler={(e) => note.setState({ details: e.target.value }, note.debouncedCheckSavedState)}
+            />}
+            <Tags note={note} />
+            <Relations relations={note.state.relations} hasWord={hasWord} />
+            <Citations note={note} />
+        </div>
+    );
+}
 
 const headerStyles = makeStyles((theme) => ({
     project: {
@@ -406,7 +411,7 @@ function Widgets({ app, n }: { n: Note, app: App }) {
 
     const saveWidget = !n.state.unsavedContent ?
         null :
-        <div onClick={() => n.saveNote()}>
+        <div onClick={() => n.save()}>
             <TT msg="save unsaved content" placement="left">
                 <Save className={classes.save} />
             </TT>

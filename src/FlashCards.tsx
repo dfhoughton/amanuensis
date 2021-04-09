@@ -22,6 +22,8 @@ interface FlashCardState {
     total: number             // the total number of cards to flip
     which: number             // the index displayed
     conceal: boolean          // whether the gist and phrase are momentarily concealed
+    banner: string            // celebratory phrase
+    colors: string[]          // confetti colors
 }
 
 export default function FlashCards({ app }: { app: App }) {
@@ -37,7 +39,12 @@ export default function FlashCards({ app }: { app: App }) {
         total: 0,
         which: 0,
         conceal: false,
+        banner: '',
+        colors: [],
     })
+    if (confettiColors.length && !state.banner) {
+        prepareCelebration(state, setState)
+    }
     if (state.initialize) {
         init(app, state, setState)
     }
@@ -62,9 +69,25 @@ export default function FlashCards({ app }: { app: App }) {
     )
 }
 
+function prepareCelebration(state: FlashCardState, setState: (s: FlashCardState) => void, set: boolean = true) {
+    let i = Math.floor(Math.random() * successStrings.length)
+    const banner = successStrings[i]
+    const colors: string[] = []
+    for (let i = 0, l = Math.random() * 20; i < l; i++) {
+        const j = Math.floor(Math.random() * confettiColors.length)
+        colors.push(confettiColors[j])
+    }
+    const s : FlashCardState = set ? deepClone(state) : state
+    s.banner = banner
+    s.colors = colors
+    if (set) {
+        setState(s)
+    }
+}
+
 let confettiCannon : any
 
-const throwConfetti = () => {
+const throwConfetti = (state : FlashCardState) => {
     if (!confettiCannon) {
         const e = document.getElementById('confetti')
         confettiCannon = confetti.create(e, {
@@ -72,7 +95,7 @@ const throwConfetti = () => {
             useWorker: true
         });
     }
-    confettiCannon({ colors: confettiColors })
+    confettiCannon({ colors: state.colors })
 }
 
 const confettiColors: string[] = []
@@ -156,7 +179,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
     const good = () => {
         addTrial(true, note, app, s, setState)
         if (done(s)) {
-            throwConfetti()
+            throwConfetti(s)
         }
     }
     const keyCallback = (event: KeyboardEvent, handler: any) => {
@@ -174,7 +197,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     s.revealed = true
                     setState(s)
                     if (done(s)) {
-                        throwConfetti()
+                        throwConfetti(s)
                     }
                 }
                 break
@@ -191,7 +214,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
     useHotkeys('g,b,f,n,d', keyCallback, {}, [s])
     const note = s.notes[s.index]
 
-    if (state.index === -1) {
+    if (s.index === -1) {
         return (
             <Grid container spacing={2} className={classes.exhausted}>
                 <Grid container justify="center" className={classes.exhausted}>
@@ -201,7 +224,10 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     <Button
                         variant="contained"
                         color="primary"
-                        onClick={() => init(app, state, setState)}
+                        onClick={() => {
+                            prepareCelebration(s, setState, false)
+                            init(app, s, setState)
+                        }}
                     >
                         Restart?
                     </Button>
@@ -223,7 +249,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                     {app.switchboard.index!.reverseProjectIndex.get(note.key[0])}
                 </Grid>
                 <Grid item>
-                    {done(s) && <T className={classes.success}>{success()}!</T>}
+                    {done(s) && <T className={classes.success}>{s.banner}!</T>}
                 </Grid>
                 <Grid item>
                     {state.which} of {state.total}
@@ -242,7 +268,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                         setState(s)
                     }
                     if (done(s)) {
-                        throwConfetti()
+                        throwConfetti(s)
                     }
                 }}
             />
@@ -296,12 +322,26 @@ const successStrings = [
     "Excellent",
     "Well done",
     "Congratulations",
+    "Far out",
+    "Tubular",
+    "Boss",
+    "Rad",
+    "Awesome",
+    "Cool",
+    "Ausgezeichnet",
+    "Out of sight",
+    "A+",
+    "Outstanding",
+    "Llongyfarchiadau",
+    "Bien fait",
+    "Kiitos",
+    "Excelente",
+    "Отлично",
+    "ยอดเยี่ยม",
+    "出色的",
+    "優れた",
+    "Bora",
 ]
-
-function success(): string {
-    const i = Math.floor(Math.random() * successStrings.length)
-    return successStrings[i]
-}
 
 const noResultStyles = makeStyles((theme) => ({
     root: {
@@ -400,10 +440,12 @@ const cardStyles = makeStyles((theme) => ({
         padding: theme.spacing(1),
     },
     good: {
+        borderColor: theme.palette.secondary.dark,
         boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.secondary.dark}`,
         transition: 'box-shadow 0.5s'
     },
     bad: {
+        borderColor: theme.palette.error.dark,
         boxShadow: `0 0 ${theme.spacing(2)}px ${theme.palette.error.dark}`,
         transition: 'box-shadow 0.5s',
     },
@@ -522,7 +564,7 @@ function addTrial(judgement: boolean, note: NoteRecord, app: App, state: FlashCa
         note.trials.pop()
     }
     state.judgement = judgement
-    note.trials.push({
+    note.trials.unshift({
         result: judgement,
         when: new Date(),
         type: state.showingGist ? "gist" : "phrase"
@@ -530,7 +572,7 @@ function addTrial(judgement: boolean, note: NoteRecord, app: App, state: FlashCa
     // success with both sides?
     if (state.showingGist) {
         const prev = note.trials.find((t) => t.type === "phrase")
-        if (prev!.result) {
+        if (prev?.result) {
             const key = enkey(note.key)
             if (judgement) {
                 state.done.add(key)
