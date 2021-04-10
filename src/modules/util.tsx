@@ -238,7 +238,7 @@ export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): a
     if (ar.length < 2) return ar
     const seen = new Set<string>()
     return ar.filter((v) => {
-        if (seen.size == 0) {
+        if (seen.size === 0) {
             seen.add(by(v))
             return true
         } else {

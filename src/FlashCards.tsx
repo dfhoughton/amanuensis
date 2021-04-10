@@ -182,6 +182,17 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
             throwConfetti(s)
         }
     }
+    const flip = () => {
+        const e = document.getElementById('flipper')
+        if (e) {
+            e.classList.toggle('flipper')
+            s.revealed = true
+            setState(s)
+            if (done(s)) {
+                throwConfetti(s)
+            }
+        }
+    }
     const keyCallback = (event: KeyboardEvent, handler: any) => {
         switch(handler.key) {
             case 'g':
@@ -191,15 +202,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 if (s.revealed) addTrial(false, note, app, s, setState)
                 break
             case 'f':
-                const e = document.getElementById('flipper')
-                if (e) {
-                    e.classList.toggle('flipper')
-                    s.revealed = true
-                    setState(s)
-                    if (done(s)) {
-                        throwConfetti(s)
-                    }
-                }
+                flip()
                 break
             case 'n':
                 next(s, setState)
@@ -261,16 +264,8 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                 phrase={note.citations[note.canonicalCitation || 0]}
                 conceal={s.conceal}
                 judgment={s.judgement}
+                onClick={flip}
                 id="flipper"
-                hovered={() => {
-                    if (!s.revealed) {
-                        s.revealed = true
-                        setState(s)
-                    }
-                    if (done(s)) {
-                        throwConfetti(s)
-                    }
-                }}
             />
             <Grid
                 container
@@ -381,6 +376,13 @@ function DetailsContent() {
                 showingGist={true}
                 phrase={{ before: 'Behold the fuzzy ', phrase: 'cat', after: '.' }}
                 gist="a small, carnivorous mammal that likes laser pointers"
+                id="demo-flipper"
+                onClick={() => {
+                    const e = document.getElementById('demo-flipper')
+                    if (e) {
+                        e.classList.toggle('flipper')
+                    }
+                }}
             />
             <p>
                 Below each flashcard are two
@@ -399,9 +401,9 @@ const cardStyles = makeStyles((theme) => ({
         width: '300px',
         height: '300px',
         perspective: '1000px',
-        '&:hover .flip-card-inner': {
-            transform: 'rotateY(180deg)'
-        },
+        // '&:hover .flip-card-inner': {
+        //     transform: 'rotateY(180deg)'
+        // },
         '&.flipper .flip-card-inner': {
             transform: 'rotateY(180deg)'
         },
@@ -455,12 +457,12 @@ type FlashCardProps = {
     showingGist: boolean
     phrase: PhraseInContext
     gist: string
-    hovered?: () => void
+    onClick?: () => void
     judgment?: boolean | null
     id?: string
     conceal?: boolean
 }
-function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () => { }, judgment, id, conceal }: FlashCardProps) {
+function FlashCard({ showingGist, phrase: phraseInContext, gist, onClick = () => { }, judgment, id, conceal }: FlashCardProps) {
     const classes = cardStyles()
     const citation = <Phrase hasWord={true} phrase={phraseInContext} trim={80} />
     const definition = <span>{gist}</span>
@@ -468,7 +470,7 @@ function FlashCard({ showingGist, phrase: phraseInContext, gist, hovered = () =>
     const cz1 = `${showingGist ? classes.gist : classes.phrase} ${classes.flipCardCommon} ${glow}`
     const cz2 = `${showingGist ? classes.phrase : classes.gist} ${classes.flipCardBack} ${classes.flipCardCommon} ${glow}`
     return (
-        <div className={classes.root} onMouseOver={hovered}>
+        <div className={classes.root} onClick={onClick}>
             <div className={classes.flipCard} id={id}>
                 <div className={`${classes.flipCardInner} flip-card-inner`}>
                     <div className={`in-flipper ${cz1}`}>
