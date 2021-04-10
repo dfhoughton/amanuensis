@@ -270,7 +270,7 @@ export default Note;
 
 function Editor({ note }: { note: Note }) {
     // overriding the filter option so we can save while in textareas and such
-    useHotkeys('s+ctrl', (_e, _h) => note.save(), { filter: (e) => true }, [note])
+    useHotkeys('ctrl+s', (_e, _h) => note.save(), { enableOnTags: ['INPUT', 'TEXTAREA', 'SELECT'] }, [note.state])
     const hasWord = note.hasWord()
     return (
         <div className="note">
