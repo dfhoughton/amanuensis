@@ -820,13 +820,17 @@ export class Index {
     // success value of promise will be [bytes available, bytes used]
     memfree(): Promise<[number, number]> {
         return new Promise((resolve, reject) => {
-            this.chrome.storage.local.getBytesInUse(null, (bytes: number) => {
-                if (this.chrome.runtime.lastError) {
-                    reject(this.chrome.runtime.lastError)
-                } else {
-                    resolve([5242880, bytes])
-                }
-            })
+            if (this.chrome.storage.local.getBytesInUse) {
+                this.chrome.storage.local.getBytesInUse(null, (bytes: number) => {
+                    if (this.chrome.runtime.lastError) {
+                        reject(this.chrome.runtime.lastError)
+                    } else {
+                        resolve([5242880, bytes])
+                    }
+                })
+            } else {
+                reject('cannot obtain bytes for this browser')
+            }
         })
     }
     // retrieve the stack associated with the given query
