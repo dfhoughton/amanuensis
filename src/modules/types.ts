@@ -101,10 +101,10 @@ export interface Chrome {
             remove: (delenda: string | string[], callback?: () => void) => void
         }
     }
-    extension: {
+    runtime: {
         connect: (params: { [key: string]: string }) => Port
+        lastError: string
     }
-    runtime: { lastError: string }
 }
 
 export interface ContentSelection {

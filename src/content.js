@@ -326,7 +326,7 @@ function highlightSelection(wrappedSelection) {
 }
 
 // to get messages back from the background
-const port = chrome.extension.connect({
+const port = chrome.runtime.connect({
     name: "content"
 });
 port.postMessage({ action: 'open' })

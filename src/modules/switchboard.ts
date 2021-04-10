@@ -51,7 +51,7 @@ export default class Switchboard {
         }
     }
     mounted() {
-        this.port = this.chrome.extension.connect({ name: "popup" })
+        this.port = this.chrome.runtime.connect({ name: "popup" })
         this.port.onMessage.addListener((msg) => {
             let handlers = this.actions[msg.action]
             if (handlers) {
