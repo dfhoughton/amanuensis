@@ -1,16 +1,3 @@
-const rule1 = {
-    conditions: [
-        new chrome.declarativeContent.PageStateMatcher({
-            pageUrl: { schemes: ['https', 'http'] }
-        })
-    ],
-    actions: [new chrome.declarativeContent.ShowPageAction()]
-}
-chrome.runtime.onInstalled.addListener(function () {
-    chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
-        chrome.declarativeContent.onPageChanged.addRules([rule1])
-    })
-})
 const state = {
     contentPort: null,
     popupPort: null,
@@ -70,7 +57,7 @@ function handleContentMessage(msg) {
     }
 }
 
-chrome.extension.onConnect.addListener(function (port) {
+chrome.runtime.onConnect.addListener(function (port) {
     port.onMessage.addListener(function (msg) {
         console.log(port.name, msg)
         switch (port.name) {
