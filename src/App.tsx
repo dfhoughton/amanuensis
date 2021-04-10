@@ -21,7 +21,7 @@ import { anyDifference, deepClone } from './modules/clone'
 import { enkey } from './modules/storage'
 import { flatten, sameNote } from './modules/util'
 import Sorting from './Sorting'
-import FlashCards from './FlashCards'
+import FlashCards, { FlashCardState } from './FlashCards'
 
 export const projectName = "Amanuensis"
 
@@ -57,6 +57,7 @@ interface AppState {
   searchResults: NoteRecord[],
   confirmation: ConfirmationState,
   stack?: string, // the flash card stack currently being worked on
+  flashcards?: FlashCardState
 }
 
 interface Message {

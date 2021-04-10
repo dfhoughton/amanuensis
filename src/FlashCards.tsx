@@ -10,7 +10,7 @@ import { Details } from "./modules/util";
 import { Phrase } from "./Note";
 const confetti = require('canvas-confetti')
 
-interface FlashCardState {
+export type FlashCardState = {
     stack: CardStack | null   // metadata about the current stack
     notes: NoteRecord[]       // the note records in the stack
     index: number             // -1 means there are no cards left to try
@@ -27,7 +27,7 @@ interface FlashCardState {
 }
 
 export default function FlashCards({ app }: { app: App }) {
-    const [state, setState] = useState<FlashCardState>({
+    const state = app.state.flashcards || {
         stack: null,
         notes: [],
         index: -1,
@@ -41,7 +41,10 @@ export default function FlashCards({ app }: { app: App }) {
         conceal: false,
         banner: '',
         colors: [],
-    })
+    }
+    const setState = (s: FlashCardState) => {
+        app.setState({flashcards: s})
+    }
     if (confettiColors.length && !state.banner) {
         prepareCelebration(state, setState)
     }
