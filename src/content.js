@@ -348,7 +348,7 @@ port.onMessage.addListener(function (msg) {
                         port.postMessage({ action: 'error', message: 'could not find citation on page' })
                     }
                 } else {
-                    window.location = citation.source.url
+                    window.location.assign(citation.source.url)
                 }
             } else {
                 port.postMessage({ action: 'error', message: 'received no URL' })
