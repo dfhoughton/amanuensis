@@ -1200,6 +1200,26 @@ export class Index {
             })
         })
     }
+    // produce a JSON dump of everything in chrome.storage.local
+    dump(): Promise<{[key: string]: any}> {
+        return new Promise((resolve, reject) => {
+            // NOTE keep this in sync with getIndex
+            const base = ['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks']
+            for (const [key, map] of this.projectIndices.entries()) {
+                base.push(key.toString())
+                for ( const k2 of map.values()) {
+                    base.push(enkey([key, k2]))
+                }
+            }
+            this.chrome.storage.local.get(base, (result) => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve(result)
+                }
+            } )
+        })
+    }
 }
 
 // get an API to handle all storage needs
