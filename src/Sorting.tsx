@@ -40,7 +40,7 @@ const nullSorter: Sorter = {
 
 function Sorting({ app }: SortingProps) {
     const classes = sortingStyles();
-    const knownSorters = deepClone(Array.from(app.switchboard.index!.sorters.values()), 'metric')
+    const knownSorters = deepClone(Array.from(app.switchboard.index!.sorters.values()))
         .sort((a: Sorter, b: Sorter) => a.pk - b.pk)
     const [sorts, setSorts] = useState<Sorter[]>(knownSorters)
     const [editedSort, setEditedSort] = useState<Sorter | null>(null)
@@ -70,7 +70,7 @@ function Sorting({ app }: SortingProps) {
                 />
             )}
             <T align="right">
-                <IconButton color="primary" onClick={() => setEditedSort(deepClone(nullSorter, 'metric'))} >
+                <IconButton color="primary" onClick={() => setEditedSort(deepClone(nullSorter))} >
                     <TT msg="create a new sorter">
                         <AddBoxRounded fontSize="large" />
                     </TT>
@@ -89,7 +89,7 @@ function Sorting({ app }: SortingProps) {
                         error={!!nameError}
                         helperText={nameError}
                         onChange={(e) => {
-                            const es: Sorter = deepClone(editedSort, 'metric')
+                            const es: Sorter = deepClone(editedSort)
                             es.name = e.target.value
                             setEditedSort(es)
                         }}
@@ -100,7 +100,7 @@ function Sorting({ app }: SortingProps) {
                         className={classes.text}
                         value={editedSort?.description || undefined}
                         onChange={(e) => {
-                            const es: Sorter = deepClone(editedSort, 'metric')
+                            const es: Sorter = deepClone(editedSort)
                             es.description = e.target.value
                             setEditedSort(es)
                         }}
@@ -114,7 +114,7 @@ function Sorting({ app }: SortingProps) {
                                 InputProps={{ inputProps: { min: 0, step: 1 } }}
                                 value={editedSort?.prefix || 0}
                                 onChange={(e) => {
-                                    const es: Sorter = deepClone(editedSort, 'metric')
+                                    const es: Sorter = deepClone(editedSort)
                                     const prefix = e.target.value ? Number.parseInt(e.target.value) : 0
                                     es.prefix = prefix
                                     setEditedSort(es)
@@ -128,7 +128,7 @@ function Sorting({ app }: SortingProps) {
                                 InputProps={{ inputProps: { min: 0, step: 1 } }}
                                 value={editedSort?.suffix || 0}
                                 onChange={(e) => {
-                                    const es: Sorter = deepClone(editedSort, 'metric')
+                                    const es: Sorter = deepClone(editedSort)
                                     const suffix = e.target.value ? Number.parseInt(e.target.value) : 0
                                     es.suffix = suffix
                                     setEditedSort(es)
@@ -140,7 +140,7 @@ function Sorting({ app }: SortingProps) {
                         className={classes.text}
                         value={editedSort?.insertables || ''}
                         onChange={(e) => {
-                            const es: Sorter = deepClone(editedSort, 'metric')
+                            const es: Sorter = deepClone(editedSort)
                             es.insertables = e.target.value
                             setEditedSort(es)
                         }}
@@ -149,7 +149,7 @@ function Sorting({ app }: SortingProps) {
                         value={editedSort?.similars || []}
                         options={editedSort?.similars || []}
                         onChange={(_event, choices) => {
-                            const es: Sorter = deepClone(editedSort, 'metric')
+                            const es: Sorter = deepClone(editedSort)
                             es.similars = choices
                             setEditedSort(es)
                         }}
@@ -173,7 +173,7 @@ function Sorting({ app }: SortingProps) {
                                 app.switchboard.index!.saveSorter(editedSort!)
                                     .then((pk) => {
                                         editedSort!.pk = pk
-                                        const newSorts: Sorter[] = deepClone(sorts, 'metric')
+                                        const newSorts: Sorter[] = deepClone(sorts)
                                         newSorts.push(editedSort!)
                                         setSorts(newSorts)
                                         app.success(`Created sorter ${editedSort!.name}`)
@@ -183,7 +183,7 @@ function Sorting({ app }: SortingProps) {
                             } else {
                                 app.switchboard.index!.saveSorter(editedSort!)
                                     .then((pk) => {
-                                        const newSorts: Sorter[] = deepClone(sorts, 'metric')
+                                        const newSorts: Sorter[] = deepClone(sorts)
                                         const i = newSorts.findIndex((s: Sorter) => s.pk === pk)
                                         newSorts[i] = editedSort!
                                         setSorts(newSorts)
@@ -321,7 +321,7 @@ function SorterCard({ app, sorter, defaultSorter, setDefaultSorter, sorts, setSo
                                         return new Promise((resolve, reject) => {
                                             app.switchboard.index!.deleteSorter(sorter)
                                                 .then(() => {
-                                                    const newSorters: Sorter[] = deepClone(sorts, 'metric')
+                                                    const newSorters: Sorter[] = deepClone(sorts)
                                                     const i = newSorters.findIndex((s: Sorter) => s.pk === sorter.pk)
                                                     newSorters.splice(i, 1)
                                                     setSorts(newSorters)
@@ -343,7 +343,7 @@ function SorterCard({ app, sorter, defaultSorter, setDefaultSorter, sorts, setSo
                             }}>
                                 <Clear />
                             </Button>
-                            <Button size="small" onClick={() => setEditedSorter(deepClone(sorter, 'metric'))}>
+                            <Button size="small" onClick={() => setEditedSorter(deepClone(sorter))}>
                                 <Edit />
                             </Button>
                         </>
