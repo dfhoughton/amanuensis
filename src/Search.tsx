@@ -107,7 +107,6 @@ const formStyles = makeStyles((theme) => ({
 }))
 
 function Form({ app, resetter }: { app: App, resetter: () => void }) {
-    const index = app.switchboard.index!
     const classes = formStyles()
     let search: AdHocQuery
     switch (app.state.search.type) {
@@ -120,7 +119,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
             search = deepClone(app.state.search)
             break
     }
-    const findSearch = () => Array.from(index.stacks.values()).find((s) => !anyDifference(s.query, search))
+    const findSearch = () => Array.from(app.switchboard.index!.stacks.values()).find((s) => !anyDifference(s.query, search))
     const [savedSearch, setSavedSearch] = useState<CardStack | undefined>(findSearch())
     const {
         phrase,
@@ -135,8 +134,8 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
         strictness = "exact"
     } = search
     const showSorter = !!(phrase && strictness === 'similar' && app.switchboard.index!.sorters.size > 1)
-    const projects = Array.from(index.reverseProjectIndex.keys())
-    const tags = Array.from(index.tags).sort()
+    const projects = Array.from(app.switchboard.index!.reverseProjectIndex.keys())
+    const tags = Array.from(app.switchboard.index!.tags).sort()
     const [showSaveSearchForm, setShowSaveSearchForm] = useState<boolean>(false)
     const [searchName, setSearchName] = useState<string | undefined>(savedSearch?.name)
     const [searchDescription, setSearchDescription] = useState<string | null>(savedSearch?.description || null)
@@ -151,24 +150,24 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
     const anyResults = !!app.state.searchResults.length
     let searchNameError
     if (nws(searchName || '')) {
-        if (!savedSearch && any(Array.from(index.stacks.values()), (s: CardStack) => s.name === searchName)) {
+        if (!savedSearch && any(Array.from(app.switchboard.index!.stacks.values()), (s: CardStack) => s.name === searchName)) {
             searchNameError = "this is already the name of a different search"
         }
     } else {
         searchNameError = "saved searches must be named"
     }
     // index.stacks = new Map()
-    const savedSearchNames = Array.from(index.stacks.keys()).sort()
+    const savedSearchNames = Array.from(app.switchboard.index!.stacks.keys()).sort()
     return (
         <div className={classes.root}>
-            {!!index.stacks.size && <TextField
+            {!!app.switchboard.index!.stacks.size && <TextField
                 label="Saved Searches"
                 select
                 className={classes.item}
                 value={savedSearch?.name}
                 onChange={(e) => {
-                    const stack = index.stacks.get(e.target.value)!
-                    index.find(stack.query)
+                    const stack = app.switchboard.index!.stacks.get(e.target.value)!
+                    app.switchboard.index!.find(stack.query)
                         .then((results) => {
                             let searchResults: NoteRecord[]
                             switch (results.type) {
@@ -233,7 +232,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                                 <FormControlLabel value="fuzzy" disabled={!phrase} control={<Radio />} label="fuzzy" />
                                 <FormControlLabel value="substring" disabled={!phrase} control={<Radio />} label="substring" />
                                 <FormControlLabel
-                                    label={<TT msg={"using " + index.sorters.get(search.sorter || index.currentSorter)!.name}><span>similar</span></TT>}
+                                    label={`similar (${app.switchboard.index!.sorters.get(search.sorter || app.switchboard.index!.currentSorter)!.name})`}
                                     value="similar"
                                     disabled={!phrase}
                                     control={<Radio />}
@@ -262,7 +261,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                 value={project}
                 multiple
                 autoComplete
-                getOptionLabel={(option) => index.reverseProjectIndex.get(option) || 'default'}
+                getOptionLabel={(option) => app.switchboard.index!.reverseProjectIndex.get(option) || 'default'}
                 renderInput={(params) => <TextField {...params} label="Projects" placeholder="project name" />}
                 onChange={(_event, project) => {
                     search = deepClone(search)
@@ -275,7 +274,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         (obj, i) => <Chip
                             variant="outlined"
                             size="small"
-                            label={index.reverseProjectIndex.get(obj) || 'default'} {...getTagProps({ index: i })}
+                            label={app.switchboard.index!.reverseProjectIndex.get(obj) || 'default'} {...getTagProps({ index: i })}
                         />
                     )
                     return chips
@@ -423,7 +422,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         variant="contained"
                         endIcon={<SearchIcon />}
                         onClick={() => {
-                            index.find(search)
+                            app.switchboard.index!.find(search)
                                 .then((found) => {
                                     switch (found.type) {
                                         case "none":
@@ -455,7 +454,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                             if (savedSearch) {
                                 app.setState({ tab: Section.cards, stack: savedSearch.name })
                             } else {
-                                index.stacks.set('', {
+                                app.switchboard.index!.stacks.set('', {
                                     name: '',
                                     description: '',
                                     lastAccess: new Date(),
@@ -499,7 +498,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         disabled={!!searchNameError}
                         onClick={() => {
                             const name = searchName!.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ')
-                            index.saveStack({
+                            app.switchboard.index!.saveStack({
                                 name,
                                 description: searchDescription,
                                 lastAccess: new Date(),
@@ -529,7 +528,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         <IconButton
                             className={`${classes.inCentered} ${classes.discard}`}
                             onClick={() => {
-                                index.deleteStack(savedSearch!.name)
+                                app.switchboard.index!.deleteStack(savedSearch!.name)
                                     .then(() => {
                                         if (app.state.stack === savedSearch!.name) {
                                             app.setState({ stack: undefined })
@@ -590,8 +589,7 @@ const resultStyles = makeStyles((theme) => ({
 
 export function Result({ note, app }: { note: NoteRecord, app: App }) {
     const classes = resultStyles()
-    const index = app.switchboard.index;
-    const project = index!.projects.get(index!.reverseProjectIndex.get(note.key[0]) || '');
+    const project = app.switchboard.index!.projects.get(app.switchboard.index!.reverseProjectIndex.get(note.key[0]) || '');
     const key = enkey(note.key)
     return (
         <Card className={classes.root} key={key}>

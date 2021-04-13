@@ -94,6 +94,18 @@ const styles = (theme: any) => ({
   },
 });
 
+const nullState : AppState = {
+  tab: Section.note,
+  url: null,
+  message: null,
+  history: [],
+  historyIndex: -1,
+  defaultProject: 0,
+  search: { type: "ad hoc" },
+  searchResults: [],
+  confirmation: {},
+}
+
 /*global chrome*/
 declare var chrome: Chrome;
 export class App extends React.Component<AppProps, AppState> {
@@ -101,17 +113,13 @@ export class App extends React.Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props)
     this.switchboard = new Switchboard(chrome)
-    this.state = {
-      tab: Section.note,
-      url: null,
-      message: null,
-      history: [],
-      historyIndex: -1,
-      defaultProject: 0,
-      search: { type: "ad hoc" },
-      searchResults: [],
-      confirmation: {},
-    }
+    this.state = deepClone(nullState)
+  }
+
+  clear() {
+    this.setState(deepClone(nullState), () => {
+      this.setState({ defaultProject: this.switchboard.index!.currentProject })
+    })
   }
 
   render() {
@@ -165,6 +173,7 @@ export class App extends React.Component<AppProps, AppState> {
 
   componentDidMount() {
     this.switchboard.mounted()
+      .catch(e => this.error(`error mounting the switchboard: ${e}`))
     this.switchboard.then(() => this.setState({ defaultProject: this.switchboard.index!.currentProject }))
     this.switchboard.addActions("app", {
       url: ({ url }) => this.setState({ url }),
@@ -209,13 +218,12 @@ export class App extends React.Component<AppProps, AppState> {
 
   // search for any citations from the current URL
   urlSearch() {
-    const index = this.switchboard.index
-    if (this.state.url && index) {
+    if (this.state.url && this.switchboard.index) {
       const search: AdHocQuery = {
         type: 'ad hoc',
         url: this.state.url
       }
-      index.find(search)
+      this.switchboard.index.find(search)
         .then((found) => {
           switch (found.type) {
             case "none":

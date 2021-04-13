@@ -1220,6 +1220,18 @@ export class Index {
             } )
         })
     }
+    // load a new state onto disk; remember to reload the index after this
+    load(state: {[key: string]: any}): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.chrome.storage.local.set(state, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve()
+                }
+            })
+        })
+    }
 }
 
 // get an API to handle all storage needs

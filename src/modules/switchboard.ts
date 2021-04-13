@@ -1,5 +1,5 @@
 import { getIndex, Index } from "./storage"
-import { Chrome, Payload, Port } from './types'
+import { Chrome, Payload, Port } from "./types"
 
 type Handler = (data?: any) => void
 
@@ -50,7 +50,7 @@ export default class Switchboard {
             }
         }
     }
-    mounted() {
+    mounted(): Promise<void> {
         this.port = this.chrome.runtime.connect({ name: "popup" })
         this.port.onMessage.addListener((msg) => {
             let handlers = this.actions[msg.action]
@@ -66,17 +66,33 @@ export default class Switchboard {
                     handler(msg)
                 }
             }
-        });
+        })
         // the channel doesn't open until you send a message down it
-        this.port.postMessage({ action: 'open' })
-        // prepare to handle messages
-        getIndex(this.chrome).then((index) => {
-            this.index = index
-            // handle all tasks that were awaiting initialization
-            while (this.queue?.length) {
-                (this.queue.shift() as () => void)()
-            }
-            this.queue = null
-        }).catch((error) => alert(error))// TODO something nicer
+        this.port.postMessage({ action: "open" })
+        return new Promise((resolve, reject) => {
+            // prepare to handle messages
+            getIndex(this.chrome)
+                .then((index) => {
+                    this.index = index
+                    // handle all tasks that were awaiting initialization
+                    while (this.queue?.length) {
+                        (this.queue.shift() as () => void)()
+                    }
+                    this.queue = null
+                    resolve()
+                })
+                .catch((error) => reject(error))
+        })
+    }
+    // rebuild the index from storage; useful when restoring from a file, for instance
+    rebootIndex(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            getIndex(this.chrome)
+                .then((index) => {
+                    this.index = index
+                    resolve()
+                })
+                .catch((e) => reject(e))
+        })
     }
 }
