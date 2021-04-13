@@ -118,7 +118,7 @@ export function anyDifference(obj1: any, obj2: any, ...except: string[]): boolea
 
 // do this to anything going into storage
 // NOTE no cycles!
-export function serialize(obj: any): any {
+export function serialize(obj: any, ...except: string[]): any {
     if (typeof obj === 'object') {
         if (obj == null) {
             return null
@@ -133,7 +133,10 @@ export function serialize(obj: any): any {
         } else {
             const rv: { [key: string]: any } = {}
             for (const [k, v] of Object.entries(obj)) {
-                rv[k] = serialize(v)
+                if (typeof v === 'function') continue // we can't serialize functions
+                if (except.indexOf(k) === -1) {
+                    rv[k] = serialize(v)
+                }
             }
             return rv
         }
