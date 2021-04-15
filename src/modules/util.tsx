@@ -138,7 +138,7 @@ export function Expando({ text, id, className }: ExpandoOpts) {
 
 // a general way to format a sequence of timestamps
 export function formatDates(dates: Date[]): string | React.ReactElement {
-    let ar = uniq(dates.map((d) => ymd(d))).sort()
+    let ar = uniq(dates.map((d) => ymd(d) || '')).sort()
     const joined = ar.join(', ')
     if (ar.length > 3) {
         ar = [ar[0], '...', ar[ar.length - 1]]
@@ -162,7 +162,7 @@ export function debounce(interval: number = 200): (f: () => void) => () => void 
 }
 
 // does predicate apply to any?
-export function any(things: any[], predicate: (arg: any) => boolean): boolean {
+export function any<T>(things: T[], predicate: (arg: T) => boolean): boolean {
     for (const o of things) {
         if (predicate(o)) {
             return true
@@ -172,7 +172,7 @@ export function any(things: any[], predicate: (arg: any) => boolean): boolean {
 }
 
 // does predicate apply to all?
-export function all(things: any[], predicate: (arg: any) => boolean): boolean {
+export function all<T>(things: T[], predicate: (arg: T) => boolean): boolean {
     for (const o of things) {
         if (!predicate(o)) {
             return false
@@ -182,7 +182,7 @@ export function all(things: any[], predicate: (arg: any) => boolean): boolean {
 }
 
 // does predicate apply to none?
-export function none(things: any[], predicate: (arg: any) => boolean): boolean {
+export function none<T>(things: T[], predicate: (arg: T) => boolean): boolean {
     for (const o of things) {
         if (predicate(o)) {
             return false
@@ -234,7 +234,7 @@ export function ymd(date: Date | null | undefined): string | undefined {
 }
 
 // filters to the set of things which are unique according to the toString values of the members of the array
-export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): any[] {
+export function uniq<T extends { toString: () => string }>(ar: T[], by: (v: T) => string = (v) => v.toString()): T[] {
     if (ar.length < 2) return ar
     const seen = new Set<string>()
     return ar.filter((v) => {
@@ -254,13 +254,19 @@ export function uniq(ar: any[], by: (v: any) => string = (v) => v.toString()): a
 }
 
 // how many things in ar past the test?
-export function count(ar: any[], test: (v: any) => boolean): number {
+export function count<T>(ar: T[], test: (v: T) => boolean): number {
     let n = 0;
     for (let i = 0, l = ar.length; i < l; i++) {
         if (test(ar[i])) n++
     }
     return n
 }
+
+// pick a random number between 0 and n - 1
+export const rando = (n: number): number => Math.floor(Math.random() * n)
+
+// pick a random member of an array
+export const pick = <T extends unknown>(ar: T[]) => ar[rando(ar.length)]
 
 // determine note identity by comparing keypairs
 export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {

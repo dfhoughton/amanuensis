@@ -6,7 +6,7 @@ import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
 import { enkey } from "./modules/storage";
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types";
-import { Details } from "./modules/util";
+import { Details, pick, rando } from "./modules/util";
 import { Phrase } from "./Note";
 const confetti = require('canvas-confetti')
 
@@ -72,13 +72,12 @@ export default function FlashCards({ app }: { app: App }) {
     )
 }
 
+// do this once per stack
 function prepareCelebration(state: FlashCardState, setState: (s: FlashCardState) => void, set: boolean = true) {
-    let i = Math.floor(Math.random() * successStrings.length)
-    const banner = successStrings[i]
+    const banner = pick(successStrings)
     const colors: string[] = []
-    for (let i = 0, l = Math.random() * 20; i < l; i++) {
-        const j = Math.floor(Math.random() * confettiColors.length)
-        colors.push(confettiColors[j])
+    for (let i = 0, l = rando(20); i < l; i++) {
+        colors.push(pick(confettiColors))
     }
     const s : FlashCardState = set ? deepClone(state) : state
     s.banner = banner
@@ -199,10 +198,10 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
     const keyCallback = (event: KeyboardEvent, handler: any) => {
         switch(handler.key) {
             case 'g':
-                if (s.revealed) good()
+                if (s.revealed && !done(s)) good()
                 break
             case 'b':
-                if (s.revealed) addTrial(false, note, app, s, setState)
+                if (s.revealed && !done(s)) addTrial(false, note, app, s, setState)
                 break
             case 'f':
                 flip()
