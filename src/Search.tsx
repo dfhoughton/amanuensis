@@ -1,10 +1,16 @@
+import React, { useState } from 'react'
+
 import { App, Section } from './App'
 import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any, nws } from './modules/util'
 import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
-import { Button, Card, CardContent, Chip, Collapse, FormControl, FormControlLabel, Grid, IconButton, makeStyles, MenuItem, Radio, RadioGroup, Switch, TextField, Typography as T } from '@material-ui/core'
 import { enkey } from './modules/storage'
-import React, { useState } from 'react'
 import { anyDifference, deepClone } from './modules/clone'
+
+import {
+    Box, Button, Card, CardContent, Chip, Collapse, FormControl,
+    FormControlLabel, Grid, IconButton, makeStyles, MenuItem, Radio,
+    RadioGroup, Switch, TextField, Typography as T
+} from '@material-ui/core'
 import { Autocomplete, Pagination } from '@material-ui/lab'
 import { Search as SearchIcon, Visibility, Link, School, Save, Delete, Done, AllInclusive, CardGiftcard } from '@material-ui/icons'
 
@@ -13,12 +19,6 @@ interface SearchProps {
 }
 
 const projectStyles = makeStyles((theme) => ({
-    root: {
-
-    },
-    results: {
-        marginTop: theme.spacing(3),
-    },
     message: {
         display: "table",
         margin: "0 auto",
@@ -41,12 +41,12 @@ function Search({ app }: SearchProps) {
     if (end > results.length) end = results.length
     const pagedResults = paginate ? results.slice(offset, end) : results
     return (
-        <div className={classes.root}>
+        <>
             <Details header="Search">
-                <p></p>
+                <SearchDetails />
             </Details>
             <Form app={app} resetter={() => setPage(1)} />
-            <div className={classes.results}>
+            <Box marginTop={3}>
                 {!!results.length && <ResultsInfo app={app} offset={offset} end={end} results={results} />}
                 {!results.length && <div className={classes.message}>no notes found</div>}
                 {pagedResults.map(r => <Result note={r} app={app} />)}
@@ -59,8 +59,8 @@ function Search({ app }: SearchProps) {
                         onChange={(_e, p) => setPage(p)}
                     />
                 </div>}
-            </div>
-        </div>
+            </Box>
+        </>
     )
 }
 
@@ -841,4 +841,10 @@ function SorterOption({ app, sorter, search }: { app: App, sorter: Sorter, searc
             {sorter.name}
         </MenuItem>
     )
+}
+
+function SearchDetails() {
+    return (<>
+        More to come.
+    </>)
 }
