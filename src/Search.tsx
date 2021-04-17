@@ -6,7 +6,7 @@ import { enkey } from './modules/storage'
 import React, { useState } from 'react'
 import { anyDifference, deepClone } from './modules/clone'
 import { Autocomplete, Pagination } from '@material-ui/lab'
-import { Search as SearchIcon, Visibility, Link, School, Save, Delete, Done } from '@material-ui/icons'
+import { Search as SearchIcon, Visibility, Link, School, Save, Delete, Done, AllInclusive, CardGiftcard } from '@material-ui/icons'
 
 interface SearchProps {
     app: App
@@ -47,9 +47,7 @@ function Search({ app }: SearchProps) {
             </Details>
             <Form app={app} resetter={() => setPage(1)} />
             <div className={classes.results}>
-                {!!results.length && <div className={classes.message}>
-                    Notes {offset + 1} <>&ndash;</> {end} of {results.length}
-                </div>}
+                {!!results.length && <ResultsInfo app={app} offset={offset} end={end} results={results} />}
                 {!results.length && <div className={classes.message}>no notes found</div>}
                 {pagedResults.map(r => <Result note={r} app={app} />)}
                 {paginate && <div className={classes.pagination}>
@@ -67,6 +65,117 @@ function Search({ app }: SearchProps) {
 }
 
 export default Search
+
+function ResultsInfo({ app, offset, end, results }: { app: App, offset: number, end: number, results: NoteRecord[] }) {
+    const search = app.state.search as AdHocQuery
+    const [showSample, setShowSample] = useState<boolean>(false)
+    const [sample, setSample] = useState<number>(1)
+    return (<>
+        <Grid container justify="center" alignItems="center" spacing={2}>
+            <Grid item>
+                Notes {offset + 1} <>&ndash;</> {end} of {results.length}
+            </Grid>
+            {!!search.sample && <Grid item>
+                <IconButton
+                    size="small"
+                    onClick={() => {
+                        const s: AdHocQuery = deepClone(search)
+                        delete s.sample
+                        app.switchboard.index!.find(s)
+                            .then((results) => {
+                                let searchResults: NoteRecord[]
+                                switch (results.type) {
+                                    case 'ambiguous':
+                                        searchResults = results.matches
+                                        break
+                                    case 'none':
+                                        searchResults = []
+                                        break
+                                    case 'found':
+                                        searchResults = [results.match]
+                                        break
+                                }
+                                setShowSample(false)
+                                app.setState({ search: s, searchResults })
+                            })
+                            .catch(e => app.error(e))
+                    }}
+                >
+                    <TT msg="show all">
+                        <AllInclusive color="primary" fontSize="small" />
+                    </TT>
+                </IconButton>
+            </Grid>}
+            {!search.sample && results.length > 10 && <Grid item>
+                <IconButton
+                    size="small"
+                    onClick={() => setShowSample(!showSample)}
+                >
+                    <TT msg="choose a random sample">
+                        <CardGiftcard color="primary" fontSize="small" />
+                    </TT>
+                </IconButton>
+            </Grid>}
+        </Grid>
+        <Collapse in={showSample}>
+            <Grid container justify="center" alignItems="center" spacing={2}>
+                <Grid item>
+                    <TextField
+                        label="Sample size"
+                        type="number"
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{ inputProps: { min: 1, step: 1 } }}
+                        value={sample}
+                        onChange={(e) => {
+                            const v = e.target.value ? Number.parseInt(e.target.value) : 0
+                            if (v) {
+                                setSample(v)
+                            }
+                        }} />
+                </Grid>
+                <Grid item>
+                    <Button
+                        color="primary"
+                        variant="outlined"
+                        onClick={() => {
+                            const s: AdHocQuery = deepClone(search)
+                            s.sample = sample
+                            app.switchboard.index!.find(s)
+                                .then((results) => {
+                                    let searchResults: NoteRecord[]
+                                    switch (results.type) {
+                                        case 'ambiguous':
+                                            searchResults = results.matches
+                                            break
+                                        case 'none':
+                                            searchResults = []
+                                            break
+                                        case 'found':
+                                            searchResults = [results.match]
+                                            break
+                                    }
+                                    setShowSample(false)
+                                    app.setState({ search: s, searchResults })
+                                })
+                                .catch(e => app.error(e))
+                        }}
+                    >
+                        Sample
+                    </Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        color="secondary"
+                        variant="outlined"
+                        onClick={() => setShowSample(false)}
+                    >
+                        Cancel
+                    </Button>
+                </Grid>
+            </Grid>
+        </Collapse>
+    </>)
+}
 
 const formStyles = makeStyles((theme) => ({
     root: {
@@ -148,6 +257,18 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
         setSearchDescription((ss || savedSearch)?.description || null)
     }
     const anyResults = !!app.state.searchResults.length
+    const clear = () => {
+        search = { type: 'ad hoc' }
+        setShowSaveSearchForm(false)
+        setSearchName(undefined)
+        setSearchDescription(null)
+        app.setState({ search, searchResults: [] }, () => {
+            const found = findSearch()
+            console.log('found', found)
+            setSavedSearch(found)
+            setSearchName(found?.name)
+        })
+    }
     let searchNameError
     if (nws(searchName || '')) {
         if (!savedSearch && any(Array.from(app.switchboard.index!.stacks.values()), (s: CardStack) => s.name === searchName)) {
@@ -156,7 +277,6 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
     } else {
         searchNameError = "saved searches must be named"
     }
-    // index.stacks = new Map()
     const savedSearchNames = Array.from(app.switchboard.index!.stacks.keys()).sort()
     return (
         <div className={classes.root}>
@@ -444,7 +564,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         color="secondary"
                         className={classes.inCentered}
                         variant="contained"
-                        onClick={() => app.setState({ search: { type: 'ad hoc' } }, () => reset(search))}
+                        onClick={clear}
                     >
                         Clear
                     </Button>

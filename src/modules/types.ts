@@ -147,6 +147,7 @@ export interface AdHocQuery {
     after?: Date
     before?: Date
     url?: string
+    sample?: number
 }
 
 export interface EditDistanceProperties {

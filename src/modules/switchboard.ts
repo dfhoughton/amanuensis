@@ -18,7 +18,7 @@ export default class Switchboard {
         this.port = null
         this.index = null
     }
-    // enqueue and action to perform as soon as the channel is open
+    // enqueue an action to perform as soon as the channel is open
     then(callback: () => void) {
         if (this.queue) {
             this.queue.push(callback)

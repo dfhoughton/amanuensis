@@ -2,6 +2,7 @@ import { Accordion, AccordionDetails, AccordionSummary, makeStyles, Popover, Typ
 import Tooltip from '@material-ui/core/Tooltip'
 import { Help, Star, StarBorder } from '@material-ui/icons'
 import React, { ReactElement } from 'react'
+import { deepClone } from './clone'
 import { EditDistanceProperties, EssentialNoteBits } from './types'
 
 interface TTProps {
@@ -267,6 +268,22 @@ export const rando = (n: number): number => Math.floor(Math.random() * n)
 
 // pick a random member of an array
 export const pick = <T extends unknown>(ar: T[]) => ar[rando(ar.length)]
+
+// extract a random sample of up to n members from the list
+// NOTE: these are the things themselves, not copies
+export function sample<T>(list: T[], n: number): T[] {
+    if (!list.length) return []
+    if (n >= list.length) return list
+    const indices = []
+    for (let i = 0; i < list.length; i++) indices.push(i)
+    const sample = []
+    for (let i = 0; indices.length && i < n; i++) {
+        const idx = rando(indices.length)
+        sample.push(list[indices[idx]!]!)
+        indices.splice(idx, 1)
+    }
+    return sample
+}
 
 // determine note identity by comparing keypairs
 export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {

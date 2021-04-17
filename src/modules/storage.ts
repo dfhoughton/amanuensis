@@ -1,6 +1,6 @@
 import { anyDifference, deepClone, deserialize, serialize } from './clone'
 import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter, CardStack } from './types'
-import { all, any, buildEditDistanceMetric, cachedSorter, none } from './util'
+import { all, any, buildEditDistanceMetric, cachedSorter, none, pick, sample } from './util'
 
 type FindResponse =
     { type: "found", match: NoteRecord } |
@@ -454,6 +454,9 @@ export class Index {
                                         })
                                     } else {
                                         candidates.sort(fallbackSort)
+                                    }
+                                    if (query.sample) {
+                                        candidates = sample(candidates, query.sample)
                                     }
                                     resolve({ type: "ambiguous", matches: candidates })
                                 }
