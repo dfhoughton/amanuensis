@@ -25,7 +25,7 @@
   "commands": {
     "_execute_browser_action": {
       "suggested_key": {
-        "default": "Alt+N"
+        "default": "Alt+A"
       },
       "description": "Take a note on the currently highlighted text or the page generally."
     }
