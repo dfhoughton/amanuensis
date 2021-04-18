@@ -1,7 +1,11 @@
 import { App } from './App'
 import { any, Details, Mark, nws, squish, TT } from './modules/util'
-import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, makeStyles, TextField, Typography as T } from '@material-ui/core'
-import React, { useState } from 'react'
+import {
+    Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions,
+    DialogContent, DialogTitle, Grid, IconButton, makeStyles, TextField,
+    Typography as T
+} from '@material-ui/core'
+import { useState } from 'react'
 import { Sorter } from './modules/types'
 import { AddBoxRounded, Clear, Edit } from '@material-ui/icons'
 import { Autocomplete } from '@material-ui/lab'

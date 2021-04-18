@@ -69,7 +69,7 @@ export class Index {
                     let pk = 1
                     this.sorters.forEach((k, v) => {
                         if (k.name === sorter.name) throw `the name ${k.name} is already in use`
-                        if (v > pk) pk = v + 1
+                        if (v >= pk) pk = v + 1
                     })
                     sorter.pk = pk
                 }
