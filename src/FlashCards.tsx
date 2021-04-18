@@ -74,11 +74,11 @@ export default function FlashCards({ app }: { app: App }) {
 
 // do this once per stack
 function prepareCelebration(state: FlashCardState, setState: (s: FlashCardState) => void, set: boolean = true) {
-    const banner = pick(successStrings)
+    const banner = pick(successStrings, Math.random)
     console.log('banner', banner)
     const colors: string[] = []
-    for (let i = 0, l = rando(20); i < l; i++) {
-        colors.push(pick(confettiColors))
+    for (let i = 0, l = rando(20, Math.random); i < l; i++) {
+        colors.push(pick(confettiColors, Math.random))
     }
     console.log('colors', colors)
     const s : FlashCardState = set ? deepClone(state) : state

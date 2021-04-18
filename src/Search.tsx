@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 import { App, Section } from './App'
-import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any, nws } from './modules/util'
+import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any, nws, seed } from './modules/util'
 import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
 import { enkey } from './modules/storage'
 import { anyDifference, deepClone } from './modules/clone'
@@ -36,6 +36,7 @@ function Search({ app }: SearchProps) {
     const results = app.state.searchResults
     const paginate = results.length > 10
     const [page, setPage] = useState<number>(1)
+    const [showSample, setShowSample] = useState<boolean>(false)
     const offset = (page - 1) * 10
     let end = offset + 10
     if (end > results.length) end = results.length
@@ -47,7 +48,7 @@ function Search({ app }: SearchProps) {
             </Details>
             <Form app={app} resetter={() => setPage(1)} />
             <Box marginTop={3}>
-                {!!results.length && <ResultsInfo app={app} offset={offset} end={end} results={results} />}
+                {!!results.length && <ResultsInfo app={app} offset={offset} end={end} results={results} showSample={showSample} setShowSample={setShowSample} />}
                 {!results.length && <div className={classes.message}>no notes found</div>}
                 {pagedResults.map(r => <Result note={r} app={app} />)}
                 {paginate && <div className={classes.pagination}>
@@ -66,9 +67,16 @@ function Search({ app }: SearchProps) {
 
 export default Search
 
-function ResultsInfo({ app, offset, end, results }: { app: App, offset: number, end: number, results: NoteRecord[] }) {
+type ResultsInfoProps = {
+    app: App
+    offset: number
+    end: number
+    results: NoteRecord[]
+    showSample: boolean
+    setShowSample: (v: boolean) => void
+}
+function ResultsInfo({ app, offset, end, results, showSample, setShowSample }: ResultsInfoProps) {
     const search = app.state.search as AdHocQuery
-    const [showSample, setShowSample] = useState<boolean>(false)
     const [sample, setSample] = useState<number>(1)
     return (<>
         <Grid container justify="center" alignItems="center" spacing={2}>
@@ -140,6 +148,7 @@ function ResultsInfo({ app, offset, end, results }: { app: App, offset: number, 
                         onClick={() => {
                             const s: AdHocQuery = deepClone(search)
                             s.sample = sample
+                            s.seed = seed()
                             app.switchboard.index!.find(s)
                                 .then((results) => {
                                     let searchResults: NoteRecord[]
@@ -528,14 +537,15 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
             />
             <div className={classes.centered}>
                 <Grid container justify="space-evenly" className={classes.item}>
-                    {anyResults && <IconButton
+                    <IconButton
+                        hidden={!anyResults || !!search.sample}
                         className={classes.inCentered}
-                        onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
+                        onClick={() => { console.log('sample', !!search.sample); setShowSaveSearchForm(!showSaveSearchForm) }}
                     >
                         <TT msg="save search">
                             <Save color={showSaveSearchForm ? 'secondary' : 'primary'} />
                         </TT>
-                    </IconButton>}
+                    </IconButton>
                     <Button
                         color="primary"
                         className={classes.inCentered}
@@ -571,7 +581,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                     {anyResults && <IconButton
                         className={classes.inCentered}
                         onClick={() => {
-                            if (savedSearch) {
+                            if (savedSearch && !anyDifference(savedSearch.query, search)) {
                                 app.setState({ tab: Section.cards, stack: savedSearch.name })
                             } else {
                                 app.switchboard.index!.stacks.set('', {

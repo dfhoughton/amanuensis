@@ -263,22 +263,36 @@ export function count<T>(ar: T[], test: (v: T) => boolean): number {
     return n
 }
 
+// generate a random integer to use as a seed for a reproducible random number sequence
+export const seed = () => Math.floor(Math.random() * 4294967296)
+
+// return a generator of a reproducible random number sequence
+// gotten from https://stackoverflow.com/a/47593316/15060051 -- this is Mulberry32
+export function rng(seed: number) {
+    return () => {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
 // pick a random number between 0 and n - 1
-export const rando = (n: number): number => Math.floor(Math.random() * n)
+export const rando = (n: number, rng: () => number): number => Math.floor(rng() * n)
 
 // pick a random member of an array
-export const pick = <T extends unknown>(ar: T[]) => ar[rando(ar.length)]
+export const pick = <T extends unknown>(ar: T[], rng: () => number) => ar[rando(ar.length, rng)]
 
 // extract a random sample of up to n members from the list
 // NOTE: these are the things themselves, not copies
-export function sample<T>(list: T[], n: number): T[] {
+export function sample<T>(list: T[], n: number, rng: () => number): T[] {
     if (!list.length) return []
     if (n >= list.length) return list
     const indices = []
     for (let i = 0; i < list.length; i++) indices.push(i)
     const sample = []
     for (let i = 0; indices.length && i < n; i++) {
-        const idx = rando(indices.length)
+        const idx = rando(indices.length, rng)
         sample.push(list[indices[idx]!]!)
         indices.splice(idx, 1)
     }

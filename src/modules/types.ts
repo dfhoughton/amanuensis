@@ -147,6 +147,7 @@ export interface AdHocQuery {
     after?: Date
     before?: Date
     url?: string
+    seed?: number
     sample?: number
 }
 
