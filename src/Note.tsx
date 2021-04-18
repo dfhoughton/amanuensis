@@ -214,55 +214,13 @@ class Note extends React.Component<NoteProps, NoteState> {
             const key = deepClone(this.state.key)
             key[1] = pk
             this.savedState.key = key
-            this.setState({ key, unsavedContent: false, everSaved: true })
+            this.setState({ key, unsavedContent: false, everSaved: true, unsavedCitation: false })
         })
     }
 
     // obtain all the tags ever used
     allTags() {
         return Array.from(this.app.switchboard.index?.tags || []).sort()
-    }
-
-    // move the current unsaved citation to a new project
-    changeProject(pk: number) {
-        if (!this.state.unsavedCitation) {
-            this.app.error('once a citation is saved with a note, its project cannot be changed')
-            return
-        }
-        const citation = deepClone(this.state.citations[this.state.citations.length - 1])
-        const state = deepClone(this.state, "relations")
-        this.app.switchboard.index!.find({ type: 'lookup', phrase: '' })
-            .then((result) => {
-                let previousNote: NoteRecord | undefined
-                switch (result.type) {
-                    case 'ambiguous':
-                        previousNote = result.matches.find((n) => n.key[0] === pk)
-                        break
-                    case 'found':
-                        if (result.match.key[0] === pk) {
-                            previousNote = result.match
-                        }
-                        break
-                }
-                if (previousNote) {
-                    // merge the new citation into those already present
-                    const index = mergeCitation(previousNote, citation)
-                    let state: NoteState = { ...nullState(), ...previousNote }
-                    if (index === undefined) {
-                        state = { ...state, citationIndex: state.citations.length - 1, unsavedCitation: true }
-                    } else {
-                        state = { ...state, citationIndex: index }
-                    }
-                    this.setState({ ...state, everSaved: true, unsavedContent: true })
-                } else {
-                    const state = nullState()
-                    state.citations.push(citation)
-                    state.key[0] = pk
-                    state.unsavedCitation = true
-                    state.unsavedContent = true
-                    this.setState(state)
-                }
-            })
     }
 }
 
@@ -324,7 +282,7 @@ function Header({ note }: { note: Note }) {
     const project = note.app.switchboard.index?.reverseProjectIndex.get(realm)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     let changer
-    if (note.state.unsavedCitation || note.app.switchboard.index!.projects.size > 1) {
+    if (note.state.unsavedCitation && note.app.switchboard.index!.projects.size > 1) {
         const open = Boolean(anchorEl);
         const handleClick = (event: React.MouseEvent<HTMLElement>) => {
             setAnchorEl(event.currentTarget);
@@ -332,7 +290,12 @@ function Header({ note }: { note: Note }) {
         const closer = (i: number) => {
             return () => {
                 setAnchorEl(null)
-                note.changeProject(i)
+                const key = deepClone(note.state.key)
+                key[0] = i
+                note.app.setState({ defaultProject: i }, () => {
+                    note.app.switchboard.index!.setCurrentProject(i)
+                        .then(() => note.setState({ key }))
+                })
             }
         }
         changer = <>
