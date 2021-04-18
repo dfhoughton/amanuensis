@@ -540,7 +540,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                     <IconButton
                         hidden={!anyResults || !!search.sample}
                         className={classes.inCentered}
-                        onClick={() => { console.log('sample', !!search.sample); setShowSaveSearchForm(!showSaveSearchForm) }}
+                        onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
                     >
                         <TT msg="save search">
                             <Save color={showSaveSearchForm ? 'secondary' : 'primary'} />
