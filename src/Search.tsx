@@ -537,7 +537,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
             />
             <div className={classes.centered}>
                 <Grid container justify="space-evenly" className={classes.item}>
-                    {anyResults && !sample && <IconButton
+                    {anyResults && !search.sample && <IconButton
                         hidden={!anyResults || !!search.sample}
                         className={classes.inCentered}
                         onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
