@@ -654,10 +654,11 @@ function Annotations(
     }) {
     const classes = annotationStyles();
     const [showMore, setShowMore] = useState(false)
-    const showerOpts = {
+    const showerOpts: any = {
         className: classes.unfolder,
         onClick: () => setShowMore(!showMore)
     }
+    if (citationNote || details) showerOpts.color = "secondary"
     return <div>
         <Collapse in={showMore}>
             <TextField
