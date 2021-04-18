@@ -537,7 +537,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
             />
             <div className={classes.centered}>
                 <Grid container justify="space-evenly" className={classes.item}>
-                    <IconButton
+                    {anyResults && !sample && <IconButton
                         hidden={!anyResults || !!search.sample}
                         className={classes.inCentered}
                         onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
@@ -545,7 +545,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                         <TT msg="save search">
                             <Save color={showSaveSearchForm ? 'secondary' : 'primary'} />
                         </TT>
-                    </IconButton>
+                    </IconButton>}
                     <Button
                         color="primary"
                         className={classes.inCentered}
