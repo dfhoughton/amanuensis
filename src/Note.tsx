@@ -36,7 +36,10 @@ class Note extends React.Component<NoteProps, NoteState> {
         this.app = props.app
         const visit = this.app.recentHistory()
         if (visit) {
-            const { current, saved } = deepClone(visit)
+            const { current, saved }: Visit = deepClone(visit)
+            if (current.canonicalCitation) {
+                current.citationIndex = current.canonicalCitation
+            }
             this.state = current
             this.savedState = saved
             this.checkForDeletions()
@@ -174,7 +177,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                             unsavedContent: true,
                             everSaved: true,
                             unsavedCitation: true,
-                            citationIndex: 0,
+                            citationIndex: found.match.canonicalCitation || 0,
                             ...found.match,
                         }
                         const index = mergeCitation(foundState, citation)
@@ -590,11 +593,11 @@ function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
     const starred = i === note.state.canonicalCitation
     let makeCanonical, removeCitation
     if (!(onlyCitation || starred)) {
-        makeCanonical = () => note.setState({ canonicalCitation: i })
+        makeCanonical = () => note.setState({ canonicalCitation: i, unsavedContent: true })
         removeCitation = () => {
             const citations = deepClone(note.state.citations)
             citations.splice(i, 1)
-            const changes: any = { citations }
+            const changes: any = { citations, unsavedContent: true }
             if (i === note.state.canonicalCitation) {
                 changes.canonicalCitation = undefined
             }
