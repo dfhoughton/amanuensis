@@ -1244,7 +1244,20 @@ export class Index {
             })
         })
     }
+    // load a new state onto disk; remember to reload the index after this
+    load(state: {[key: string]: any}): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.chrome.storage.local.set(state, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    resolve()
+                }
+            })
+        })
+    }
     // produce a JSON dump of everything in chrome.storage.local
+    // NOTE keep this in sync with getIndex
     dump(): Promise<{[key: string]: any}> {
         return new Promise((resolve, reject) => {
             // NOTE keep this in sync with getIndex
@@ -1262,18 +1275,6 @@ export class Index {
                     resolve(result)
                 }
             } )
-        })
-    }
-    // load a new state onto disk; remember to reload the index after this
-    load(state: {[key: string]: any}): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.chrome.storage.local.set(state, () => {
-                if (this.chrome.runtime.lastError) {
-                    reject(this.chrome.runtime.lastError)
-                } else {
-                    resolve()
-                }
-            })
         })
     }
 }
