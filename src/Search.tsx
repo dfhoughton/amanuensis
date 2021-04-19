@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 
 import { App, Section } from './App'
 import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any, nws, seed } from './modules/util'
-import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, Sorter } from './modules/types'
+import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, SampleType, Sorter } from './modules/types'
 import { enkey } from './modules/storage'
 import { anyDifference, deepClone } from './modules/clone'
 
@@ -78,6 +78,7 @@ type ResultsInfoProps = {
 function ResultsInfo({ app, offset, end, results, showSample, setShowSample }: ResultsInfoProps) {
     const search = app.state.search as AdHocQuery
     const [sample, setSample] = useState<number>(1)
+    const [sampleType, setSampleType] = useState<SampleType>('random')
     return (<>
         <Grid container justify="center" alignItems="center" spacing={2}>
             <Grid item>
@@ -127,7 +128,7 @@ function ResultsInfo({ app, offset, end, results, showSample, setShowSample }: R
         </Grid>
         <Collapse in={showSample}>
             <Grid container justify="center" alignItems="center" spacing={2}>
-                <Grid item>
+                <Grid item xs={3}>
                     <TextField
                         label="Sample size"
                         type="number"
@@ -141,6 +142,19 @@ function ResultsInfo({ app, offset, end, results, showSample, setShowSample }: R
                             }
                         }} />
                 </Grid>
+                <Grid item xs={3}>
+                    <TextField
+                        label="Sample type"
+                        select
+                        value={sampleType}
+                        style={{ width: '100%' }}
+                        onChange={(e) => setSampleType(e.target.value as SampleType)}
+                    >
+                        {['random', 'hard', 'novel'].map((s) => <MenuItem key={s} value={s}>
+                            {s}
+                        </MenuItem>)}
+                    </TextField>
+                </Grid>
                 <Grid item>
                     <Button
                         color="primary"
@@ -148,6 +162,7 @@ function ResultsInfo({ app, offset, end, results, showSample, setShowSample }: R
                         onClick={() => {
                             const s: AdHocQuery = deepClone(search)
                             s.sample = sample
+                            s.sampleType = sampleType
                             s.seed = seed()
                             app.switchboard.index!.find(s)
                                 .then((results) => {

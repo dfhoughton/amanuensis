@@ -456,7 +456,48 @@ export class Index {
                                         candidates.sort(fallbackSort)
                                     }
                                     if (query.sample) {
-                                        candidates = sample(candidates, query.sample, rng(query.seed!))
+                                        const m = new Map<number, NoteRecord[]>()
+                                        switch (query.sampleType) {
+                                            case 'hard':
+                                                for (const n of candidates) {
+                                                    const trials = n.trials
+                                                    let ease = 0 // without further evidence a note is assumed to be hard
+                                                    if (trials) {
+                                                        let numerator = 0
+                                                        for (const t of trials) {
+                                                            if (t.result) ease++
+                                                        }
+                                                        ease = ease / trials.length
+                                                    }
+                                                    let batch = m.get(ease)
+                                                    if (!batch) batch = []
+                                                    batch.push(n)
+                                                    m.set(ease, batch)
+                                                }
+                                                break
+                                            case 'novel':
+                                                for (const n of candidates) {
+                                                    const trials = n.trials
+                                                    let experience = 0
+                                                    if (trials) experience = trials.length
+                                                    let batch = m.get(experience)
+                                                    if (!batch) batch = []
+                                                    batch.push(n)
+                                                    m.set(experience, batch)
+                                                }
+                                                break
+                                            default:
+                                                m.set(0, candidates)
+                                        }
+                                        const keys = Array.from(m.keys()).sort()
+                                        let c : NoteRecord[] = []
+                                        while (keys.length && c.length < query.sample) {
+                                            const key = keys.shift()!
+                                            const batch = m.get(key)!
+                                            c = c.concat(batch)
+                                        }
+                                        candidates = sample(c, query.sample, rng(query.seed!))
+                                        candidates.sort(fallbackSort)
                                     }
                                     resolve({ type: "ambiguous", matches: candidates })
                                 }

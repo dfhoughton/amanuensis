@@ -149,7 +149,10 @@ export interface AdHocQuery {
     url?: string
     seed?: number
     sample?: number
+    sampleType?: SampleType
 }
+
+export type SampleType = 'random' | 'hard' | 'novel'
 
 export interface EditDistanceProperties {
     prefix?: number      // prefix length
