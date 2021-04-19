@@ -599,13 +599,15 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                             if (savedSearch && !anyDifference(savedSearch.query, search)) {
                                 app.setState({ tab: Section.cards, stack: savedSearch.name })
                             } else {
-                                app.switchboard.index!.stacks.set('', {
+                                // install a new ad hoc flashcard stack
+                                const adHoc : CardStack = {
                                     name: '',
                                     description: '',
                                     lastAccess: new Date(),
                                     query: search
-                                })
-                                app.setState({ tab: Section.cards, stack: '' })
+                                }
+                                app.switchboard.index!.stacks.set('', adHoc)
+                                app.setState({ tab: Section.cards, stack: '', flashcards: undefined })
                             }
                         }}
                     >
