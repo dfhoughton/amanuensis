@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { Details, TT } from './modules/util'
+import { Details, TT } from './modules/components'
 
 import Button from '@material-ui/core/Button'
 import ClearAllIcon from '@material-ui/icons/ClearAll'
 import { App, projectName } from './App'
-import { Box, LinearProgress, Typography as T } from '@material-ui/core'
+import { Box, Grid, LinearProgress, Switch, Typography as T } from '@material-ui/core'
 import { GetApp, Publish } from '@material-ui/icons'
+import { Configuration } from './modules/types'
+import { deepClone } from './modules/clone'
 
 interface ConfigProps {
     app: App
@@ -47,6 +49,7 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                         notes and projects.
                     </p>
                 </Details>
+                <Params config={this} />
                 <Clear config={this} />
                 <Progress config={this} />
                 <DownloadUpload config={this} />
@@ -56,6 +59,44 @@ class Config extends React.Component<ConfigProps, ConfigState> {
 }
 
 export default Config
+
+function Params({ config }: { config: Config }) {
+    const conf = config.app.state.config
+    const configError = (e: any) => config.app.error(`could not save configuration change: ${e}`)
+    return (<Box mb={2}>
+        <T variant="h6" component="h2">
+            Parameters
+        </T>
+        <Box ml={2} mt={2}>
+            <strong>Flashcards</strong>
+            <Grid container spacing={2}>
+                <Grid item>
+                    <i>Show phrase first or gist?</i>
+                </Grid>
+                <Grid item>
+                    <Grid component="label" container alignItems="center" spacing={1}>
+                        <Grid item direction="column" alignContent="center">gist</Grid>
+                        <Grid item>
+                            <Switch
+                                checked={conf.cards.first === "phrase"}
+                                onChange={() => {
+                                    const newConf: Configuration = deepClone(conf)
+                                    newConf.cards.first = conf.cards.first === 'gist' ? 'phrase' : 'gist'
+                                    config.app.switchboard.index!.saveConfiguration(newConf)
+                                        .then(() => {
+                                            config.app.setState({ config: newConf })
+                                        })
+                                        .catch(configError)
+                                }}
+                            />
+                        </Grid>
+                        <Grid item>phrase</Grid>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Box>
+    </Box>)
+}
 
 function DownloadUpload({ config }: { config: Config }) {
     const [showDropzone, setShowDropzone] = useState<boolean>(false)
@@ -129,18 +170,18 @@ function DownloadUpload({ config }: { config: Config }) {
     return (<>
         <T variant="h6" component="h2">
             Download/Upload {projectName} State
-            </T>
+        </T>
         <p>
             Downloading {projectName} state will give you a JSON file containing
-                everything {projectName} has stored locally. This is is useful if you wish to
-                back {projectName} up or transfer your notes to a different browser or
-                machine.
-            </p>
+            everything {projectName} has stored locally. This is is useful if you wish to
+            back {projectName} up or transfer your notes to a different browser or
+            machine.
+        </p>
         <p>
             <strong>Note:</strong> restoring {projectName} from a downloaded JSON file will
-                obliterate its current state. Any notes, projects, or anything else you may have
-                created will be replaced with whatever was in the JSON file.
-            </p>
+            obliterate its current state. Any notes, projects, or anything else you may have
+            created will be replaced with whatever was in the JSON file.
+        </p>
         <Button
             endIcon={<GetApp />}
             onClick={downloadHandler}

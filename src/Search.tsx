@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 
 import { App, Section } from './App'
-import { Details, flatten, sameNote, TT, uniq, ymd, formatDates as fd, Expando, any, nws, seed } from './modules/util'
+import { flatten, sameNote, uniq, ymd, any, nws, seed } from './modules/util'
+import { Details, TT, formatDates as fd, Expando } from './modules/components'
 import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, SampleType, Sorter } from './modules/types'
 import { enkey } from './modules/storage'
 import { anyDifference, deepClone } from './modules/clone'
@@ -600,7 +601,7 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
                                 app.setState({ tab: Section.cards, stack: savedSearch.name })
                             } else {
                                 // install a new ad hoc flashcard stack
-                                const adHoc : CardStack = {
+                                const adHoc: CardStack = {
                                     name: '',
                                     description: '',
                                     lastAccess: new Date(),

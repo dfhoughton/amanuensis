@@ -16,9 +16,9 @@ import {
   DialogTitle, Snackbar, Tab, Tabs, Typography
 } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
-import { AdHocQuery, Chrome, NoteRecord, Query } from './modules/types'
+import { AdHocQuery, Chrome, Configuration, NoteRecord, Query } from './modules/types'
 import { anyDifference, deepClone } from './modules/clone'
-import { enkey } from './modules/storage'
+import { enkey, setConfigurationDefaults } from './modules/storage'
 import { flatten, sameNote } from './modules/util'
 import Sorting from './Sorting'
 import FlashCards, { FlashCardState } from './FlashCards'
@@ -58,6 +58,7 @@ interface AppState {
   confirmation: ConfirmationState,
   stack?: string, // the flash card stack currently being worked on
   flashcards?: FlashCardState
+  config: Configuration
 }
 
 interface Message {
@@ -94,7 +95,7 @@ const styles = (theme: any) => ({
   },
 });
 
-const nullState : AppState = {
+const nullState: AppState = {
   tab: Section.note,
   url: null,
   message: null,
@@ -104,6 +105,7 @@ const nullState : AppState = {
   search: { type: "ad hoc" },
   searchResults: [],
   confirmation: {},
+  config: setConfigurationDefaults({}),
 }
 
 /*global chrome*/
@@ -114,6 +116,10 @@ export class App extends React.Component<AppProps, AppState> {
     super(props)
     this.switchboard = new Switchboard(chrome)
     this.state = deepClone(nullState)
+    this.switchboard.then(() => {
+      const config: Configuration = deepClone(this.switchboard.index!.config)
+      this.setState({ config })
+    })
   }
 
   clear() {

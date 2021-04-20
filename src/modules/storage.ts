@@ -1,5 +1,5 @@
 import { anyDifference, deepClone, deserialize, serialize } from './clone'
-import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter, CardStack } from './types'
+import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter, CardStack, Configuration } from './types'
 import { all, any, buildEditDistanceMetric, cachedSorter, none, pick, rng, sample } from './util'
 
 type FindResponse =
@@ -10,6 +10,18 @@ type FindResponse =
 // how to take a KeyPair and make a local storage/cache key
 export function enkey(key: KeyPair): string {
     return `${key[0]}:${key[1]}`
+}
+
+type IndexConstructorParams = {
+    chrome: Chrome
+    projects: Map<string, ProjectInfo>
+    currentProject: number
+    projectIndices: Map<number, Map<string, number>>
+    tags: Set<string>
+    sorters: Map<number, Sorter>
+    currentSorter: number
+    stacks: Map<string, CardStack>
+    config: Configuration
 }
 
 // an interface between the app and the Chrome storage mechanism
@@ -24,7 +36,8 @@ export class Index {
     sorters: Map<number, Sorter>                     // all available sorters
     currentSorter: number                            // the index of the currently preferred sorter
     stacks: Map<string, CardStack>                   // the saved flashcard stacks
-    constructor(chrome: Chrome, projects: Map<string, ProjectInfo>, currentProject: number, projectIndices: Map<number, Map<string, number>>, tags: Set<string>, sorters: Map<number, Sorter>, currentSorter: number, stacks: Map<string, CardStack>) {
+    config: Configuration                            // app configuration parameters
+    constructor({chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks, config}: IndexConstructorParams) {
         this.chrome = chrome
         this.projects = projects
         this.currentProject = currentProject
@@ -33,6 +46,7 @@ export class Index {
         this.sorters = sorters
         this.currentSorter = currentSorter
         this.stacks = stacks
+        this.config = config
         if (this.projectIndices.size === 0) {
             // add the default project
             const project = makeDefaultProject()
@@ -1244,6 +1258,19 @@ export class Index {
             })
         })
     }
+    // save a configuration change
+    saveConfiguration(config: Configuration): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.chrome.storage.local.set({config: config}, () => {
+                if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError)
+                } else {
+                    this.config = config
+                    resolve()
+                }
+            })
+        })
+    }
     // load a new state onto disk; remember to reload the index after this
     load(state: {[key: string]: any}): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -1261,7 +1288,7 @@ export class Index {
     dump(): Promise<{[key: string]: any}> {
         return new Promise((resolve, reject) => {
             // NOTE keep this in sync with getIndex
-            const base = ['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks']
+            const base = ['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks', 'config']
             for (const [key, map] of this.projectIndices.entries()) {
                 base.push(key.toString())
                 for ( const k2 of map.values()) {
@@ -1282,11 +1309,20 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks'], (result) => {
+        chrome.storage.local.get(['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks', 'config'], (result) => {
             if (chrome.runtime.lastError) {
                 reject(chrome.runtime.lastError)
             } else {
-                let { projects = new Map(), currentProject = 0, tags = new Set(), sorters = new Map(), currentSorter = 0, stacks = new Map() } = deserialize(result) || {}
+                let {
+                    projects = new Map(),
+                    currentProject = 0,
+                    tags = new Set(),
+                    sorters = new Map(),
+                    currentSorter = 0,
+                    stacks = new Map(),
+                    config = {}
+                } = deserialize(result) || {}
+                config = setConfigurationDefaults(config)
                 for (const v of sorters.values()) {
                     v.metric = buildEditDistanceMetric(v)
                 }
@@ -1303,12 +1339,20 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         for (const [idx, ridx] of Object.entries(result)) {
                             projectIndices.set(Number.parseInt(idx), deserialize(ridx))
                         }
-                        resolve(new Index(chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks))
+                        resolve(new Index({chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks, config}))
                     }
                 })
             }
         })
     })
+}
+
+// this is basically the config constructor
+export function setConfigurationDefaults(obj: {[key: string]: any}): Configuration {
+    if (!obj.cards) obj.cards = {}
+    const cards = obj.cards
+    if (!cards.first) cards.first = "phrase"
+    return obj as Configuration
 }
 
 function makeDefaultProject(): ProjectInfo {

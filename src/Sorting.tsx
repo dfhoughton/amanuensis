@@ -1,5 +1,6 @@
 import { App } from './App'
-import { any, Details, Mark, nws, squish, TT } from './modules/util'
+import { any, nws, squish, } from './modules/util'
+import { Details, Mark, TT } from './modules/components'
 import {
     Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions,
     DialogContent, DialogTitle, Grid, IconButton, makeStyles, TextField,

@@ -1,12 +1,12 @@
 import { Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
 import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
-import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
+import { Details } from "./modules/components";
 import { enkey } from "./modules/storage";
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types";
-import { Details, pick, rando } from "./modules/util";
+import { pick, rando } from "./modules/util";
 import { Phrase } from "./Note";
 const confetti = require('canvas-confetti')
 

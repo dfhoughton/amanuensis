@@ -1,5 +1,6 @@
 import React from 'react'
-import { Details, Mark, nws, TT } from './modules/util'
+import { nws } from './modules/util'
+import { Details, Mark, TT } from './modules/components'
 import { App } from './App'
 import {
     Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,

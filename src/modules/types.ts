@@ -171,3 +171,13 @@ export interface Sorter extends EditDistanceProperties {
 }
 
 export type Query = LookupQuery | AdHocQuery
+
+// configuration hash for the app
+// default values for the parameters are set by setConfigurationDefaults in storage
+export type Configuration = {
+    cards: {
+        first: FirstCardSideParam
+    }
+}
+
+export type FirstCardSideParam = "gist" | "phrase"

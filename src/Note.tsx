@@ -9,7 +9,8 @@ import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldL
 
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
-import { debounce, Expando, formatDates, Mark, nws, sameNote, TT } from './modules/util'
+import { debounce,  nws, sameNote } from './modules/util'
+import { Expando, formatDates, Mark, TT } from './modules/components'
 import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'
 import { useHotkeys } from 'react-hotkeys-hook'

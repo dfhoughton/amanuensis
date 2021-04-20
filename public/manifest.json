@@ -17,7 +17,8 @@
   },
   "browser_action": {
     "default_icon": {
-      "512": "logo512.png"
+      "512": "amanuensislogo1.png",
+      "192": "amanuensislogosm1.png"
     },
     "default_title": "Amanuensis",
     "default_popup": "popup.html"
