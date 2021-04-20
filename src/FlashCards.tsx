@@ -31,7 +31,7 @@ export default function FlashCards({ app }: { app: App }) {
         stack: null,
         notes: [],
         index: -1,
-        showingGist: true,
+        showingGist: app.state.config.cards.first === 'gist',
         done: new Set(),
         revealed: false,
         initialize: true,
@@ -510,7 +510,7 @@ function init(app: App, state: FlashCardState, setState: (s: FlashCardState) => 
                 s.index = -1
                 s.revealed = false
                 s.done = done
-                s.showingGist = false
+                s.showingGist = app.state.config.cards.first === 'gist'
                 notes.sort(sortNotes(false, done))
                 s.notes = notes
                 s.initialize = false
