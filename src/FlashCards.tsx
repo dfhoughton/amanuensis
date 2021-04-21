@@ -576,8 +576,10 @@ function addTrial(judgement: boolean, note: NoteRecord, app: App, state: FlashCa
         type: state.showingGist ? "gist" : "phrase"
     })
     // success with both sides?
-    if (state.showingGist) {
-        const prev = note.trials.find((t) => t.type === "phrase")
+    const shownFirst = app.state.config.cards.first
+    const flipped = state.showingGist === ( shownFirst === 'gist' ? false : true )
+    if (flipped) {
+        const prev = note.trials.find((t) => t.type === shownFirst)
         if (prev?.result) {
             const key = enkey(note.key)
             if (judgement) {
