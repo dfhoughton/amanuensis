@@ -265,3 +265,17 @@ export function cachedSorter(metric: (w1: string, w2: string) => number): (w1: s
         return m
     }
 }
+
+// converts 1000 into 1,000 and -2000.5 into -2,001
+export function formatNumber(n: number): string {
+    const signum = n < 0 ? '-' : ''
+    n = Math.round(Math.abs(n))
+    const chars = n.toString().split('').reverse()
+    let i = (chars.length - chars.length % 3)
+    if (i === chars.length) i -= 3
+    while (i > 0) {
+        chars.splice(i, 0, ',')
+        i -= 3
+    }
+    return signum + chars.reverse().join('')
+}
