@@ -83,6 +83,8 @@ export const Section = {
   config: 4,
   cards: 5,
 }
+// NOTE: keep this in sync with Section
+export type Sections = "note" | "search" | "projects" | "sorters" | "config" | "cards"
 
 const styles = (theme: any) => ({
   root: {

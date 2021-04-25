@@ -4,13 +4,13 @@ import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
-import { Collapse, Fade, Grid, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
-import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, UnfoldLess, UnfoldMore } from '@material-ui/icons'
+import { Box, Collapse, Fade, Grid, Link, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
+import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, Star, UnfoldLess, UnfoldMore } from '@material-ui/icons'
 
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
-import { debounce,  nws, sameNote } from './modules/util'
-import { Expando, formatDates, Mark, TT } from './modules/components'
+import { debounce, nws, sameNote } from './modules/util'
+import { Details, Expando, formatDates, InfoSpinner, LinkDown, LinkUp, Mark, TabLink, TT } from './modules/components'
 import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -233,28 +233,34 @@ export default Note;
 function Editor({ note }: { note: Note }) {
     // overriding the filter option so we can save while in textareas and such
     useHotkeys('ctrl+s', (_e, _h) => note.save(), { enableOnTags: ['INPUT', 'TEXTAREA', 'SELECT'] }, [note.state])
+    const [showDetails, setShowDetails] = useState<boolean>(false)
     const hasWord = note.hasWord()
     return (
-        <div className="note">
-            {hasWord && <Header note={note} />}
-            {hasWord && <Widgets app={note.props.app} n={note} />}
-            <Phrase phrase={note.currentCitation()} hasWord={hasWord} />
-            {hasWord && <Annotations
-                gist={note.state.gist}
-                details={note.state.details}
-                citationNote={note.currentCitation()?.note || ''}
-                citationNoteHandler={(e) => {
-                    const citations = deepClone(note.state.citations)
-                    citations[note.state.citationIndex].note = e.target.value
-                    note.setState({ citations }, note.debouncedCheckSavedState)
-                }}
-                gistHandler={(e) => note.setState({ gist: e.target.value }, note.debouncedCheckSavedState)}
-                notesHandler={(e) => note.setState({ details: e.target.value }, note.debouncedCheckSavedState)}
-            />}
-            <Tags note={note} />
-            <Relations relations={note.state.relations} hasWord={hasWord} />
-            <Citations note={note} />
-        </div>
+        <>
+            <Collapse in={showDetails}>
+                <NoteDetails showDetails={showDetails} setShowDetails={setShowDetails} app={note.app} />
+            </Collapse>
+            <Collapse in={!showDetails}>
+                <Header note={note} show={hasWord} showDetails={showDetails} setShowDetails={setShowDetails} />
+                {hasWord && <Widgets app={note.props.app} n={note} />}
+                <Phrase phrase={note.currentCitation()} hasWord={hasWord} />
+                {hasWord && <Annotations
+                    gist={note.state.gist}
+                    details={note.state.details}
+                    citationNote={note.currentCitation()?.note || ''}
+                    citationNoteHandler={(e) => {
+                        const citations = deepClone(note.state.citations)
+                        citations[note.state.citationIndex].note = e.target.value
+                        note.setState({ citations }, note.debouncedCheckSavedState)
+                    }}
+                    gistHandler={(e) => note.setState({ gist: e.target.value }, note.debouncedCheckSavedState)}
+                    notesHandler={(e) => note.setState({ details: e.target.value }, note.debouncedCheckSavedState)}
+                />}
+                <Tags note={note} />
+                <Relations relations={note.state.relations} hasWord={hasWord} />
+                <Citations note={note} />
+            </Collapse>
+        </>
     );
 }
 
@@ -278,13 +284,14 @@ const headerStyles = makeStyles((theme) => ({
     },
 }))
 
-function Header({ note }: { note: Note }) {
+function Header({ note, show, showDetails, setShowDetails }: { note: Note, show: boolean, showDetails: boolean, setShowDetails: (b: boolean) => void }) {
     const time = note.currentCitation()?.when
     const realm = note.state.key[0]
     const classes = headerStyles()
+    // const [showDetails, setShowDetails] = useState<boolean>(false)
     let t = time ? time[0] : null
     const project = note.app.switchboard.index?.reverseProjectIndex.get(realm)
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     let changer
     if (note.state.unsavedCitation && note.app.switchboard.index!.projects.size > 1) {
         const open = Boolean(anchorEl);
@@ -318,19 +325,334 @@ function Header({ note }: { note: Note }) {
             </Menu>
         </>
     }
+    // NOTE keep in sync with NoteHeaderExample below
     return (
         <Grid container spacing={1}>
-            <Grid container item xs>
+            {show && <Grid container item xs>
                 <T className={classes.project}>{project}</T>
                 {changer}
-            </Grid>
+            </Grid>}
             <Grid container item xs>
                 <T align="right" className={classes.date}>
                     {t?.toLocaleDateString()} {/* TODO make this a list of dates */}
+                    <InfoSpinner flipped={showDetails} setFlipped={setShowDetails} fontSize="tiny" />
                 </T>
             </Grid>
         </Grid>
     )
+}
+
+// for use in NoteDetails
+// NOTE keep in sync with return value immediately above
+function NoteHeaderExample() {
+    const classes = headerStyles()
+    return (
+        <Grid container spacing={1}>
+            <Grid container item xs>
+                <T className={classes.project}>Example Project</T>
+            </Grid>
+            <Grid container item xs>
+                <T align="right" className={classes.date}>
+                    {new Date().toLocaleDateString()}
+                    <InfoSpinner fontSize="tiny" />
+                </T>
+            </Grid>
+        </Grid>
+    )
+}
+
+const noteDetailsStyles = makeStyles((theme) => ({
+    tocLink: {
+        display: 'block',
+    },
+    save: {
+        color: theme.palette.warning.dark,
+    },
+    delete: {
+        color: theme.palette.error.dark,
+    },
+}))
+
+function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolean, setShowDetails: (b: boolean) => void, app: App }) {
+    const classes = noteDetailsStyles()
+    const annotationClasses = annotationStyles()
+    const tagClasses = tagStyles()
+    return <>
+        <Details header="Notes" expanded={showDetails} onChange={(_e, expanded) => setShowDetails(expanded)}>
+            <T variant="h6" id="toc">Table of Contents</T>
+            <Box m={2} ml={4}>
+                <LinkDown to="citation" className={classes.tocLink}>Citation</LinkDown>
+                <LinkDown to="header" className={classes.tocLink}>Header</LinkDown>
+                <LinkDown to="gist" className={classes.tocLink}>Gist</LinkDown>
+                <Box ml={2}>
+                    <LinkDown to="citation-note" className={classes.tocLink}>Citation Note</LinkDown>
+                    <LinkDown to="elaboration" className={classes.tocLink}>Elaboration</LinkDown>
+                    <LinkDown to="hotkey" className={classes.tocLink}>Ctrl-S</LinkDown>
+                </Box>
+                <LinkDown to="widgets" className={classes.tocLink}>Widgets</LinkDown>
+                <Box ml={2}>
+                    <LinkDown to="save" className={classes.tocLink}>
+                        <Save fontSize="small" className={classes.save} /> Save
+                    </LinkDown>
+                    <LinkDown to="delete" className={classes.tocLink}>
+                        <Delete fontSize="small" className={classes.delete} /> Delete
+                    </LinkDown>
+                    <LinkDown to="navigate" className={classes.tocLink}>
+                        <Navigation fontSize="small" color="primary" /> Navigate
+                    </LinkDown>
+                </Box>
+                <LinkDown to="tags" className={classes.tocLink}>Tags</LinkDown>
+                <LinkDown to="relations" className={classes.tocLink}>Relations</LinkDown>
+                <LinkDown to="citation-list" className={classes.tocLink}>Citation List</LinkDown>
+                <LinkDown to="internals" className={classes.tocLink}>Internals</LinkDown>
+            </Box>
+        </Details>
+        <p>
+            The purpose of Amanuensis is to allow you to take notes on a web page. You
+            are now looking at Amanuensis's note tab. The parts of this tab, aside from
+            this help section, are described below.
+        </p>
+        <T id="citation" variant="h6">Citation <LinkUp /></T>
+        <p>
+            The purpose of Amanuensis is to allow you to take notes on web pages
+            based around citations from those pages. You highlight a section of
+            the page and press Alt+a and Amanuensis opens up with an unsaved note
+            based on your selection looking somewhat like this.
+        </p>
+        <Box m={2}>
+            <Phrase
+                phrase={{
+                    before: "Perhaps some context, then ",
+                    phrase: "your selection",
+                    after: ", and then maybe a bit more context."
+                }}
+            />
+        </Box>
+        <p>
+            The context surrounding your selection is based on the structure of the
+            page. It is selected automatically. Sometimes there maybe be a little
+            more context than you wish. There is more on this <LinkDown to="internals">below</LinkDown>.
+        </p>
+        <T id="header" variant="h6">Header <LinkUp /></T>
+        <Box m={2}><NoteHeaderExample /></Box>
+        <p>
+            Things are a bit out of order here. The node header appears <i>before</i> the citation. The
+            citation is the important bit, though. The header shows the <TabLink tab="projects" app={app}>project</TabLink> the
+            citation belongs to on the left and the date(s) the note was made on the right. The ⓘ on the far right, of course,
+            sends you to this help information.
+        </p>
+        <p>
+            When you first create a note Amanuensis will assign the unsaved note to whatever is the
+            current project. If you haven't made any projects, this will be the default project. If you have,
+            it will be whichever project you last assigned a note to, or whichever project you selected as
+            the default project in the <TabLink tab="projects" app={app}>projects tab</TabLink>.
+            Once you have assigned a note to a project you cannot currently change this assignment. This is
+            because different projects may have different normalizers. I may relax this restriction in
+            the future.
+        </p>
+        <T id="gist" variant="h6">Gist <LinkUp /></T>
+        <Box m={2}>
+            <Grid container>
+                <Grid item xs={11}>
+                    <TextField
+                        label="Gist"
+                        multiline
+                        placeholder="Essential information about this topic"
+                        className={annotationClasses.note}
+                        rowsMax={2}
+                        value={"essential stuff"}
+                    />
+                </Grid>
+                <Grid item xs={1} className={annotationClasses.centering}>
+                    <div className={annotationClasses.centered}>
+                        <UnfoldMore className={annotationClasses.unfolder} />
+                    </div>
+                </Grid>
+            </Grid>
+        </Box>
+        <p>
+            The gist is a short, pithy phrase summing up the significance of the citation. If Amanuensis is being
+            used for language acquisition, this is generally a gloss of the citation. Otherwise, it is a short
+            version of the citation's significance. In general, the gist should be something that fits comfortably
+            on one side of a <TabLink tab="cards" app={app}>flashcard</TabLink>. It should summarize the citation
+            outside of any particular contect. If you have information you wish to preserve about the paricular
+            citation there is a <LinkDown to="citation-note">citation note</LinkDown>. If you have information that
+            is general but lengthier than fits on a flashcard, there is an <LinkDown to="elaboration">elaboration</LinkDown>.
+            These two expansions on the gist are available via the <UnfoldMore fontSize="small" /> icon that appears
+            to the right of the gist. If either a citation note or an elaboration has been provided, this icon will
+            appear like this: <UnfoldMore fontSize="small" color="secondary" />.
+        </p>
+        <strong id="citation-note">Citation Note <LinkUp /></strong>
+        <Box m={2}>
+            <TextField
+                label="Note on Citation"
+                placeholder="Notes on the citation above"
+                className={annotationClasses.note}
+                rowsMax={2}
+                value={"the font on this page is particularly lovely"}
+            />
+        </Box>
+        <p>
+            A citation note is a bit of information about a particular citation of the phrase the note concerns.
+            A note may cover multiple <LinkDown to="citation-list">citations</LinkDown>. Each may have its own
+            citation note, but they will have a
+            common <LinkDown to="gist">gist</LinkDown>, <LinkDown to="tags">tags</LinkDown>, <LinkDown to="relations">relations</LinkDown>,
+            and, optionally, <LinkDown to="elaboration">elaboration</LinkDown>.
+        </p>
+        <p>
+            By default the citation note of the current citation is not shown. You must
+            click on the <UnfoldMore fontSize="small" /> expander icon beside the <LinkDown to="gist">gist</LinkDown> to see it.
+        </p>
+        <strong id="elaboration">Elaboration <LinkUp /></strong>
+        <Box m={2}>
+            <TextField
+                label="Elaboration"
+                multiline
+                placeholder="Further observations about this topic"
+                className={annotationClasses.note}
+                rowsMax={6}
+                value={"There's no end to what I could say about this, but here's a start..."}
+            />
+        </Box>
+        <p>
+            An elaboration is any longer text about the phrase of the citation which is not particular to the citation.
+            It is general information which won't fit in a gist. By default a note's elaboration is not shown. You must
+            click on the <UnfoldMore fontSize="small" /> expander icon beside the <LinkDown to="gist">gist</LinkDown> to see it.
+        </p>
+        <strong id="hotkey">Ctrl-S <LinkUp /></strong>
+        <p>
+            You may use the <LinkDown to="save">save</LinkDown> widget to save changes to a note, but for convenience
+            there is also a keyboard hotkey: ctrl-s. That is, if you hold down the control key and click the s key
+            this will also save the note.
+        </p>
+        <T id="widgets" variant="h6">Widgets <LinkUp /></T>
+        <p>
+            The widgets are a collection of icon controls in the top right of the note tab. They come and go
+            depending on what it is possible for you to do with the note at the moment.
+        </p>
+        <strong id="save"><Save fontSize="small" className={classes.save} /> Save <LinkUp /></strong>
+        <p>
+            The save widget appears only if there are unsaved changes &mdash; a new citation, a new timestamp associated
+            with an existing citation, a new gist, etc. The save widget is the only one with a
+            backup <LinkDown to="hotkey">keyboard command</LinkDown>.
+        </p>
+        <strong id="delete"><Delete fontSize="small" className={classes.delete} /> Delete <LinkUp /></strong>
+        <p>
+            The delete widget appears only if the note has been saved. If you click it the note will be removed
+                from storage, and any <LinkDown to="relations">relation</LinkDown> between the note and others will
+                be deleted altogether, but the note will not be removed from the screen. If you save the note again
+                everything but the relations will once again be stored. If you leave Amanuensis after deleting
+                the note and then come back there will be no trace of the deleted note.
+        </p>
+        <strong id="navigate"><Navigation fontSize="small" color="primary" /> Navigate <LinkUp /></strong>
+        <Box m={2}>
+            <Grid container spacing={1} direction="row" justify="flex-start" alignItems="center">
+                <Grid item>
+                    <DemoNav />
+                </Grid>
+                <Grid item>
+                    <span style={{ fontSize: 'smaller', fontStyle: "italic" }}>(click me)</span>
+                </Grid>
+            </Grid>
+        </Box>
+        <p>
+            The navigational widget appears if you aren't currently looking at a note generated or
+            retrieved with Alt-A, or if you've already navigated about. It allows you to return to citations you
+            have written notes about. If you click on the navigational widget you get a list containing your
+            phrase of the current note, highlighted, and the phrases of any other notes you've looked at in this
+            Amanuensis session. If you click on one of the non-highlighted phrases that note will be shown. If you
+            click click the <FilterCenterFocus color="primary" fontSize="small" /> at the top of the list
+            Amanuensis will load the page the current note was made on and attempt to show the selection on
+            the page. Navigating to a new page may cause Amanuensis to close. Click Alt-A again to bring
+            Amanuensis back up. It will show a list of notes taken on the current page. If the structure of the
+            page has changed greatly since the note was taken the original selection may no longer be there, or
+            Amanuensis may fail to find it. See <LinkDown to="internals">internals</LinkDown>.
+        </p>
+        <T id="tags" variant="h6">Tags <LinkUp /></T>
+        <Box m={2}>
+            <Autocomplete
+                className={tagClasses.text}
+                options={['3rd', 'singular', 'present', 'subjunctive']}
+                value={['3rd', 'singular', 'present', 'subjunctive']}
+                multiple
+                freeSolo
+                autoComplete
+                renderInput={(params) => <TextField {...params} label="Tags" placeholder="category" />}
+                renderTags={
+                    (value, getTagProps) =>
+                        value.map((obj, index) => <Chip variant="outlined" size="small" label={obj} {...getTagProps({ index })} />)
+                }
+            />
+        </Box>
+        <p>
+            Tags are whatever labels you might find useful to categorize your notes. Assuming your notes are being
+            used for language acquisition, they might be grammatical categories like gender, number, or word class &mdash;
+            verb, noun, preposition, particle. You could also use them to group notes by topic, like "music" or "household objects".
+        </p>
+        <p>
+            Tags are shared across <TabLink tab="projects" app={app}>projects</TabLink>. If you add the tag "food"
+            in your Hindi project you will find it suggested when later you go to add a tag to some note in your
+            Swahili project.
+        </p>
+        <T id="relations" variant="h6">Relations <LinkUp /></T>
+        <p>
+            Relations are a mechanism for connecting notes. Each <TabLink tab="projects" app={app}>project</TabLink> defines
+            its own set of relations. There is only one relation which can link notes across projects: "see also". The
+            see also relation is the only relation automatically defined for all projects.
+        </p>
+        <p>
+            Example relations: kind of, part of, variation of, inflectional variant of, etc. If you have a note for "cat" and
+            another note for "cats", you may want a relation to tie these notes together.
+        </p>
+        <T id="citation-list" variant="h6">Citation List <LinkUp /></T>
+        <Box m={2}>
+            <Citation
+                phrase="first example"
+                title="A Great First Example"
+                url="https://example.com/first"
+                cz="first"
+                onlyCitation={false}
+                starred={true}
+                key="first-example"
+                when={[new Date()]}
+            />
+            <Citation
+                phrase="FIRST EXAMPLE"
+                title="A Lesser Example"
+                url="https://example.com/lesser"
+                cz="current"
+                onlyCitation={false}
+                starred={false}
+                key="second-example"
+                when={[new Date()]}
+            />
+        </Box>
+        <p>
+            You may find multiple citations for the same phrase. Each of these will have its own context and may have its
+            own <LinkDown to="citation-note">citation note</LinkDown>. If you have more than one citation, you can mark
+            one of them as canonical with the <Mark starred={false} fontSize="small" /> icon or delete citations with
+            the <Clear fontSize="small" />. The citation currently displayed is highlighted. Since there is little space
+            to display this citation information, elements will likely be truncated. If you click on any element, you will
+            see its full contents.
+        </p>
+        <T id="internals" variant="h6">Internals <LinkUp /></T>
+        <p>
+            When Amanuensis creates a note on a selection it saves some information about the structure of the page
+            in order to find this selection again in the future. It saves enough information identify the selection on
+            the page as the page is at the moment, but it seeks not to save <em>too much</em> information. On
+            the one hand, extraneous information just wastes space. On the other, web pages change, so if Amanuensis
+            saves too much information it may find that some of the signposts it relies on to find the selection are
+            gone the next time it returns to the page. So Amanuensis saves a smallish but still hopefully sufficient
+            bit of structural information to relocate the selection. Among the information it saves are the textual
+            context of the selection &mdash; the text before it and after it in a smallish piece of the page.
+        </p>
+        <p>
+            If you return to a page via the <LinkDown to="navigate">navigation widget</LinkDown> but cannot retrieve
+            the selection, this process has failed. However, you may still be able to find the relevant selection on the page.
+            Amanuensis is conservative when it tries to identify the original selection. You may have more luck with your
+            eyes and human intelligence. Generally, though, Amanuensis will be able to retrieve the original selection.
+        </p>
+    </>
 }
 
 const widgetStyles = makeStyles((theme) => ({
@@ -440,6 +762,36 @@ function Nav({ app, n }: { app: App, n: Note }) {
     )
 }
 
+// for use in NoteDetails
+function DemoNav() {
+    const classes = navStyles()
+    const linkClasses = historyLinkStyles()
+    const [anchorEl, setAnchorEl] = useState<null | Element>(null);
+    const open = Boolean(anchorEl);
+    return (
+        <>
+            <span className={classes.arrow} onClick={(event) => { setAnchorEl(event.currentTarget) }}>
+                <Navigation color="primary" />
+            </span>
+            <Popover
+                open={open}
+                anchorEl={anchorEl}
+                onClose={() => setAnchorEl(null)}
+            >
+                <div className={classes.nav}>
+                    <div className={classes.focus}>
+                        <FilterCenterFocus color="primary" />
+                    </div>
+                    {["foo", "bar", "baz"].map((v) => {
+                        const cz = v === 'foo' ? `${linkClasses.root} ${linkClasses.current}` : linkClasses.root
+                        return <div key={v} className={cz}>{v}</div>
+                    })}
+                </div>
+            </Popover>
+        </>
+    )
+}
+
 const historyLinkStyles = makeStyles((theme) => ({
     root: {
         cursor: 'pointer',
@@ -481,7 +833,7 @@ const phraseStyles = makeStyles((theme) => ({
     }
 }))
 
-export function Phrase({ hasWord, phrase, trim }: { hasWord: boolean, phrase: PhraseInContext, trim?: number }) {
+export function Phrase({ hasWord = true, phrase, trim }: { hasWord?: boolean, phrase: PhraseInContext, trim?: number }) {
     const classes = phraseStyles()
     if (hasWord) {
         let { before, after } = phrase ?? {}
@@ -579,11 +931,11 @@ const citationsStyles = makeStyles((theme) => ({
 function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
     const classes = citationsStyles()
     const current = i === note.state.citationIndex
-    let cz = classes.first
+    let cz: "repeat" | "first" | "current" = 'first'
     if (current) {
-        cz = classes.current
+        cz = 'current'
     } else if (i > 0 && c.phrase === note.state.citations[i - 1].phrase) {
-        cz = classes.repeat
+        cz = 'repeat'
     }
     let cb
     if (!current) {
@@ -605,23 +957,67 @@ function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
             note.setState(changes)
         }
     }
+    return <Citation
+        key={key}
+        cz={cz}
+        phraseCallback={cb}
+        phrase={c.phrase}
+        title={c.source.title}
+        onlyCitation={onlyCitation}
+        url={c.source.url}
+        when={c.when}
+        starred={starred}
+        starCallback={makeCanonical}
+        deleteCallback={removeCitation}
+    />
+}
+
+type CitationProps = {
+    starred: boolean
+    phrase: string
+    title: string
+    url: string
+    key: string
+    when: Date[]
+    onlyCitation: boolean
+    cz: 'first' | 'current' | 'repeat'
+    phraseCallback?: () => void
+    starCallback?: () => void
+    deleteCallback?: () => void
+}
+
+// factored out of Cite to facilitate use in NoteDetails
+function Citation({
+    starred = false,
+    phrase,
+    title,
+    url,
+    key,
+    when,
+    onlyCitation = false,
+    cz = "first",
+    phraseCallback,
+    starCallback = () => { },
+    deleteCallback = () => { }
+}: CitationProps) {
+    const classes = citationsStyles()
     return (
         <Grid container spacing={1} key={key}>
-            <Grid item xs={2} className={cz} onClick={cb}>
-                <Expando text={c.phrase} id={`${key}-phrase`} className={classes.cell} />
+            <Grid item xs={2} className={classes[cz]} onClick={phraseCallback}>
+                <Expando text={phrase} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={3}>
-                <Expando text={c.source.title} id={`${key}-phrase`} className={classes.cell} />
+                <Expando text={title} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={onlyCitation ? 5 : 3}>
-                <Expando text={c.source.url} id={`${key}-phrase`} className={classes.cell} />
+                <Expando text={url} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             <Grid item xs={2} className={classes.date}>
-                <Expando text={formatDates(c.when)} id={`${key}-phrase`} className={classes.cell} />
+                <Expando text={formatDates(when)} id={`${key}-phrase`} className={classes.cell} />
             </Grid>
             {!onlyCitation && <Grid item xs={2}>
-                <Mark starred={starred} onClick={makeCanonical} fontSize="small" />
-                <Clear fontSize="small" className={classes.remover} onClick={removeCitation} />
+                <Mark starred={starred} onClick={starCallback} fontSize="small" />
+                <Clear fontSize="small" className={classes.remover} onClick={deleteCallback} />
             </Grid>}
         </Grid>
     )
