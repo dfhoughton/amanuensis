@@ -1,6 +1,6 @@
 import { App } from './App'
 import { any, nws, squish, } from './modules/util'
-import { Details, Mark, TT } from './modules/components'
+import { AboutLink, Details, Mark, TT } from './modules/components'
 import {
     Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions,
     DialogContent, DialogTitle, Grid, IconButton, makeStyles, TextField,
@@ -61,7 +61,10 @@ function Sorting({ app }: SortingProps) {
     return (
         <div className={classes.root}>
             <Details header="Sorting">
-                <p></p>
+                <p>
+
+                </p>
+                <AboutLink app={app} />
             </Details>
             {sorts.map((s) =>
                 <SorterCard

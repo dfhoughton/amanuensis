@@ -1,6 +1,7 @@
-import { Accordion, AccordionDetails, AccordionSummary, Box, Collapse, makeStyles, Popover, Typography } from '@material-ui/core'
+import { Accordion, AccordionDetails, AccordionSummary, Box, Collapse, Grid, makeStyles, Popover, Typography } from '@material-ui/core'
 import Tooltip from '@material-ui/core/Tooltip'
 import { ArrowUpward, Build, Edit, Help, Info, LocalLibrary, School, Star, StarBorder, Search, Sort } from '@material-ui/icons'
+import { resolve } from 'promise'
 import React, { ReactElement } from 'react'
 import { App, Section, Sections } from '../App'
 import { uniq, ymd } from './util'
@@ -321,5 +322,43 @@ export function TabLink({ tab, app, children }: { tab: Sections, app: App, child
         >
             {children} {icon}
         </a>
+    )
+}
+
+const aboutLinkStyles = makeStyles((theme) => ({
+    root: {
+        marginTop: theme.spacing(2),
+        width: '100%',
+    },
+    link: {
+        fontSize: 'smaller',
+    }
+}))
+
+// generate the about link, which will pop up stuff like license information in a modal
+export function AboutLink({ app }: { app: App }) {
+    const classes = aboutLinkStyles()
+    const onClick = (e: any) => {
+        e.preventDefault()
+        app.confirm({
+            title: "About Amanuensis",
+            alert: true,
+            callback: () => new Promise((resolve, _reject) => resolve(undefined)),
+            text: <>
+                More to come.
+                <a href="#" onClick={linkClick("https://github.com/dfhoughton/amanuensis#readme")}>Repository</a>
+            </>
+        })
+    }
+    const linkClick = (url: string) => (e: any) => {
+        e.preventDefault()
+        app.load(url)
+    }
+    return (
+        <Grid container direction="row" justify="flex-end" className={classes.root}>
+            <Grid item>
+                <a href="#" className={classes.link} onClick={onClick}>about</a>
+            </Grid>
+        </Grid>
     )
 }

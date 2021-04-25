@@ -44,6 +44,7 @@ interface ConfirmationState {
   title?: string,
   text?: string | ReactElement,
   ok?: string,
+  alert?: boolean,
 }
 
 interface AppState {
@@ -312,6 +313,15 @@ export class App extends React.Component<AppProps, AppState> {
     this.setState({ tab: Section.note, history, historyIndex }, callback)
   }
 
+  // for just changing the URL of the content page without highlighting anything
+  load(url: string) {
+    this.switchboard.then(
+      () => {
+        this.switchboard.port!.postMessage({ action: 'load', url })
+      }
+    )
+  }
+
   removeNote(note: NoteState) {
     const [, project] = this.switchboard.index!.findProject(note.key[0])
     this.switchboard.index?.delete({ phrase: note.citations[0].phrase, project })
@@ -437,7 +447,7 @@ function a11yProps(index: number) {
 }
 
 function ConfirmationModal({ app, confOps, cancel }: { app: App, confOps: ConfirmationState, cancel: () => void }) {
-  const { text, callback, title = "Confirm", ok = "Ok" } = confOps
+  const { text, callback, title = "Confirm", ok = "Ok", alert } = confOps
   if (!(text && callback)) {
     return null
   }
@@ -452,9 +462,9 @@ function ConfirmationModal({ app, confOps, cancel }: { app: App, confOps: Confir
         <DialogContentText id="confirm-dialog-description">{text}</DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={cancel} >
+        {!alert && <Button onClick={cancel} >
           Cancel
-        </Button>
+        </Button>}
         <Button
           onClick={
             () => {

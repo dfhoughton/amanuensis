@@ -10,7 +10,7 @@ import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, Star, U
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
 import { debounce, nws, sameNote } from './modules/util'
-import { Details, Expando, formatDates, InfoSpinner, LinkDown, LinkUp, Mark, TabLink, TT } from './modules/components'
+import { AboutLink, Details, Expando, formatDates, InfoSpinner, LinkDown, LinkUp, Mark, TabLink, TT } from './modules/components'
 import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -652,6 +652,7 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
             Amanuensis is conservative when it tries to identify the original selection. You may have more luck with your
             eyes and human intelligence. Generally, though, Amanuensis will be able to retrieve the original selection.
         </p>
+        <AboutLink app={app}/>
     </>
 }
 

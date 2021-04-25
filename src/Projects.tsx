@@ -1,6 +1,6 @@
 import React from 'react'
 import { nws } from './modules/util'
-import { Details, Mark, TT } from './modules/components'
+import { AboutLink, Details, Mark, TT } from './modules/components'
 import { App } from './App'
 import {
     Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
@@ -12,12 +12,8 @@ import { deepClone } from './modules/clone'
 import { Autocomplete, createFilterOptions } from '@material-ui/lab'
 import { normalizers } from './modules/storage'
 
-interface ProjectsProps {
-    app: App,
-}
-
 interface ProjectProps {
-    app: App
+    app: App,
 }
 
 interface ProjectState {
@@ -27,8 +23,10 @@ interface ProjectState {
 }
 
 class Projects extends React.Component<ProjectProps, ProjectState> {
-    constructor(props: ProjectsProps) {
+    app: App
+    constructor(props: ProjectProps) {
         super(props)
+        this.app = props.app
         this.state = { action: null, modifying: null, projects: {} }
     }
     componentDidMount() {
@@ -37,7 +35,7 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
     render(): React.ReactNode {
         return (
             <div className="projects" style={{ minHeight: 400 }}>
-                <ProjectDetails />
+                <ProjectDetails app={this.app} />
                 <Grid container spacing={2}>
                     {Object.entries(this.state.projects).map(([name, info]) => <ProjectCard proj={this} name={name} info={info} />)}
                 </Grid>
@@ -421,11 +419,11 @@ const detailsStyle = makeStyles((theme) => ({
     }
 }))
 
-function ProjectDetails() {
+function ProjectDetails({ app }: { app: App }) {
     const classes = detailsStyle()
     return (
         <Details header="Projects">
-            <div>
+            <>
                 <p>
                     Projects are collections of related notes. Notes always live
                     in one and only one project.
@@ -482,7 +480,8 @@ function ProjectDetails() {
                 <p>
                     Aside from the "see also" relation every relation concerns only notes in the same project.
                 </p>
-            </div>
+                <AboutLink app={app} />
+            </>
         </Details>
     )
 }

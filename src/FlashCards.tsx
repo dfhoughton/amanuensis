@@ -3,7 +3,7 @@ import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySat
 import { useHotkeys } from "react-hotkeys-hook";
 import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
-import { Details } from "./modules/components";
+import { AboutLink, Details } from "./modules/components";
 import { enkey } from "./modules/storage";
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types";
 import { pick, rando } from "./modules/util";
@@ -54,7 +54,7 @@ export default function FlashCards({ app }: { app: App }) {
     return (
         <>
             <Details header="Flashcards">
-                <DetailsContent />
+                <DetailsContent app={app}/>
             </Details>
             {!!state.notes.length && <CurrentCard app={app} state={state} setState={setState} />}
             {!state.notes.length && <NoResults state={state} app={app} />}
@@ -367,7 +367,7 @@ function NoResults({ state, app }: { state: FlashCardState, app: App }) {
 }
 
 // explanation of how flashcard stacks work
-function DetailsContent() {
+function DetailsContent({app}: {app: App}) {
     return (
         <>
             <p>
@@ -391,6 +391,7 @@ function DetailsContent() {
             <p>
                 Below each flashcard are two
             </p>
+            <AboutLink app={app} />
         </>
     )
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
 import { App, projectName } from './App'
-import { Details, InfoBox, InfoSpinner, TitleBox, TT } from './modules/components'
+import { AboutLink, Details, InfoBox, InfoSpinner, TitleBox, TT } from './modules/components'
 import { Configuration } from './modules/types'
 import { deepClone } from './modules/clone'
 
@@ -47,8 +47,10 @@ class Config extends React.Component<ConfigProps, ConfigState> {
                 <Details header="Configuration">
                     <p>
                         This is a collection of controls that affect all your
-                        notes and projects.
+                        notes and projects. Most information you need about particular
+                        configuration sections will be provided by the <InfoSpinner/> icons.
                     </p>
+                    <AboutLink app={this.app} />
                 </Details>
                 <Params config={this} />
                 <Clear config={this} />

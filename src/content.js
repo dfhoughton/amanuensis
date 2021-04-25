@@ -354,6 +354,12 @@ port.onMessage.addListener(function (msg) {
                 port.postMessage({ action: 'error', message: 'received no URL' })
             }
             break
+        case 'load': // for just going to a new URL
+            const { url } = msg
+            if (window.location.href !== url) {
+                window.location.assign(url)
+            }
+            break
         case 'select':
             const { selection: toSelect } = msg
             if (toSelect) {

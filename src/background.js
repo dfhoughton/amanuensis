@@ -22,6 +22,7 @@ function handlePopupMessage(msg) {
                 }
             })
             break
+        case 'load':
         case 'goto':
         case 'select':
             sendToContent(msg)

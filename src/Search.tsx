@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 
 import { App, Section } from './App'
 import { flatten, sameNote, uniq, ymd, any, nws, seed } from './modules/util'
-import { Details, TT, formatDates as fd, Expando } from './modules/components'
+import { Details, TT, formatDates as fd, Expando, AboutLink } from './modules/components'
 import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, SampleType, Sorter } from './modules/types'
 import { enkey } from './modules/storage'
 import { anyDifference, deepClone } from './modules/clone'
@@ -45,7 +45,7 @@ function Search({ app }: SearchProps) {
     return (
         <>
             <Details header="Search">
-                <SearchDetails />
+                <SearchDetails app={app} />
             </Details>
             <Form app={app} resetter={() => setPage(1)} />
             <Box marginTop={3}>
@@ -871,8 +871,9 @@ function SorterOption({ app, sorter, search }: { app: App, sorter: Sorter, searc
     )
 }
 
-function SearchDetails() {
+function SearchDetails({ app }: { app: App }) {
     return (<>
         More to come.
+        <AboutLink app={app} />
     </>)
 }
