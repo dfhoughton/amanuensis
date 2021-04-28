@@ -15,6 +15,7 @@ export type FlashCardState = {
     notes: NoteRecord[]       // the note records in the stack
     index: number             // -1 means there are no cards left to try
     showingGist: boolean      // is the gist the thing being tested or is it the phrase?
+    gistFirst: boolean        // is the gist the first side shown of each card
     done: Set<string>         // those cards in the stack that we are done with, either temporarily or permanently
     revealed: boolean         // whether we've flipped the current card yet
     initialize: boolean       // whether to init on render
@@ -32,6 +33,7 @@ export default function FlashCards({ app }: { app: App }) {
         notes: [],
         index: -1,
         showingGist: app.state.config.cards.first === 'gist',
+        gistFirst: app.state.config.cards.first === 'gist',
         done: new Set(),
         revealed: false,
         initialize: true,
@@ -512,6 +514,7 @@ function init(app: App, state: FlashCardState, setState: (s: FlashCardState) => 
                 s.revealed = false
                 s.done = done
                 s.showingGist = app.state.config.cards.first === 'gist'
+                s.gistFirst = app.state.config.cards.first === 'gist'
                 notes.sort(sortNotes(false, done))
                 s.notes = notes
                 s.initialize = false
@@ -543,7 +546,7 @@ function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
             s.showingGist = !s.showingGist
             s.index = -1
             s.which = 0
-            if (!s.showingGist) {
+            if (s.showingGist === s.gistFirst) {
                 // we've done both sides of the stack, recalculate total
                 s.total = remaining(s)
             }
