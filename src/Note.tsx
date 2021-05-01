@@ -4,11 +4,11 @@ import Autocomplete from '@material-ui/lab/Autocomplete'
 import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
-import { Box, Collapse, Fade, Grid, Link, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
-import { Clear, Delete, ExpandMore, FilterCenterFocus, Navigation, Save, Star, UnfoldLess, UnfoldMore } from '@material-ui/icons'
+import { Box, Collapse, Fade, Grid, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
+import { Clear, Delete, ExpandMore, FilterCenterFocus, FilterList, Navigation, Save, Search, UnfoldLess, UnfoldMore } from '@material-ui/icons'
 
 import { deepClone, anyDifference } from './modules/clone'
-import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext } from './modules/types'
+import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext, AdHocQuery } from './modules/types'
 import { debounce, nws, sameNote } from './modules/util'
 import { AboutLink, Details, Expando, formatDates, InfoSpinner, LinkDown, LinkUp, Mark, TabLink, TT } from './modules/components'
 import { App, Section, Visit } from './App'
@@ -20,10 +20,11 @@ interface NoteProps {
 }
 
 export interface NoteState extends NoteRecord {
-    unsavedContent: boolean,
-    everSaved: boolean,
-    unsavedCitation: boolean,
-    citationIndex: number,
+    unsavedContent: boolean
+    everSaved: boolean
+    unsavedCitation: boolean
+    citationIndex: number
+    similars?: string[]
 }
 
 class Note extends React.Component<NoteProps, NoteState> {
@@ -400,6 +401,9 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
                     <LinkDown to="navigate" className={classes.tocLink}>
                         <Navigation fontSize="small" color="primary" /> Navigate
                     </LinkDown>
+                    <LinkDown to="similar" className={classes.tocLink}>
+                        <FilterList fontSize="small" color="primary" /> Similar Phrases
+                    </LinkDown>
                 </Box>
                 <LinkDown to="tags" className={classes.tocLink}>Tags</LinkDown>
                 <LinkDown to="relations" className={classes.tocLink}>Relations</LinkDown>
@@ -568,6 +572,29 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
             page has changed greatly since the note was taken the original selection may no longer be there, or
             Amanuensis may fail to find it. See <LinkDown to="internals">internals</LinkDown>.
         </p>
+        <strong id="similar"><FilterList fontSize="small" color="primary" /> Similar Phrases <LinkUp /></strong>
+        <Box m={2}>
+            <Grid container spacing={1} direction="row" justify="flex-start" alignItems="center">
+                <Grid item>
+                    <DemoSimilar />
+                </Grid>
+                <Grid item>
+                    <span style={{ fontSize: 'smaller', fontStyle: "italic" }}>(click me)</span>
+                </Grid>
+            </Grid>
+        </Box>
+        <p>
+            The similar phrases widget shows a list of the top few phrases among your notes that are most
+            similar to the current note's phrase. If you click click
+            the <Search color="primary" fontSize="small" /> at the top of the list Amanuensis will send you
+            to the search tab and run a search sorting all the notes by their similarity to this phrase.
+        </p>
+        <p>
+            When you first start taking notes you are unlikely to find this widget useful. After you've taken
+            many notes you may find you have a note on both "cat" and "cats", say. The similar phrases widget
+            will allow you to find the other note and perhaps create
+            a <LinkDown to="relations">relation</LinkDown> between them.
+        </p>
         <T id="tags" variant="h6">Tags <LinkUp /></T>
         <Box m={2}>
             <Autocomplete
@@ -652,7 +679,7 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
             Amanuensis is conservative when it tries to identify the original selection. You may have more luck with your
             eyes and human intelligence. Generally, though, Amanuensis will be able to retrieve the original selection.
         </p>
-        <AboutLink app={app}/>
+        <AboutLink app={app} />
     </>
 }
 
@@ -664,15 +691,14 @@ const widgetStyles = makeStyles((theme) => ({
         fontSize: 'small',
         textAlign: 'center',
     },
-    star: {
-        cursor: "pointer",
-    },
     save: {
         cursor: "pointer",
+        display: 'block',
         color: theme.palette.warning.dark
     },
     delete: {
         cursor: "pointer",
+        display: 'block',
         color: theme.palette.error.dark
     },
 }))
@@ -698,22 +724,123 @@ function Widgets({ app, n }: { n: Note, app: App }) {
             }
         })
     }
-
-    const saveWidget = !n.state.unsavedContent ?
-        null :
-        <div onClick={() => n.save()}>
-            <TT msg="save unsaved content" placement="left">
-                <Save className={classes.save} />
-            </TT>
-        </div>
-    const deleteWidget = !n.state.everSaved ?
-        null :
-        <div onClick={t}><Delete className={classes.delete} /></div>
     return (
         <div className={classes.root}>
             <Nav app={app} n={n} />
-            {saveWidget}
-            {deleteWidget}
+            {n.state.unsavedContent && <TT msg="save unsaved content" placement="left">
+                <Save className={classes.save} onClick={() => n.save()} />
+            </TT>}
+            {n.state.everSaved && <Delete className={classes.delete} onClick={t} />}
+            {n.hasWord() && <Similar app={app} n={n} />}
+        </div>
+    )
+}
+
+const similarStyles = makeStyles((theme) => ({
+    filter: {
+        cursor: 'pointer',
+    },
+    similars: {
+        padding: theme.spacing(1)
+    },
+    fallback: {
+        fontSize: 'smaller',
+        fontStyle: 'italic',
+    },
+    search: {
+        cursor: "pointer",
+        display: "table",
+        margin: "0 auto",
+        marginBottom: theme.spacing(0.1),
+    },
+}))
+
+function Similar({ app, n }: { app: App, n: Note }) {
+    const classes = similarStyles()
+    const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
+    const [fallback, setFallback] = useState('...')
+    const open = Boolean(anchorEl);
+    const id = open ? 'similar-popover' : undefined;
+    const search: AdHocQuery = {
+        type: 'ad hoc',
+        phrase: n.currentCitation().phrase,
+        sorter: app.sorterFor(n),
+        strictness: 'similar'
+    }
+    const findSimilar = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+        setAnchorEl(e.currentTarget)
+        app.switchboard.index?.find({
+            ...search, limit: 5, // TODO make this configurable
+        })
+            .then((found) => {
+                let matches: NoteRecord[] = []
+                switch (found.type) {
+                    case 'found':
+                        matches.push(found.match)
+                        break
+                    case 'ambiguous':
+                        matches = found.matches
+                        break
+                }
+                const similars = matches.map(m => m.citations[m.canonicalCitation || 0].phrase).filter(w => w !== search.phrase)
+                setFallback(similars.length ? '' : 'none')
+                n.setState({ similars })
+            })
+    }
+    const similarSearch = () => {
+        app.setState({ tab: Section.search, search })
+    }
+    return (
+        <>
+            {app.noteCount() > 1 && <div>
+                <span className={classes.filter} onClick={findSimilar}>
+                    <FilterList color="primary" id="similar" />
+                </span>
+                <Popover
+                    id={id}
+                    open={open}
+                    anchorEl={anchorEl}
+                    onClose={() => setAnchorEl(null)}
+                >
+                    <div className={classes.similars}>
+                        {!!fallback && <div className={classes.fallback}>{fallback}</div>}
+                        {!fallback && <div className={classes.search} onClick={similarSearch}>
+                            <Search color="primary" />
+                        </div>}
+                        {(n.state.similars || []).map((v) => <div key={v}>{v}</div>)}
+                    </div>
+                </Popover>
+            </div>}
+        </>
+    )
+}
+
+function DemoSimilar() {
+    const classes = similarStyles()
+    const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
+    const open = Boolean(anchorEl);
+    const id = open ? 'demo-similar-popover' : undefined;
+    const findSimilar = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+        setAnchorEl(e.currentTarget)
+    }
+    return (
+        <div>
+            <span className={classes.filter} onClick={findSimilar}>
+                <FilterList color="primary" id="demo-similar" />
+            </span>
+            <Popover
+                id={id}
+                open={open}
+                anchorEl={anchorEl}
+                onClose={() => setAnchorEl(null)}
+            >
+                <div className={classes.similars}>
+                    <div className={classes.search}>
+                        <Search color="primary" />
+                    </div>
+                    {['food', 'foot', 'boo', 'moo'].map((v) => <div key={v}>{v}</div>)}
+                </div>
+            </Popover>
         </div>
     )
 }
@@ -820,7 +947,7 @@ function HistoryLink({ v, app, n }: { v: Visit, app: App, n: Note }) {
     const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root
     return (
         <div key={enkey(v.current.key)} onClick={callback} className={cz}>
-            {v.current.citations[0].phrase}
+            {v.current.citations[v.current.canonicalCitation || 0].phrase}
         </div>
     )
 }
@@ -930,7 +1057,6 @@ const citationsStyles = makeStyles((theme) => ({
 }))
 
 function Cite({ note, i, c }: { note: Note, i: number, c: CitationRecord }) {
-    const classes = citationsStyles()
     const current = i === note.state.citationIndex
     let cz: "repeat" | "first" | "current" = 'first'
     if (current) {

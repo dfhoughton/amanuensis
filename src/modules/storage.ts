@@ -1,6 +1,6 @@
 import { anyDifference, deepClone, deserialize, serialize } from './clone'
 import { Chrome, KeyPair, NoteRecord, ProjectInfo, ProjectIdentifier, Normalizer, Query, CitationRecord, Sorter, CardStack, Configuration } from './types'
-import { all, any, buildEditDistanceMetric, cachedSorter, none, pick, rng, sample } from './util'
+import { all, any, buildEditDistanceMetric, cachedSorter, none, rng, sample } from './util'
 
 type FindResponse =
     { type: "found", match: NoteRecord } |
@@ -37,7 +37,7 @@ export class Index {
     currentSorter: number                            // the index of the currently preferred sorter
     stacks: Map<string, CardStack>                   // the saved flashcard stacks
     config: Configuration                            // app configuration parameters
-    constructor({chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks, config}: IndexConstructorParams) {
+    constructor({ chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks, config }: IndexConstructorParams) {
         this.chrome = chrome
         this.projects = projects
         this.currentProject = currentProject
@@ -70,19 +70,19 @@ export class Index {
             try {
                 if (this.sorters.has(sorter.pk)) {
                     if (sorter.pk === 0) {
-                        throw "the Levenshtein sorter cannot be changed";
+                        throw new Error("the Levenshtein sorter cannot be changed")
                     }
                     // make sure the name is still unique
                     this.sorters.forEach((k, v) => {
                         if (v !== sorter.pk && k.name === sorter.name) {
-                            throw `the name ${k.name} is already in use`
+                            throw new Error(`the name ${k.name} is already in use`)
                         }
                     })
                 } else {
                     // find the next available primary key
                     let pk = 1
                     this.sorters.forEach((k, v) => {
-                        if (k.name === sorter.name) throw `the name ${k.name} is already in use`
+                        if (k.name === sorter.name) throw new Error(`the name ${k.name} is already in use`)
                         if (v >= pk) pk = v + 1
                     })
                     sorter.pk = pk
@@ -121,7 +121,7 @@ export class Index {
     deleteSorter(sorter: Sorter): Promise<void> {
         return new Promise((resolve, reject) => {
             if (sorter.pk === 0) {
-                throw "the Levenshtein sorter cannot be deleted"
+                throw new Error("the Levenshtein sorter cannot be deleted")
             }
             const storable: { [key: string]: any } = {}
             if (sorter.pk === this.currentSorter) {
@@ -273,7 +273,7 @@ export class Index {
                         relativePeriod = "ever",
                     } = query
                     let startTime: Date | undefined, endTime: Date | undefined
-                    if (relativeTime && relativePeriod !== "ever" || !relativeTime && (before || after)) {
+                    if ((relativeTime && relativePeriod !== "ever") || (!relativeTime && (before || after))) {
                         if (relativeTime) {
                             // initially we set the start time
                             startTime = new Date()
@@ -327,7 +327,7 @@ export class Index {
                                     )
                                     break
                                 default:
-                                    throw "unreachable"
+                                    throw new Error("unreachable")
                             }
                             if (relativeInterpretation === "on") {
                                 switch (relativePeriod) {
@@ -351,7 +351,7 @@ export class Index {
                         }
                     }
                     const [project, allProjects] = query.project?.length ?
-                        [query.project, query.project.length == this.allProjects().length] :
+                        [query.project, query.project.length === this.allProjects().length] :
                         [this.allProjects(), true]
                     let normalized: Map<number, string> | undefined
                     let fuzzyMatchers: Map<number, RegExp> | undefined
@@ -366,7 +366,7 @@ export class Index {
                             fuzzyMatchers?.set(
                                 pk,
                                 new RegExp(
-                                    key.split('').map((c) => c.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join(".*?")
+                                    key.split('').map((c) => c.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join(".*?")
                                 )
                             )
                         }
@@ -477,7 +477,6 @@ export class Index {
                                                     const trials = n.trials
                                                     let ease = 0 // without further evidence a note is assumed to be hard
                                                     if (trials) {
-                                                        let numerator = 0
                                                         for (const t of trials) {
                                                             if (t.result) ease++
                                                         }
@@ -504,7 +503,7 @@ export class Index {
                                                 m.set(0, candidates)
                                         }
                                         const keys = Array.from(m.keys()).sort()
-                                        let c : NoteRecord[] = []
+                                        let c: NoteRecord[] = []
                                         while (keys.length && c.length < query.sample) {
                                             const key = keys.shift()!
                                             const batch = m.get(key)!
@@ -512,6 +511,9 @@ export class Index {
                                         }
                                         candidates = sample(c, query.sample, rng(query.seed!))
                                         candidates.sort(fallbackSort)
+                                    }
+                                    if (query.limit) {
+                                        candidates = candidates.slice(0, query.limit)
                                     }
                                     resolve({ type: "ambiguous", matches: candidates })
                                 }
@@ -660,7 +662,7 @@ export class Index {
         return new Promise((resolve, reject) => {
             const key = enkey(note.key)
             const storable: { [key: string]: any } = {}
-            storable[key] = serialize(note)
+            storable[key] = serialize(note, 'unsavedContent', 'unsavedCitation', 'everSaved', 'citationIndex', 'similars')
             this.chrome.storage.local.set(storable, () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
@@ -986,7 +988,7 @@ export class Index {
     // delete all saved searches
     clearStacks(): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.chrome.storage.local.set({stacks: serialize(new Map())}, () => {
+            this.chrome.storage.local.set({ stacks: serialize(new Map()) }, () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
@@ -1261,7 +1263,7 @@ export class Index {
     // save a configuration change
     saveConfiguration(config: Configuration): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.chrome.storage.local.set({config: config}, () => {
+            this.chrome.storage.local.set({ config: config }, () => {
                 if (this.chrome.runtime.lastError) {
                     reject(this.chrome.runtime.lastError)
                 } else {
@@ -1272,7 +1274,7 @@ export class Index {
         })
     }
     // load a new state onto disk; remember to reload the index after this
-    load(state: {[key: string]: any}): Promise<void> {
+    load(state: { [key: string]: any }): Promise<void> {
         return new Promise((resolve, reject) => {
             this.chrome.storage.local.set(state, () => {
                 if (this.chrome.runtime.lastError) {
@@ -1285,13 +1287,13 @@ export class Index {
     }
     // produce a JSON dump of everything in chrome.storage.local
     // NOTE keep this in sync with getIndex
-    dump(): Promise<{[key: string]: any}> {
+    dump(): Promise<{ [key: string]: any }> {
         return new Promise((resolve, reject) => {
             // NOTE keep this in sync with getIndex
             const base = ['projects', 'currentProject', 'tags', 'sorters', 'currentSorter', 'stacks', 'config']
             for (const [key, map] of this.projectIndices.entries()) {
                 base.push(key.toString())
-                for ( const k2 of map.values()) {
+                for (const k2 of map.values()) {
                     base.push(enkey([key, k2]))
                 }
             }
@@ -1301,7 +1303,7 @@ export class Index {
                 } else {
                     resolve(result)
                 }
-            } )
+            })
         })
     }
 }
@@ -1339,7 +1341,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                         for (const [idx, ridx] of Object.entries(result)) {
                             projectIndices.set(Number.parseInt(idx), deserialize(ridx))
                         }
-                        resolve(new Index({chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks, config}))
+                        resolve(new Index({ chrome, projects, currentProject, projectIndices, tags, sorters, currentSorter, stacks, config }))
                     }
                 })
             }
@@ -1348,7 +1350,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
 }
 
 // this is basically the config constructor
-export function setConfigurationDefaults(obj: {[key: string]: any}): Configuration {
+export function setConfigurationDefaults(obj: { [key: string]: any }): Configuration {
     if (!obj.cards) obj.cards = {}
     const cards = obj.cards
     if (!cards.first) cards.first = "phrase"

@@ -415,6 +415,16 @@ export class App extends React.Component<AppProps, AppState> {
         })
     })
   }
+
+  // return the sorter appropriate for the note
+  sorterFor(n: Note): number {
+    // TODO determiner sorter by project
+    return 0 // for the time being, just always use the Levenshtein sorter
+  }
+
+  noteCount(): number {
+    return Array.from(this.switchboard.index?.projectIndices.values() || []).map(m => m.size).reduce((p, n) => p + n)
+  }
 }
 
 export default withStyles(styles)(App);

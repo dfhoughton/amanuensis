@@ -43,7 +43,6 @@ export type CardStack = {
 
 export type EssentialNoteBits = { key: KeyPair, citations: CitationRecord[] }
 
-// TODO put the canonical citation thing into use
 export interface NoteRecord {
     key: KeyPair                             // a convenient denormalization -- the project and phrase key identifying this note
     gist: string                             // essential notes about a phrase
@@ -150,6 +149,7 @@ export interface AdHocQuery {
     seed?: number
     sample?: number
     sampleType?: SampleType
+    limit?: number
 }
 
 export type SampleType = 'random' | 'hard' | 'novel'
