@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
 
-import { App, projectName } from './App'
-import { AboutLink, Details, InfoBox, InfoSpinner, TitleBox, TT } from './modules/components'
+import { App } from './App'
+import { AboutLink, Details, InfoBox, InfoSpinner, TitleBox } from './modules/components'
 import { Configuration } from './modules/types'
 import { deepClone } from './modules/clone'
 
-import Button from '@material-ui/core/Button'
 import { Box, Grid, IconButton, LinearProgress, makeStyles, Switch, Typography as T } from '@material-ui/core'
 import { Delete, GetApp, Publish } from '@material-ui/icons'
 import { formatNumber } from './modules/util'
@@ -119,7 +118,6 @@ function Params({ config }: { config: Config }) {
 }
 
 function DownloadUpload({ config }: { config: Config }) {
-    const [showDropzone, setShowDropzone] = useState<boolean>(false)
     const [showDownloadInfo, setShowDownloadInfo] = useState<boolean>(false)
     const [showUploadInfo, setShowUploadInfo] = useState<boolean>(false)
     const classes = paramStyles()
@@ -241,7 +239,7 @@ function Stats({ config }: { config: Config }) {
     const [showMemoryInfo, setShowMemoryInfo] = useState<boolean>(false)
     const maybeHide = config.state.initializedMemory ? {} : { display: 'none' }
     const { amountMemoryUsed: used, amountMemoryAvailable: available } = config.state;
-    const value = 100 * Math.round(used / available)
+    const value = Math.round(100 * used / available)
     return (
         <TitleBox title="Statistics" mt={3} style={maybeHide}>
             <Grid container alignItems="center" spacing={2}>
@@ -265,7 +263,7 @@ function Stats({ config }: { config: Config }) {
             <InfoBox shown={showMemoryInfo}>
                 <Box mb={1}>
                     The percentage of disk storage alloted to Amanuensis by the browser
-                    that it has used up.
+                    that it has filled.
                 </Box>
                 <Box>
                     So far {formatNumber(used)} bytes of {formatNumber(available)} have been used.
