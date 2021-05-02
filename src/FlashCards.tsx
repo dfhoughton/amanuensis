@@ -6,7 +6,7 @@ import { deepClone } from "./modules/clone";
 import { AboutLink, Details } from "./modules/components";
 import { enkey } from "./modules/storage";
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types";
-import { pick, rando } from "./modules/util";
+import { canonicalCitation, notePhrase, pick, rando } from "./modules/util";
 import { Phrase } from "./Note";
 const confetti = require('canvas-confetti')
 
@@ -77,12 +77,10 @@ export default function FlashCards({ app }: { app: App }) {
 // do this once per stack
 function prepareCelebration(state: FlashCardState, setState: (s: FlashCardState) => void, set: boolean = true) {
     const banner = pick(successStrings, Math.random)
-    console.log('banner', banner)
     const colors: string[] = []
     for (let i = 0, l = rando(20, Math.random); i < l; i++) {
         colors.push(pick(confettiColors, Math.random))
     }
-    console.log('colors', colors)
     const s : FlashCardState = set ? deepClone(state) : state
     s.banner = banner
     s.colors = colors
@@ -160,7 +158,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
         app.confirm({
             title: "Remove from all flashcard decks?",
             text: <>
-                Remove "{note.citations[note.canonicalCitation || 0].phrase}"
+                Remove "{notePhrase(note)}"
                 from all flashcard decks? You can add any removed card back
                 to the decks by clicking the <Done className={classes.good} fontSize="small" />
                 mark in search results.
@@ -172,10 +170,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                         .then(() => {
                             s.done.add(enkey(note.key))
                             next(s, setState)
-                            resolve(`
-                                Removed
-                                "${note.citations[note.canonicalCitation || 0].phrase}"
-                                from flashcard decks.`)
+                            resolve(`Removed "${notePhrase(note)}" from flashcard decks.`)
                         })
                         .catch(e => reject(e))
                 })
@@ -267,7 +262,7 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
             <FlashCard
                 gist={note.gist}
                 showingGist={s.showingGist}
-                phrase={note.citations[note.canonicalCitation || 0]}
+                phrase={canonicalCitation(note)}
                 conceal={s.conceal}
                 judgment={s.judgement}
                 onClick={flip}
@@ -718,8 +713,8 @@ function sortNotes(showingGist: boolean, done: Set<string>): (a: NoteRecord, b: 
             }
         }
         // for lack of any other determinants up to this point, use alphabetical order
-        const aCitation = a.citations[a.canonicalCitation || 0]
-        const bCitation = b.citations[b.canonicalCitation || 0]
+        const aCitation = canonicalCitation(a)
+        const bCitation = canonicalCitation(b)
         if (aCitation.phrase < bCitation.phrase) return -1
         if (bCitation.phrase < aCitation.phrase) return 1
         // this is highly unlikely, but if all else fails, show the one with the older most recent citation

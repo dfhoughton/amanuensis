@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 
-import { App, Section } from './App'
-import { flatten, sameNote, uniq, ymd, any, nws, seed } from './modules/util'
+import { App, Section, Visit } from './App'
+import { flatten, sameNote, uniq, ymd, any, nws, seed, notePhrase, nameRelation } from './modules/util'
 import { Details, TT, formatDates as fd, Expando, AboutLink } from './modules/components'
 import { AdHocQuery, allPeriods, CardStack, CitationRecord, NoteRecord, RelativePeriod, SampleType, Sorter } from './modules/types'
 import { enkey } from './modules/storage'
@@ -10,7 +10,7 @@ import { anyDifference, deepClone } from './modules/clone'
 import {
     Box, Button, Card, CardContent, Chip, Collapse, FormControl,
     FormControlLabel, Grid, IconButton, makeStyles, MenuItem, Radio,
-    RadioGroup, Switch, TextField, Typography as T
+    RadioGroup, Switch, TextField
 } from '@material-ui/core'
 import { Autocomplete, Pagination } from '@material-ui/lab'
 import { Search as SearchIcon, Visibility, Link, School, Save, Delete, Done, AllInclusive, CardGiftcard } from '@material-ui/icons'
@@ -19,7 +19,7 @@ interface SearchProps {
     app: App
 }
 
-const projectStyles = makeStyles((theme) => ({
+const searchStyles = makeStyles((theme) => ({
     message: {
         display: "table",
         margin: "0 auto",
@@ -33,11 +33,12 @@ const projectStyles = makeStyles((theme) => ({
 }))
 
 function Search({ app }: SearchProps) {
-    const classes = projectStyles();
+    const classes = searchStyles();
     const results = app.state.searchResults
     const paginate = results.length > 10
     const [page, setPage] = useState<number>(1)
     const [showSample, setShowSample] = useState<boolean>(false)
+    const [relation, setRelation] = useState<{ headRole: string, dependentRole: string, reversed: boolean }>({ headRole: "see also", dependentRole: "see also", reversed: false })
     const offset = (page - 1) * 10
     let end = offset + 10
     if (end > results.length) end = results.length
@@ -51,7 +52,7 @@ function Search({ app }: SearchProps) {
             <Box marginTop={3}>
                 {!!results.length && <ResultsInfo app={app} offset={offset} end={end} results={results} showSample={showSample} setShowSample={setShowSample} />}
                 {!results.length && <div className={classes.message}>no notes found</div>}
-                {pagedResults.map(r => <Result note={r} app={app} />)}
+                {pagedResults.map(r => <Result note={r} app={app} relation={relation} setRelation={setRelation} />)}
                 {paginate && <div className={classes.pagination}>
                     <Pagination
                         count={Math.ceil(results.length / 10)}
@@ -289,7 +290,6 @@ function Form({ app, resetter }: { app: App, resetter: () => void }) {
         setSearchDescription(null)
         app.setState({ search, searchResults: [] }, () => {
             const found = findSearch()
-            console.log('found', found)
             setSavedSearch(found)
             setSearchName(found?.name)
         })
@@ -735,7 +735,13 @@ const resultStyles = makeStyles((theme) => ({
     },
 }))
 
-export function Result({ note, app }: { note: NoteRecord, app: App }) {
+type ResultOps = {
+    note: NoteRecord
+    app: App
+    relation: { headRole: string, dependentRole: string, reversed: boolean }
+    setRelation: (r: { headRole: string, dependentRole: string, reversed: boolean }) => void
+}
+export function Result({ note, app, relation, setRelation }: ResultOps) {
     const classes = resultStyles()
     const project = app.switchboard.index!.projects.get(app.switchboard.index!.reverseProjectIndex.get(note.key[0]) || '');
     const key = enkey(note.key)
@@ -744,10 +750,10 @@ export function Result({ note, app }: { note: NoteRecord, app: App }) {
             <CardContent>
                 <Grid container spacing={1}>
                     <Grid item xs={5} className={classes.phrase}>
-                        {note.citations[0].phrase}
+                        {notePhrase(note)}
                     </Grid>
                     <Grid item xs={3} className={classes.navlinker}>
-                        <NavLinker note={note} app={app} />
+                        <NavLinker note={note} app={app} relation={relation} setRelation={setRelation} />
                     </Grid>
                     <Grid item xs={4} className={classes.project}>
                         {project!.name}
@@ -782,21 +788,68 @@ const linkerStyles = makeStyles((theme) => ({
     }
 }))
 
-function NavLinker({ note, app }: { note: NoteRecord, app: App }): React.ReactElement {
+type NavLinkerOps = {
+    note: NoteRecord
+    app: App
+    relation: { headRole: string, dependentRole: string, reversed: boolean }
+    setRelation: (r: { headRole: string, dependentRole: string, reversed: boolean }) => void
+}
+function NavLinker({ note, app, relation, setRelation }: NavLinkerOps): React.ReactElement {
     const classes = linkerStyles()
     const cn = app.currentNote()
     let link
     if (cn && cn.citations.length && !sameNote(cn, note)) {
-        const message = `link "${note.citations[0].phrase}" to "${cn.citations[0].phrase}"`
+        const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
+        const [r1, r2] = relation.reversed ? [relation.dependentRole, relation.headRole] : [relation.headRole, relation.dependentRole]
+        const relate = () => {
+            const relationMap = new Map<string, { headRole: string, dependentRole: string, reversed: boolean }>()
+            app.switchboard.index!.findProject(note.key[0])![1].relations.forEach(([headRole, dependentRole]) => {
+                relationMap.set(nameRelation(headRole, dependentRole), { headRole, dependentRole, reversed: false })
+                if (headRole !== dependentRole) {
+                    relationMap.set(nameRelation(dependentRole, headRole), { headRole, dependentRole, reversed: true })
+                }
+            })
+            app.confirm({
+                title: message,
+                text: (<>
+                    <p>
+                        What is the relation of "{notePhrase(note)}" to "{notePhrase(cn)}"?
+                    </p>
+                    <TextField
+                        select
+                        label="Relation"
+                        value={nameRelation(r1, r2)}
+                        onChange={(e) => setRelation(relationMap.get(e.target.value)!)}
+                    >
+                        {Array.from(relationMap.keys()).map(n => <MenuItem value={n} key={n}>{n}</MenuItem>)}
+                    </TextField>
+                </>),
+                callback: () => new Promise((resolve, _reject) => {
+                    const [n1, n2] = relation.reversed ? [cn, note] : [note, cn]
+                    app.switchboard.index?.relate({ phrase: n1.key, role: relation.headRole }, { phrase: n2.key, role: relation.dependentRole })
+                        .then(({ head }) => {
+                            const history: Visit[] = deepClone(app.state.history)
+                            const { current } = history[app.state.historyIndex]!
+                            current.relations = head.relations
+                            app.setState({ history }, () => {
+                                app.cleanSearch()
+                                app.cleanHistory(true)
+                                resolve(`linked ${notePhrase(note)} to ${notePhrase(cn)} via relation ${nameRelation(r1, r2)}`)
+                            })
+                        })
+                        .catch(e => app.error(e))
+                })
+            })
+        }
         link = (
             <TT msg={message}>
-                <Link color="primary" fontSize="small" className={classes.link} onClick={() => app.notify('not yet implemented')} />
+                <Link color="primary" fontSize="small" className={classes.link} onClick={relate} />
             </TT>
         )
     }
     return (
         <div>
-            <TT msg={`go to "${note.citations[0].phrase}"`}>
+            <TT msg={`go to "${notePhrase(note)}"`}>
                 <Visibility color="secondary" fontSize="small" className={classes.goto} onClick={() => app.goto(note)} />
             </TT>
             {link}
@@ -829,9 +882,9 @@ function formatTags(note: NoteRecord): string {
 }
 
 function formatUrls(note: NoteRecord, key: string): React.ReactElement[] {
-    return uniq(note.citations, (c: CitationRecord) => c.source.url).
-        sort((a, b) => a.source.url < b.source.url ? -1 : 1).
-        map((c: CitationRecord, i) => <Url c={c} i={i} key={key} />)
+    return uniq(note.citations, (c: CitationRecord) => c.source.url)
+        .sort((a, b) => a.source.url < b.source.url ? -1 : 1)
+        .map((c: CitationRecord, i) => <Url c={c} i={i} key={key} />)
 }
 
 const urlStyles = makeStyles((theme) => ({
@@ -856,7 +909,7 @@ function Url({ c, i, key }: { c: CitationRecord, i: number, key: string }) {
 }
 
 function SorterOption({ app, sorter, search }: { app: App, sorter: Sorter, search: AdHocQuery }) {
-    const selected = search.sorter === sorter.pk || search.sorter == null && app.switchboard.index!.currentSorter === sorter.pk
+    const selected = (search.sorter === sorter.pk) || ((search.sorter == null) && (app.switchboard.index!.currentSorter === sorter.pk))
     return (
         <MenuItem
             key={sorter.pk}

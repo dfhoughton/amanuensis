@@ -1,4 +1,4 @@
-import { EditDistanceProperties, EssentialNoteBits } from './types'
+import { CitationRecord, EditDistanceProperties, EssentialNoteBits, KeyPair, NoteRecord } from './types'
 
 // create a debounced version of a function
 //   debounce()(() => this.setState({ foo: 1 }))
@@ -152,9 +152,9 @@ export function sample<T>(list: T[], n: number, rng: () => number): T[] {
 }
 
 // determine note identity by comparing keypairs
-export function sameNote(n1: EssentialNoteBits, n2: EssentialNoteBits): boolean {
-    return n1.key[0] === n2.key[0] && n1.key[1] === n2.key[1]
-}
+export const sameNote= (n1: EssentialNoteBits, n2: EssentialNoteBits): boolean => sameKey(n1.key, n2.key)
+
+export const sameKey = (k1: KeyPair, k2: KeyPair): boolean => k1[0] === k2[0] && k1[1] === k2[1]
 
 // generate a modified Levenshtein distance calculator that optionally discounts modifications to the edges of words and
 // substitutions of particular characters, e.g., a vowel for a vowel, so the distance between "woman" and "women" is less than
@@ -279,3 +279,16 @@ export function formatNumber(n: number): string {
     }
     return signum + chars.reverse().join('')
 }
+
+// if NoteRecords were objects, this would be one of their methods: returns canonical citation for note
+export function canonicalCitation(n: NoteRecord): CitationRecord {
+    return n.citations[n.canonicalCitation || 0]
+}
+
+// if NoteRecords were objects, this would be one of their methods: returns canonical phrase for note
+export function notePhrase(n: NoteRecord): string {
+    return canonicalCitation(n).phrase
+}
+
+// canonical way to convert a head role and dependent role into a relation name
+export const nameRelation = (head: string, dependent: string): string => head === dependent ? head : `${head}-${dependent}`

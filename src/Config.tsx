@@ -213,8 +213,14 @@ function DownloadUpload({ config }: { config: Config }) {
                 upload
             </Grid>
             <Grid item>
-                <IconButton onClick={uploadHandler}>
+                <IconButton onClick={() => document.getElementById('uploaded-state')!.click()}>
                     <Publish color="primary" />
+                    <input
+                        id="uploaded-state"
+                        type="file"
+                        onChange={uploadHandler}
+                        hidden
+                    />
                 </IconButton>
             </Grid>
             <Grid item>

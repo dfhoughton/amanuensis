@@ -69,6 +69,12 @@ export interface ProjectInfo {
     relations: [string, string][] // the relations the project recognizes
 }
 
+// describes one end of a relationship -- the phrase related and its role in the relation
+export type RelationPart = {
+    phrase: KeyPair
+    role: string
+}
+
 export type ProjectIdentifier = string | number | ProjectInfo;
 
 export interface Normalizer {

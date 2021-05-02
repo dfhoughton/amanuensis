@@ -5,11 +5,11 @@ import Chip from '@material-ui/core/Chip'
 import TextField from '@material-ui/core/TextField'
 import { makeStyles } from '@material-ui/core/styles'
 import { Box, Collapse, Fade, Grid, Menu, MenuItem, Popover, Typography as T } from '@material-ui/core'
-import { Clear, Delete, ExpandMore, FilterCenterFocus, FilterList, Navigation, Save, Search, UnfoldLess, UnfoldMore } from '@material-ui/icons'
+import { Cancel, Clear, Delete, ExpandMore, FilterCenterFocus, FilterList, Navigation, Save, Search, UnfoldLess, UnfoldMore } from '@material-ui/icons'
 
 import { deepClone, anyDifference } from './modules/clone'
 import { NoteRecord, ContentSelection, SourceRecord, CitationRecord, KeyPair, Query, PhraseInContext, AdHocQuery } from './modules/types'
-import { debounce, nws, sameNote } from './modules/util'
+import { debounce, notePhrase, nws, sameNote } from './modules/util'
 import { AboutLink, Details, Expando, formatDates, InfoSpinner, LinkDown, LinkUp, Mark, TabLink, TT } from './modules/components'
 import { App, Section, Visit } from './App'
 import { enkey } from './modules/storage'
@@ -258,7 +258,7 @@ function Editor({ note }: { note: Note }) {
                     notesHandler={(e) => note.setState({ details: e.target.value }, note.debouncedCheckSavedState)}
                 />}
                 <Tags note={note} />
-                <Relations relations={note.state.relations} hasWord={hasWord} />
+                <Relations note={note} hasWord={hasWord} />
                 <Citations note={note} />
             </Collapse>
         </>
@@ -709,7 +709,7 @@ function Widgets({ app, n }: { n: Note, app: App }) {
     const t = () => {
         app.confirm({
             title: `Delete this note?`,
-            text: `Delete this note concerning "${n.state.citations[0].phrase}"?`,
+            text: `Delete this note concerning "${notePhrase(n.state)}"?`,
             callback: () => {
                 return new Promise((resolve, _reject) => {
                     app.removeNote(n.state)
@@ -782,7 +782,7 @@ function Similar({ app, n }: { app: App, n: Note }) {
                         matches = found.matches
                         break
                 }
-                const similars = matches.map(m => m.citations[m.canonicalCitation || 0].phrase).filter(w => w !== search.phrase)
+                const similars = matches.map(m => notePhrase(m)).filter(w => w !== search.phrase)
                 setFallback(similars.length ? '' : 'none')
                 n.setState({ similars })
             })
@@ -1230,17 +1230,79 @@ function Annotations(
     </div>
 }
 
-function Relations(props: { hasWord: boolean; relations: { [name: string]: KeyPair[] } }) {
-    if (!props.hasWord) {
-        return null
+function Relations({ note, hasWord }: { note: Note, hasWord: boolean }) {
+    const [initialize, setInitialize] = useState(true)
+    const [phraseMap, setPhraseMap] = useState(new Map<string, string>())
+    const { relations } = note.state
+    if (initialize) {
+        const keys: string[] = []
+        for (const others of Object.values(relations)) {
+            for (const k of others) {
+                keys.push(enkey(k))
+            }
+        }
+        if (keys.length) {
+            note.app.switchboard.then(() => {
+                note.app.switchboard.index!.getBatch(keys)
+                    .then((results) => {
+                        const realMap = new Map<string, string>()
+                        Object.entries(results).forEach(([key, n]) => {
+                            realMap.set(key, notePhrase(n))
+                            note.app.switchboard.index!.cache.set(key, n)
+                        })
+                        setInitialize(false)
+                        setPhraseMap(realMap)
+                    })
+                    .catch(e => note.app.error(e))
+            })
+        } else {
+            setInitialize(false)
+        }
     }
-    // TODO we need to pass in a function as well that allows the modification of relations
-    // the switchboard and project are in here to facilitate lazily loading in the instances of the relation
-    const relations = Object.entries(props.relations).map(([k, v],) => <li key={k}>{k}</li>)
+    const showSomething = hasWord && !!Object.keys(relations).length && !initialize
     return (
-        <ul className="relations">
-            {relations}
-        </ul>
+        <>
+            {!showSomething && <Box mt={2}/>}
+            {showSomething && <Box m={2}>
+                {Object.entries(relations).map(([relation, keys]) => <Grid container key={relation} spacing={2}>
+                    <Grid item container xs={3} justify="flex-end">{relation}</Grid>
+                    <Grid item xs={9}>
+                        {keys.map(k => {
+                            const key = enkey(k)
+                            return <Chip
+                                key={key}
+                                label={phraseMap.get(key)}
+                                size="small"
+                                variant="outlined"
+                                clickable
+                                onClick={() => {
+                                    // a bit of a hack -- this forces a refresh of everything -- going to sorters because it's a simplish tab
+                                    note.app.setState({tab: Section.sorters}, () => {
+                                        note.app.goto(note.app.switchboard.index!.cache.get(key)!)
+                                    })
+                                }}
+                                onDelete={() => {
+                                    note.app.switchboard.index!.unrelate(
+                                        { phrase: note.state.key, role: relation },
+                                        { phrase: k, role: note.app.switchboard.index!.reverseRelation(k[0], relation)! }
+                                    )
+                                        .then(({ head }) => {
+                                            note.setState({ relations: head.relations }, () => {
+                                                setInitialize(true)
+                                                setPhraseMap(new Map())
+                                                note.app.cleanSearch()
+                                                note.app.cleanHistory(true)
+                                            })
+                                        })
+                                        .catch(e => note.app.error(e))
+                                }}
+                                deleteIcon={<Cancel />}
+                            />
+                        })}
+                    </Grid>
+                </Grid>)}
+            </Box>}
+        </>
     );
 }
 
