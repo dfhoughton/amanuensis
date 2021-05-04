@@ -1,5 +1,5 @@
 import { Button, Collapse, Grid, IconButton, Link, makeStyles, Typography as T } from "@material-ui/core";
-import { ArrowForward, Done, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
+import { ArrowForward, Done, Edit, School, SentimentVeryDissatisfied, SentimentVerySatisfied } from "@material-ui/icons";
 import { useHotkeys } from "react-hotkeys-hook";
 import { App, Section } from "./App";
 import { deepClone } from "./modules/clone";
@@ -288,6 +288,11 @@ function CurrentCard({ app, state, setState }: { app: App, state: FlashCardState
                         onClick={removeMe}
                     >
                         <Done fontSize="large" className={classes.done} />
+                    </IconButton>
+                </Grid>
+                <Grid item>
+                    <IconButton onClick={() => app.goto(note)}>
+                        <Edit fontSize="large"/>
                     </IconButton>
                 </Grid>
                 <Grid item>

@@ -38,7 +38,7 @@ function Search({ app }: SearchProps) {
     const paginate = results.length > 10
     const [page, setPage] = useState<number>(1)
     const [showSample, setShowSample] = useState<boolean>(false)
-    const [relation, setRelation] = useState<{ headRole: string, dependentRole: string, reversed: boolean }>({ headRole: "see also", dependentRole: "see also", reversed: false })
+    const [relation, setRelation] = useState("see also")
     const offset = (page - 1) * 10
     let end = offset + 10
     if (end > results.length) end = results.length
@@ -738,8 +738,8 @@ const resultStyles = makeStyles((theme) => ({
 type ResultOps = {
     note: NoteRecord
     app: App
-    relation: { headRole: string, dependentRole: string, reversed: boolean }
-    setRelation: (r: { headRole: string, dependentRole: string, reversed: boolean }) => void
+    relation: string
+    setRelation: (r: string) => void
 }
 export function Result({ note, app, relation, setRelation }: ResultOps) {
     const classes = resultStyles()
@@ -791,16 +791,30 @@ const linkerStyles = makeStyles((theme) => ({
 type NavLinkerOps = {
     note: NoteRecord
     app: App
-    relation: { headRole: string, dependentRole: string, reversed: boolean }
-    setRelation: (r: { headRole: string, dependentRole: string, reversed: boolean }) => void
+    relation: string
+    setRelation: (r: string) => void
 }
 function NavLinker({ note, app, relation, setRelation }: NavLinkerOps): React.ReactElement {
     const classes = linkerStyles()
     const cn = app.currentNote()
     let link
     if (cn && cn.citations.length && !sameNote(cn, note)) {
+        // maybe not the most efficient, but easy to conceptualize; 
+        const parseRelation = (r: string): { headRole: string, dependentRole: string, reversed: boolean } | null => {
+            const [left, right] = r.split("-")
+            const relations = app.switchboard.index!.findProject(note.key[0])![1].relations
+            for (const [headRole, dependentRole] of relations) {
+                if (headRole === left && dependentRole === (right || left)) {
+                    return { headRole, dependentRole, reversed: false }
+                } else if (dependentRole === left) {
+                    return { headRole, dependentRole, reversed: true }
+                }
+            }
+            return null
+        }
+        const parsedRelation = parseRelation(relation)!
         const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
-        const [r1, r2] = relation.reversed ? [relation.dependentRole, relation.headRole] : [relation.headRole, relation.dependentRole]
+        const [r1, r2] = parsedRelation.reversed ? [parsedRelation.dependentRole, parsedRelation.headRole] : [parsedRelation.headRole, parsedRelation.dependentRole]
         const relate = () => {
             const relationMap = new Map<string, { headRole: string, dependentRole: string, reversed: boolean }>()
             app.switchboard.index!.findProject(note.key[0])![1].relations.forEach(([headRole, dependentRole]) => {
@@ -818,15 +832,16 @@ function NavLinker({ note, app, relation, setRelation }: NavLinkerOps): React.Re
                     <TextField
                         select
                         label="Relation"
-                        value={nameRelation(r1, r2)}
-                        onChange={(e) => setRelation(relationMap.get(e.target.value)!)}
+                        value={relation}
+                        onChange={(e) => setRelation(e.target.value)}
+                        fullWidth
                     >
                         {Array.from(relationMap.keys()).map(n => <MenuItem value={n} key={n}>{n}</MenuItem>)}
                     </TextField>
                 </>),
                 callback: () => new Promise((resolve, _reject) => {
-                    const [n1, n2] = relation.reversed ? [cn, note] : [note, cn]
-                    app.switchboard.index?.relate({ phrase: n1.key, role: relation.headRole }, { phrase: n2.key, role: relation.dependentRole })
+                    const [n1, n2] = parsedRelation.reversed ? [cn, note] : [note, cn]
+                    app.switchboard.index?.relate({ phrase: n1.key, role: parsedRelation.headRole }, { phrase: n2.key, role: parsedRelation.dependentRole })
                         .then(({ head }) => {
                             const history: Visit[] = deepClone(app.state.history)
                             const { current } = history[app.state.historyIndex]!
