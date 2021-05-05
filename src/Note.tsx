@@ -232,8 +232,20 @@ class Note extends React.Component<NoteProps, NoteState> {
 export default Note;
 
 function Editor({ note }: { note: Note }) {
+    const keyCallback = (event: KeyboardEvent, handler: any) => {
+        switch(handler.key) {
+            case 'ctrl+shift+s': // pop open similars popup
+                document.getElementById('similar-target')?.click()
+                break
+            case 'ctrl+s': // save the note
+                note.save()
+                break
+            default:
+                console.error('unhandled keyboard event, check code',{event, handler})
+        }
+    }
     // overriding the filter option so we can save while in textareas and such
-    useHotkeys('ctrl+s', (_e, _h) => note.save(), { enableOnTags: ['INPUT', 'TEXTAREA', 'SELECT'] }, [note.state])
+    useHotkeys('ctrl+s,ctrl+shift+s', keyCallback, { enableOnTags: ['INPUT', 'TEXTAREA', 'SELECT'] }, [note.state])
     const [showDetails, setShowDetails] = useState<boolean>(false)
     const hasWord = note.hasWord()
     return (
@@ -389,6 +401,7 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
                     <LinkDown to="citation-note" className={classes.tocLink}>Citation Note</LinkDown>
                     <LinkDown to="elaboration" className={classes.tocLink}>Elaboration</LinkDown>
                     <LinkDown to="hotkey" className={classes.tocLink}>Ctrl-S</LinkDown>
+                    <LinkDown to="hotkey2" className={classes.tocLink}>Ctrl-Shift-S</LinkDown>
                 </Box>
                 <LinkDown to="widgets" className={classes.tocLink}>Widgets</LinkDown>
                 <Box ml={2}>
@@ -528,6 +541,14 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
             You may use the <LinkDown to="save">save</LinkDown> widget to save changes to a note, but for convenience
             there is also a keyboard hotkey: ctrl-s. That is, if you hold down the control key and click the s key
             this will also save the note.
+        </p>
+        <strong id="hotkey2">Ctrl-Shift-S <LinkUp /></strong>
+        <p>
+            You may use the <LinkDown to="similar">similar phrases</LinkDown> widget to save changes to a note, but for convenience
+            there is also a keyboard hotkey: ctrl-shift-s. That is, if you hold down the control key and the shift key 
+            and click the s key this will also show similar phrases. This is similar to the save hotkey combination
+            because I find I generally want to do them in sequence: save and then check for similar phrases. The similar
+            key combinations make this easy.
         </p>
         <T id="widgets" variant="h6">Widgets <LinkUp /></T>
         <p>
@@ -793,8 +814,8 @@ function Similar({ app, n }: { app: App, n: Note }) {
     return (
         <>
             {app.noteCount() > 1 && <div>
-                <span className={classes.filter} onClick={findSimilar}>
-                    <FilterList color="primary" id="similar" />
+                <span id="similar-target" className={classes.filter} onClick={findSimilar}>
+                    <FilterList color="primary" />
                 </span>
                 <Popover
                     id={id}
