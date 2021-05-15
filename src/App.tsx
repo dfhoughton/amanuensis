@@ -37,12 +37,13 @@ import {
   AdHocQuery,
   Chrome,
   Configuration,
+  KeyPair,
   NoteRecord,
   Query,
 } from "./modules/types";
 import { anyDifference, deepClone } from "./modules/clone";
 import { enkey, setConfigurationDefaults } from "./modules/storage";
-import { flatten, notePhrase, sameNote } from "./modules/util";
+import { flatten, notePhrase, sameKey, sameNote } from "./modules/util";
 import Sorting from "./Sorting";
 import FlashCards, { FlashCardState } from "./FlashCards";
 
@@ -362,7 +363,7 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   // go to an existing saved note
-  goto(note: NoteRecord | NoteState, callback: () => void = () => {}) {
+  goto(note: NoteRecord | NoteState, callback: () => void = () => { }) {
     let historyIndex = 0;
     // erase the null state if it's present in the history
     const history: Visit[] = (deepClone(this.state.history) as Visit[]).filter(
@@ -417,6 +418,45 @@ export class App extends React.Component<AppProps, AppState> {
       })
       .catch((e) => this.error(e));
   }
+
+  // change a note from one project to another
+  switchProjects(note: NoteRecord, project: number): Promise<NoteRecord> {
+    return new Promise((resolve, reject) => {
+      const oldKey: KeyPair = deepClone(note.key)
+      this.switchboard.index!.switch(note, project)
+        .then(note => {
+          this.cleanSearch().catch(e => reject(e))
+          const history: Visit[] = deepClone(this.state.history)
+          for (let i = 0, l = history.length; i < l; i++) {
+            const { current, saved } = history[i]
+            if (sameKey(oldKey, current.key)) {
+              const newState: NoteState = { ...current, ...note, unsavedContent: false, unsavedCitation: false, everSaved: true }
+              history[i] = { current: deepClone(newState), saved: deepClone(newState)}
+            } else {
+              for (const ns of [current, saved]) {
+                for (let [r, pairs] of Object.entries(ns.relations)) {
+                  if (r === 'see also') {
+                    const idx = pairs.findIndex(kp => sameKey(kp, oldKey))
+                    if (idx != null) {
+                      pairs[idx] = deepClone(note.key)
+                    }
+                  } else {
+                    pairs = pairs.filter(kp => !sameKey(kp, oldKey))
+                    if (pairs.length === 0) {
+                      delete ns.relations[r]
+                    }
+                  }
+                }
+              }
+            }
+          }
+          this.setState({ history })
+          resolve(note)
+        })
+        .catch(e => reject(e))
+    })
+  }
+
   // clean up the search state after some deletion
   cleanSearch(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -432,16 +472,7 @@ export class App extends React.Component<AppProps, AppState> {
             p.splice(i, 1);
           }
         }
-        switch (p.length) {
-          case 0:
-            delete search.project;
-            break;
-          case 1:
-            search.project = p[0];
-            break;
-          default:
-            search.project = p;
-        }
+        if (!p.length) delete search.project
       }
       this.switchboard.index
         ?.find(search)
@@ -460,7 +491,7 @@ export class App extends React.Component<AppProps, AppState> {
                 changes.searchResults = [found.match];
             }
           }
-          this.setState(changes, () => resolve());
+          this.setState(changes, resolve);
         });
     });
   }

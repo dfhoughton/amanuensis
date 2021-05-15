@@ -211,7 +211,7 @@ export class Index {
                         reject(this.chrome.runtime.lastError)
                     } else {
                         const moreRecords: { [key: string]: NoteRecord } = deserialize(found)
-                        resolve({...records, ...moreRecords})
+                        resolve({ ...records, ...moreRecords })
                     }
                 })
             }
@@ -805,6 +805,50 @@ export class Index {
         })
     }
 
+    // switch a note from one project to another
+    // returns the changed note and whether other notes had to be changed
+    switch(note: NoteRecord, project: number): Promise<NoteRecord> {
+        const [, oldInfo] = this.findProject(note.key[0])
+        const [newProjectName,] = this.findProject(project)
+        const { phrase } = note.citations[note.canonicalCitation || 0]
+        return new Promise((resolve, reject) => {
+            if (note.key[0] === project) {
+                reject(`"${phrase}" is already in ${newProjectName}`) // no-op
+            } else if (this.projectIndex(phrase, project)) {
+                reject(`a note for "${phrase}" already exists in ${newProjectName}`)
+            } else {
+                const key = enkey(note.key)
+                this.cache.delete(key)
+                const keepable: KeyPair[] | undefined = note.relations['see also']
+                note.relations = {}
+                this.delete({ phrase, project: oldInfo })
+                    .then((_othersChanged) => {
+                        note.key[0] = project
+                        this.add({ phrase, project, data: note })
+                            .then(pk => {
+                                note.key = [project, pk]
+                                if (keepable) {
+                                    note.relations['see also'] = keepable
+                                    Promise.all(keepable.map(kp =>
+                                        this.relate({ phrase: note.key, role: 'see also' }, { phrase: kp, role: 'see also' })
+                                    ))
+                                        .then(() => {
+                                            this.cache.set(enkey(note.key), note)
+                                            resolve(note)
+                                        })
+                                        .catch(e => reject(e))
+                                } else {
+                                    this.cache.set(enkey(note.key), note)
+                                    resolve(note)
+                                }
+                            })
+                            .catch(e => reject(e))
+                    })
+                    .catch(e => reject(e))
+            }
+        })
+    }
+
     // boolean parameter of returned promise indicates whether other notes were modified when deleting this one
     delete({ phrase, project }: { phrase: string, project: ProjectInfo }): Promise<boolean> {
         return new Promise((resolve, reject) => {
@@ -824,25 +868,32 @@ export class Index {
                                 if (this.chrome.runtime.lastError) {
                                     reject(`failed to delete "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`)
                                 } else {
-                                    this.projectIndices.get(project.pk)?.delete(norm)
+                                    const finishUp = (others: boolean) => {
+                                        // save the altered index as well
+                                        const index = this.projectIndices.get(project.pk)!
+                                        index.delete(norm)
+                                        const m: { [key: string]: NoteRecord } = {}
+                                        m[project.pk.toString()] = serialize(index)
+                                        this.chrome.storage.local.set(m, () => {
+                                            if (this.chrome.runtime.lastError) {
+                                                reject(this.chrome.runtime.lastError)
+                                            } else {
+                                                if (note.tags.length) {
+                                                    this.resetTags()
+                                                        .then(() => resolve(others))
+                                                        .catch(e => reject(e))
+                                                } else {
+                                                    resolve(others)
+                                                }
+                                            }
+                                        })
+                                    }
                                     if (memoranda.length) {
                                         this.cache.clear() // Gordian knot solution
-                                        if (note.tags.length) {
-                                            this.resetTags()
-                                                .then(() => resolve(true))
-                                                .catch(e => reject(e))
-                                        } else {
-                                            resolve(true)
-                                        }
+                                        finishUp(true)
                                     } else {
                                         this.cache.delete(key)
-                                        if (note.tags.length) {
-                                            this.resetTags()
-                                                .then(() => resolve(false))
-                                                .catch(e => reject(e))
-                                        } else {
-                                            resolve(false)
-                                        }
+                                        finishUp(false)
                                     }
                                 }
                             })
@@ -1363,9 +1414,6 @@ export class Index {
         }
         const normalizer = r ? r.normalizer : ""
         return normalizers[normalizer || ""].code(phrase)
-    }
-    defaultNormalize(phrase: string): string {
-        return normalizers[""].code(phrase)
     }
     // clears *everything* from local storage; if promise fails error message is provided
     clear(): Promise<void> {

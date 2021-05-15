@@ -233,7 +233,7 @@ export default Note;
 
 function Editor({ note }: { note: Note }) {
     const keyCallback = (event: KeyboardEvent, handler: any) => {
-        switch(handler.key) {
+        switch (handler.key) {
             case 'ctrl+shift+s': // pop open similars popup
                 document.getElementById('similar-target')?.click()
                 break
@@ -241,7 +241,7 @@ function Editor({ note }: { note: Note }) {
                 note.save()
                 break
             default:
-                console.error('unhandled keyboard event, check code',{event, handler})
+                console.error('unhandled keyboard event, check code', { event, handler })
         }
     }
     // overriding the filter option so we can save while in textareas and such
@@ -282,6 +282,7 @@ const headerStyles = makeStyles((theme) => ({
         fontSize: 'smaller',
         fontWeight: 'bold',
         color: theme.palette.grey[500],
+        cursor: 'pointer',
     },
     date: {
         fontSize: 'smaller',
@@ -290,6 +291,10 @@ const headerStyles = makeStyles((theme) => ({
     },
     projectPicker: {
         fontSize: '12pt',
+    },
+    menuItem: {
+        fontSize: 'small',
+        minHeight: 'unset !important',
     },
     defaultProject: {
         fontStyle: "italic",
@@ -306,7 +311,7 @@ function Header({ note, show, showDetails, setShowDetails }: { note: Note, show:
     const project = note.app.switchboard.index?.reverseProjectIndex.get(realm)
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     let changer
-    if (note.state.unsavedCitation && note.app.switchboard.index!.projects.size > 1) {
+    if (note.hasWord() && note.app.switchboard.index!.projects.size > 1) {
         const open = Boolean(anchorEl);
         const handleClick = (event: React.MouseEvent<HTMLElement>) => {
             setAnchorEl(event.currentTarget);
@@ -314,16 +319,25 @@ function Header({ note, show, showDetails, setShowDetails }: { note: Note, show:
         const closer = (i: number) => {
             return () => {
                 setAnchorEl(null)
-                const key = deepClone(note.state.key)
-                key[0] = i
-                note.app.setState({ defaultProject: i }, () => {
-                    note.app.switchboard.index!.setCurrentProject(i)
-                        .then(() => note.setState({ key }))
-                })
+                if (note.state.unsavedCitation) {
+                    const key = deepClone(note.state.key)
+                    key[0] = i
+                    note.app.setState({ defaultProject: i }, () => {
+                        note.app.switchboard.index!.setCurrentProject(i)
+                            .then(() => note.setState({ key }))
+                    })
+                } else {
+                    const beforeState: NoteState = deepClone(note.state)
+                    note.app.switchProjects(note.state, i)
+                        .then(ns => {
+                            note.setState({ ...beforeState, ...ns, everSaved: true, unsavedCitation: false, unsavedContent: false })
+                        })
+                        .catch(e => note.app.error(e))
+                }
             }
         }
         changer = <>
-            <span onClick={handleClick} className={classes.projectPicker}><ExpandMore fontSize="inherit" /></span>
+            <span id='project-changer' onClick={handleClick} className={classes.projectPicker}><ExpandMore fontSize="inherit" /></span>
             <Menu
                 anchorEl={anchorEl}
                 keepMounted
@@ -332,7 +346,7 @@ function Header({ note, show, showDetails, setShowDetails }: { note: Note, show:
                 TransitionComponent={Fade}
             >
                 {Array.from(note.app.switchboard.index!.projects.values()).map((pi) =>
-                    <MenuItem key={pi.pk} onClick={closer(pi.pk)} selected={pi.pk === note.state.key[0]}>
+                    <MenuItem key={pi.pk} onClick={closer(pi.pk)} selected={pi.pk === note.state.key[0]} className={classes.menuItem}>
                         {pi.name ? pi.name : <span className={classes.defaultProject}>default</span>}
                     </MenuItem>)}
             </Menu>
@@ -342,7 +356,12 @@ function Header({ note, show, showDetails, setShowDetails }: { note: Note, show:
     return (
         <Grid container spacing={1}>
             {show && <Grid container item xs>
-                <T className={classes.project}>{project}</T>
+                <T
+                    className={classes.project}
+                    onClick={() => document.getElementById('project-changer')?.click()}
+                >
+                    {project}
+                </T>
                 {changer}
             </Grid>}
             <Grid container item xs>
@@ -545,7 +564,7 @@ function NoteDetails({ showDetails, setShowDetails, app }: { showDetails: boolea
         <strong id="hotkey2">Ctrl-Shift-S <LinkUp /></strong>
         <p>
             You may use the <LinkDown to="similar">similar phrases</LinkDown> widget to save changes to a note, but for convenience
-            there is also a keyboard hotkey: ctrl-shift-s. That is, if you hold down the control key and the shift key 
+            there is also a keyboard hotkey: ctrl-shift-s. That is, if you hold down the control key and the shift key
             and click the s key this will also show similar phrases. This is similar to the save hotkey combination
             because I find I generally want to do them in sequence: save and then check for similar phrases. The similar
             key combinations make this easy.
@@ -1283,7 +1302,7 @@ function Relations({ note, hasWord }: { note: Note, hasWord: boolean }) {
     const showSomething = hasWord && !!Object.keys(relations).length && !initialize
     return (
         <>
-            {!showSomething && <Box mt={2}/>}
+            {!showSomething && <Box mt={2} />}
             {showSomething && <Box m={2}>
                 {Object.entries(relations).map(([relation, keys]) => <Grid container key={relation} spacing={2}>
                     <Grid item container xs={3} justify="flex-end">{relation}</Grid>
@@ -1298,7 +1317,7 @@ function Relations({ note, hasWord }: { note: Note, hasWord: boolean }) {
                                 clickable
                                 onClick={() => {
                                     // a bit of a hack -- this forces a refresh of everything -- going to sorters because it's a simplish tab
-                                    note.app.setState({tab: Section.sorters}, () => {
+                                    note.app.setState({ tab: Section.sorters }, () => {
                                         note.app.goto(note.app.switchboard.index!.cache.get(key)!)
                                     })
                                 }}
