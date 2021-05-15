@@ -67,8 +67,8 @@ function escapeClass(cz) {
     }
     for (let i = 0; i < cz.length; i++) {
         const c = cz.charAt(i)
-        if (/[\w\-]/.test(c)) {
-            if (i || !/[\d\-]/.test(c)) {
+        if (/[\w-]/.test(c)) {
+            if (i || !/[\d-]/.test(c)) {
                 chars.push(c)
             } else {
                 chars.push(conv(c))
@@ -132,7 +132,7 @@ function optimalClasses(classes) {
 function descriptors(node) {
     let descriptors = [node.nodeName]
     if (node.id) {
-        descriptors.push[`${node.nodeName}#${node.id}`]
+        descriptors.push(`${node.nodeName}#${node.id}`)
     }
     let classes = classCombinations(optimalClasses(node.classList))
     if (classes) {
@@ -174,7 +174,7 @@ function simplestPath(node, suffix) {
             (a.length - b.length) ||
             (a <= b ? -1 : 1)
     })[0]
-    if (node.tagName === 'BODY' || countHits(path) == 1) {
+    if (node.tagName === 'BODY' || countHits(path) === 1) {
         if (!suffix) {
             node[pathSymbol] = path
         }
@@ -210,7 +210,7 @@ function commonParent(anchor, focus) {
     const aParents = parents(anchor), fParents = parents(focus);
     let i = 2; // skip the document and html nodes
     while (true) {
-        if (aParents[i] != fParents[i]) {
+        if (aParents[i] !== fParents[i]) {
             return aParents[i - 1]
         }
         i += 1
@@ -326,7 +326,7 @@ function highlightSelection(wrappedSelection) {
 }
 
 // to get messages back from the background
-const port = chrome.runtime.connect({
+const port = window.chrome.runtime.connect({
     name: "content"
 });
 port.postMessage({ action: 'open' })
@@ -370,5 +370,7 @@ port.onMessage.addListener(function (msg) {
                 port.postMessage({ action: 'error', message: 'received no citation' })
             }
             break
+        default:
+            console.error(`unexpected action: ${msg.action}`, msg)
     }
 });
