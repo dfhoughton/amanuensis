@@ -14,6 +14,7 @@ import {
   DialogContentText,
   DialogTitle,
   FormControl,
+  FormHelperText,
   Grid,
   InputLabel,
   makeStyles,
@@ -22,7 +23,7 @@ import {
   TextField,
   Typography as T,
 } from "@material-ui/core";
-import { Clear, Edit, FileCopy } from "@material-ui/icons";
+import { Clear, Edit, FileCopy, TextFields } from "@material-ui/icons";
 import { ProjectInfo } from "./modules/types";
 import { deepClone } from "./modules/clone";
 import { Autocomplete, createFilterOptions } from "@material-ui/lab";
@@ -57,7 +58,7 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
             <ProjectCard proj={this} name={name} info={info} />
           ))}
         </Grid>
-        <ChangeModal proj={this} />
+        <ChangeModal proj={this} app={this.app} />
         <DestroyModal proj={this} />
       </div>
     );
@@ -111,6 +112,7 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
     const action = this.state.action;
     if (action === "cloning" || action === "editing") {
       const proj = deepClone(this.state.modifying) || {};
+      console.log(proj)
       delete proj.pk;
       this.props.app.switchboard
         .index!.saveProject(proj)
@@ -188,6 +190,7 @@ function ProjectCard({
             proj.props.app.error(`Could not change default project: ${error}`)
           );
       };
+  const sorter = proj.app.switchboard.index?.sorters.get(info.sorter ?? 0)
   return (
     <Grid item xs={12} key={info.pk}>
       <Card variant="outlined">
@@ -212,6 +215,11 @@ function ProjectCard({
           <span className={classes.header}>Normalizer</span>
           <span style={{ marginLeft: "1rem" }}>
             {info.normalizer || <i>default</i>}
+          </span>
+          <br />
+          <span className={classes.header}>Sorter</span>
+          <span style={{ marginLeft: "1rem" }}>
+            {sorter?.name}
           </span>
           <br />
           <T className={classes.header}>Relations</T>
@@ -266,17 +274,16 @@ const relationFilterOptions = createFilterOptions({
   },
 });
 
-function ChangeModal({ proj }: { proj: Projects }) {
+function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
   const action = proj.state.action;
   if (!(action === "cloning" || action === "editing")) {
     return null;
   }
   const classes = changeStyles();
+  const mod = proj.state.modifying!;
   // the name may change but the primary key will not
-  const name = proj.props.app.switchboard.index!.reverseProjectIndex.get(
-    proj.state.modifying!.pk
-  );
-  const modifyingName = proj.state.modifying!.name;
+  const name = app.switchboard.index!.reverseProjectIndex.get(mod.pk);
+  const modifyingName = mod.name;
   let allRelations: [string, string][] = [];
   for (const p of Object.values(proj.state.projects)) {
     allRelations = allRelations.concat(p.relations);
@@ -294,7 +301,7 @@ function ChangeModal({ proj }: { proj: Projects }) {
     nameError = "already in use";
   }
   let relationError: string | undefined;
-  for (const [left, right] of proj.state.modifying!.relations) {
+  for (const [left, right] of mod.relations) {
     if (relationError) {
       break;
     }
@@ -307,6 +314,9 @@ function ChangeModal({ proj }: { proj: Projects }) {
       relationError = "relation names must not be blank";
     }
   }
+  const disableNormalizerChange =
+    action === "editing" &&
+    !!app.switchboard.index?.projectIndices.get(mod.pk)!.size;
   return (
     <Dialog
       open
@@ -325,27 +335,27 @@ function ChangeModal({ proj }: { proj: Projects }) {
               label="Name"
               className={classes.text}
               onChange={(e) => {
-                const modifying = deepClone(proj.state.modifying);
+                const modifying = deepClone(mod);
                 modifying.name = e.target.value;
                 proj.setState({ modifying });
               }}
               error={!!nameError}
               helperText={nameError}
               spellCheck={false}
-              defaultValue={proj.state.modifying!.name}
+              defaultValue={mod.name}
             />
             <TextField
               id="clone-form-descriptiomn"
               label="Description"
               className={classes.text}
               onChange={(e) => {
-                const modifying = deepClone(proj.state.modifying);
+                const modifying = deepClone(mod);
                 modifying.description = e.target.value;
                 proj.setState({ modifying });
               }}
               multiline
               error={false}
-              defaultValue={proj.state.modifying!.description}
+              defaultValue={mod.description}
               placeholder="Describe what this project is for"
             />
             <FormControl className={classes.text}>
@@ -353,17 +363,40 @@ function ChangeModal({ proj }: { proj: Projects }) {
                 Normalizer
               </InputLabel>
               <Select
-                labelId="change-form-normalizer-label"
                 id="change-form-normalizer"
-                value={proj.state.modifying!.normalizer}
+                value={mod.normalizer}
+                disabled={disableNormalizerChange}
                 onChange={(event) => {
-                  const modifying = deepClone(proj.state.modifying);
+                  const modifying = deepClone(mod);
                   modifying.normalizer = event.target.value;
                   proj.setState({ modifying });
                 }}
               >
-                {Object.entries(normalizers).map(([name, n], i) => (
-                  <MenuItem value={name}>{n.name}</MenuItem>
+                {Object.entries(normalizers).map(([name, n], _i) => (
+                  <MenuItem key={n.pk} value={name}>{n.name}</MenuItem>
+                ))}
+              </Select>
+              {disableNormalizerChange && (
+                <FormHelperText>
+                  once a project has notes its normalizer cannt be changed
+                </FormHelperText>
+              )}
+            </FormControl>
+            <FormControl className={classes.text}>
+              <InputLabel id="change-form-sorter-label">
+                Sorter
+              </InputLabel>
+              <Select
+                id="change-form-sorter"
+                value={mod.sorter}
+                onChange={(event) => {
+                  const modifying = deepClone(mod);
+                  modifying.sorter = Number.parseInt(event.target.value as string);
+                  proj.setState({ modifying });
+                }}
+              >
+                {Array.from(app.switchboard.index!.sorters.values()).map(sorter => (
+                  <MenuItem key={sorter.pk} value={sorter.pk}>{sorter.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -375,7 +408,7 @@ function ChangeModal({ proj }: { proj: Projects }) {
               freeSolo
               autoComplete
               limitTags={3}
-              defaultValue={proj.state.modifying!.relations}
+              defaultValue={mod.relations}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -429,7 +462,7 @@ function ChangeModal({ proj }: { proj: Projects }) {
                     relations.push(stringToRelation(r));
                   }
                 }
-                const modifying = deepClone(proj.state.modifying);
+                const modifying = deepClone(mod);
                 modifying.relations = Array.from(
                   new Set(relations.map((r) => JSON.stringify(r)))
                 ).map((r) => JSON.parse(r));

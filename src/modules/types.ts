@@ -67,6 +67,7 @@ export interface ProjectInfo {
   description: string; // a description of the project's contents
   normalizer: string; // the name of the Normalizer the project uses
   relations: [string, string][]; // the relations the project recognizes
+  sorter?: number; // the primary key of one of the sorters; will default to 0
 }
 
 // describes one end of a relationship -- the phrase related and its role in the relation

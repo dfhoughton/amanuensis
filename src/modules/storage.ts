@@ -691,9 +691,7 @@ export class Index {
   // no scan order is guaranteed
   scan(visitor: (note: NoteRecord) => void): Promise<void> {
     const queue: string[] = [];
-    console.log("what am I?", this.projectIndices);
     this.projectIndices.forEach((map, project, _indices) => {
-      console.log("and what am I?", map);
       map.forEach((pk, _norm, _index) => {
         const key = enkey([project, pk]);
         const note = this.cache.get(key);
@@ -1562,11 +1560,11 @@ export class Index {
     name,
     description = "[no description]",
     normalizer = "",
+    sorter = 0,
     relations = [["see also", "see also"]],
   }: ProjectInfo): Promise<number> {
     return new Promise((resolve, reject) => {
       // whitespace normalization
-      // TODO detect normalizer changes AND RENORMALIZE AND RE-INSERT EVERYTHING!!!
       name = name.replace(/^\s+|\s+$/g, "").replace(/\s+/, " ");
       description = description.replace(/^\s+|\s+$/g, "").replace(/\s+/, " ");
       let pk: number;
@@ -1589,6 +1587,7 @@ export class Index {
         name,
         description,
         normalizer,
+        sorter,
         relations,
       };
       this.projects.set(name, project);

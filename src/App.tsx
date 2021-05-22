@@ -141,6 +141,7 @@ const nullState: AppState = {
   config: setConfigurationDefaults({}),
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 /*global chrome*/
 declare var chrome: Chrome;
 export class App extends React.Component<AppProps, AppState> {
@@ -560,8 +561,9 @@ export class App extends React.Component<AppProps, AppState> {
 
   // return the sorter appropriate for the note
   sorterFor(n: Note): number {
-    // TODO determiner sorter by project
-    return 0; // for the time being, just always use the Levenshtein sorter
+    const [, projectInfo] =
+      this.switchboard.index?.findProject(n.state.key[0]) ?? [];
+    return projectInfo?.sorter ?? 0;
   }
 
   noteCount(): number {
