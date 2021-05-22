@@ -124,33 +124,55 @@ export function anyDifference(
 
 // do this to anything going into storage
 // NOTE no cycles!
-export function serialize(obj: any, ...except: string[]): any {
+export function serialize(
+  obj: any,
+  compressor: { [key: string]: string },
+  dontCompress: boolean, // to avoid compressing top-level keys
+  ...except: string[] // object keys to ignore
+): any {
   if (typeof obj === "object") {
     if (obj == null) {
       return null;
     } else if (obj instanceof Date) {
-      return { __class__: "Date", args: obj.getTime() };
+      return compress(
+        { __class__: "Date", args: obj.getTime() },
+        compressor,
+        false
+      );
     } else if (obj instanceof Set) {
-      return {
-        __class__: "Set",
-        args: Array.from(obj).map((v) => serialize(v)),
-      };
+      return compress(
+        {
+          __class__: "Set",
+          args: Array.from(obj).map((v) =>
+            serialize(v, compressor, false, ...except)
+          ),
+        },
+        compressor,
+        false
+      );
     } else if (obj instanceof Map) {
-      return {
-        __class__: "Map",
-        args: Array.from(obj).map(([k, v]) => [serialize(k), serialize(v)]),
-      };
+      return compress(
+        {
+          __class__: "Map",
+          args: Array.from(obj).map(([k, v]) => [
+            serialize(k, compressor, false, ...except),
+            serialize(v, compressor, false, ...except),
+          ]),
+        },
+        compressor,
+        false
+      );
     } else if (Array.isArray(obj)) {
-      return obj.map((v) => serialize(v));
+      return obj.map((v) => serialize(v, compressor, false, ...except));
     } else {
       const rv: { [key: string]: any } = {};
       for (const [k, v] of Object.entries(obj)) {
         if (typeof v === "function") continue; // we can't serialize functions
         if (except.indexOf(k) === -1) {
-          rv[k] = serialize(v);
+          rv[k] = serialize(v, compressor, false, ...except);
         }
       }
-      return rv;
+      return compress(rv, compressor, dontCompress);
     }
   } else {
     return obj;
@@ -158,24 +180,28 @@ export function serialize(obj: any, ...except: string[]): any {
 }
 
 // do this to anything coming out of storage
-export function deserialize(obj: any): any {
+export function deserialize(
+  obj: any,
+  decompressor: { [key: string]: string }
+): any {
   if (typeof obj === "object") {
     if (obj == null) {
       return null;
     } else if (Array.isArray(obj)) {
-      return obj.map((v) => deserialize(v));
+      return obj.map((v) => deserialize(v, decompressor));
     } else {
+      obj = decompress(obj, decompressor);
       switch (obj.__class__) {
         case "Date":
           return new Date(obj.args);
         case "Set":
-          return new Set(deserialize(obj.args));
+          return new Set(deserialize(obj.args, decompressor));
         case "Map":
-          return new Map(deserialize(obj.args));
+          return new Map(deserialize(obj.args, decompressor));
         default:
           const rv: { [key: string]: any } = {};
           for (const [k, v] of Object.entries(obj)) {
-            rv[k] = deserialize(v);
+            rv[k] = deserialize(v, decompressor);
           }
           return rv;
       }
@@ -183,4 +209,42 @@ export function deserialize(obj: any): any {
   } else {
     return obj;
   }
+}
+
+const chars = "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+export function compress(
+  obj: { [key: string]: any },
+  compressor: { [key: string]: string },
+  dontCompress: boolean
+): { [key: string]: any } {
+  const rv: { [key: string]: any } = {};
+  for (const [k, v] of Object.entries(obj)) {
+    let c = dontCompress ? k : /^[a-zA-Z_]/.test(k) ? compressor[k] : k;
+    if (!c) {
+      c = ".";
+      let i = Object.keys(compressor).length;
+      while (i) {
+        const r = i % chars.length;
+        c += chars.charAt(r);
+        i -= r;
+        i /= chars.length;
+      }
+      compressor[k] = c;
+    }
+    rv[c] = v;
+  }
+  return rv;
+}
+
+export function decompress(
+  obj: { [key: string]: any },
+  decompressor: { [key: string]: string }
+): { [key: string]: any } {
+  const rv: { [key: string]: any } = {};
+  for (const [k, v] of Object.entries(obj)) {
+    let c = decompressor[k] || k;
+    rv[c] = v;
+  }
+  return rv;
 }

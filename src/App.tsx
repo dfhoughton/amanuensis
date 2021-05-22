@@ -240,9 +240,13 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard
       .mounted()
       .catch((e) => this.error(`error mounting the switchboard: ${e}`));
-    this.switchboard.then(() =>
-      this.setState({ defaultProject: this.switchboard.index!.currentProject })
-    );
+    this.switchboard.then(() => {
+      this.setState({ defaultProject: this.switchboard.index!.currentProject });
+      // this.switchboard
+      //   .index!.clean()
+      //   .then((m) => this.success(m))
+      //   .catch((e) => this.error(e));
+    });
     this.switchboard.addActions("app", {
       url: ({ url }) => this.setState({ url }),
       error: ({ message }: { message: string }) => this.error(message),

@@ -45,6 +45,7 @@ type IndexConstructorParams = {
   currentSorter: number;
   stacks: Map<string, CardStack>;
   config: Configuration;
+  compressor: { [key: string]: string };
 };
 
 // an interface between the app and the Chrome storage mechanism
@@ -60,6 +61,8 @@ export class Index {
   currentSorter: number; // the index of the currently preferred sorter
   stacks: Map<string, CardStack>; // the saved flashcard stacks
   config: Configuration; // app configuration parameters
+  compressor: { [key: string]: string };
+  decompressor: { [key: string]: string };
   constructor({
     chrome,
     projects,
@@ -70,6 +73,7 @@ export class Index {
     currentSorter,
     stacks,
     config,
+    compressor,
   }: IndexConstructorParams) {
     this.chrome = chrome;
     this.projects = projects;
@@ -80,13 +84,16 @@ export class Index {
     this.currentSorter = currentSorter;
     this.stacks = stacks;
     this.config = config;
+    this.compressor = compressor;
+    this.decompressor = {};
+    for (const [k, v] of Object.entries(compressor)) this.decompressor[v] = k;
     if (this.projectIndices.size === 0) {
       // add the default project
       const project = makeDefaultProject();
       this.projects.set(project.name, project);
       this.projectIndices.set(project.pk, new Map());
       const storable = { projects: this.projects };
-      this.chrome.storage.local.set(serialize(storable));
+      this.chrome.storage.local.set(serialize(storable, this.compressor, true));
     }
     if (this.sorters.size === 0) {
       const lev: Sorter = makeDefaultSorter();
@@ -97,6 +104,29 @@ export class Index {
       this.reverseProjectIndex.set(value.pk, key)
     );
     this.cache = new Map();
+  }
+
+  // store any new keys added to the compressor
+  checkCompressor(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (
+        Object.keys(this.compressor).length ===
+        Object.keys(this.decompressor).length
+      ) {
+        resolve();
+      } else {
+        this.decompressor = {};
+        for (const [k, v] of Object.entries(this.compressor))
+          this.decompressor[v] = k;
+        this.chrome.storage.local.set({ compressor: this.compressor }, () => {
+          if (this.chrome.runtime.lastError) {
+            reject(this.chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      }
+    });
   }
 
   saveSorter(sorter: Sorter): Promise<number> {
@@ -126,12 +156,14 @@ export class Index {
         sorter.metric = buildEditDistanceMetric(sorter);
         this.sorters.set(sorter.pk, sorter);
         this.chrome.storage.local.set(
-          { sorters: serialize(this.sorters) },
+          { sorters: serialize(this.sorters, this.compressor, false) },
           () => {
             if (this.chrome.runtime.lastError) {
               reject(this.chrome.runtime.lastError);
             } else {
-              resolve(sorter.pk);
+              this.checkCompressor()
+                .then(() => resolve(sorter.pk))
+                .catch(reject);
             }
           }
         );
@@ -168,12 +200,12 @@ export class Index {
         storable.currentSorter = 0;
       }
       this.sorters.delete(sorter.pk);
-      storable.sorters = serialize(this.sorters);
+      storable.sorters = serialize(this.sorters, this.compressor, false);
       this.chrome.storage.local.set(storable, () => {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError);
         } else {
-          resolve();
+          this.checkCompressor().then(resolve).catch(reject);
         }
       });
     });
@@ -249,8 +281,10 @@ export class Index {
           if (this.chrome.runtime.lastError) {
             reject(this.chrome.runtime.lastError);
           } else {
-            const moreRecords: { [key: string]: NoteRecord } =
-              deserialize(found);
+            const moreRecords: { [key: string]: NoteRecord } = deserialize(
+              found,
+              this.decompressor
+            );
             resolve({ ...records, ...moreRecords });
           }
         });
@@ -300,7 +334,7 @@ export class Index {
                 } else {
                   for (let i = 0; i < keys.length; i++) {
                     const key = stringKeys[i];
-                    const note = deserialize(found[key]);
+                    const note = deserialize(found[key], this.decompressor);
                     this.cache.set(key, deepClone(note)); // cache it so we don't have to look it up next time
                     rv.push(note);
                   }
@@ -322,7 +356,7 @@ export class Index {
             tags,
             before,
             after,
-            strictness = "fuzzy",
+            strictness = "exact",
             relativeTime = true,
             relativeInterpretation = "since",
             relativePeriod = "ever",
@@ -638,15 +672,18 @@ export class Index {
         }
       })
         .then(() => {
-          this.chrome.storage.local.set(serialize({ tags: this.tags }), () => {
-            if (this.chrome.runtime.lastError) {
-              reject(`could not save tags: ${this.chrome.runtime.lastError}`);
-            } else {
-              resolve();
+          this.chrome.storage.local.set(
+            serialize({ tags: this.tags }, this.compressor, false),
+            () => {
+              if (this.chrome.runtime.lastError) {
+                reject(`could not save tags: ${this.chrome.runtime.lastError}`);
+              } else {
+                this.checkCompressor().then(resolve).catch(reject);
+              }
             }
-          });
+          );
         })
-        .catch((e) => reject(e));
+        .catch(reject);
     });
   }
 
@@ -654,7 +691,9 @@ export class Index {
   // no scan order is guaranteed
   scan(visitor: (note: NoteRecord) => void): Promise<void> {
     const queue: string[] = [];
+    console.log("what am I?", this.projectIndices);
     this.projectIndices.forEach((map, project, _indices) => {
+      console.log("and what am I?", map);
       map.forEach((pk, _norm, _index) => {
         const key = enkey([project, pk]);
         const note = this.cache.get(key);
@@ -674,7 +713,7 @@ export class Index {
               reject(this.chrome.runtime.lastError);
             } else {
               for (const note of Object.values(found)) {
-                visitor(deserialize(note) as NoteRecord);
+                visitor(deserialize(note, this.decompressor) as NoteRecord);
               }
               visitBatch();
             }
@@ -759,22 +798,29 @@ export class Index {
         }
       }
       // store the phrase itself
-      storable[enkey(keyPair)] = serialize(
-        data,
-        "unsavedContent",
-        "unsavedCitation",
-        "everSaved",
-        "citationIndex",
-        "similars"
-      );
-      this.chrome.storage.local.set(serialize(storable), () => {
-        // FIXME
-        if (this.chrome.runtime.lastError) {
-          reject(this.chrome.runtime.lastError);
-        } else {
-          resolve(pk);
+      storable[enkey(keyPair)] = data;
+      this.chrome.storage.local.set(
+        serialize(
+          storable,
+          this.compressor,
+          true,
+          "unsavedContent",
+          "unsavedCitation",
+          "everSaved",
+          "citationIndex",
+          "similars"
+        ),
+        () => {
+          // FIXME
+          if (this.chrome.runtime.lastError) {
+            reject(this.chrome.runtime.lastError);
+          } else {
+            this.checkCompressor()
+              .then(() => resolve(pk))
+              .catch(reject);
+          }
         }
-      });
+      );
     });
   }
 
@@ -815,8 +861,11 @@ export class Index {
               const hn = found[headKey];
               const dn = found[dependentKey];
               if (hn && dn) {
-                const headNote: NoteRecord = deserialize(hn);
-                const dependentNote: NoteRecord = deserialize(dn);
+                const headNote: NoteRecord = deserialize(hn, this.decompressor);
+                const dependentNote: NoteRecord = deserialize(
+                  dn,
+                  this.decompressor
+                );
                 const headRelations = headNote.relations[head.role] || [];
                 const dependentRelations =
                   dependentNote.relations[dependent.role] || [];
@@ -837,17 +886,27 @@ export class Index {
                   const storable: any = {};
                   storable[headKey] = headNote;
                   storable[dependentKey] = dependentNote;
-                  this.chrome.storage.local.set(serialize(storable), () => {
-                    if (this.chrome.runtime.lastError) {
-                      reject(
-                        `could not store phrases after establishing relation: ${this.chrome.runtime.lastError}`
-                      );
-                    } else {
-                      this.cache.set(headKey, headNote);
-                      this.cache.set(dependentKey, dependentNote);
-                      resolve({ head: headNote, dependent: dependentNote });
+                  this.chrome.storage.local.set(
+                    serialize(storable, this.compressor, true),
+                    () => {
+                      if (this.chrome.runtime.lastError) {
+                        reject(
+                          `could not store phrases after establishing relation: ${this.chrome.runtime.lastError}`
+                        );
+                      } else {
+                        this.checkCompressor()
+                          .then(() => {
+                            this.cache.set(headKey, headNote);
+                            this.cache.set(dependentKey, dependentNote);
+                            resolve({
+                              head: headNote,
+                              dependent: dependentNote,
+                            });
+                          })
+                          .catch(reject);
+                      }
                     }
-                  });
+                  );
                 }
               } else if (hn) {
                 reject("the dependent phrase has not been stored");
@@ -899,8 +958,11 @@ export class Index {
               const hn = found[headKey];
               const dn = found[dependentKey];
               if (hn && dn) {
-                const headNote: NoteRecord = deserialize(hn);
-                const dependentNote: NoteRecord = deserialize(dn);
+                const headNote: NoteRecord = deserialize(hn, this.decompressor);
+                const dependentNote: NoteRecord = deserialize(
+                  dn,
+                  this.decompressor
+                );
                 const headRelations = headNote.relations[head.role] || [];
                 const dependentRelations =
                   dependentNote.relations[dependent.role] || [];
@@ -937,17 +999,27 @@ export class Index {
                   const storable: any = {};
                   storable[headKey] = headNote;
                   storable[dependentKey] = dependentNote;
-                  this.chrome.storage.local.set(serialize(storable), () => {
-                    if (this.chrome.runtime.lastError) {
-                      reject(
-                        `could not store phrases after disestablishing relation: ${this.chrome.runtime.lastError}`
-                      );
-                    } else {
-                      this.cache.set(headKey, headNote);
-                      this.cache.set(dependentKey, dependentNote);
-                      resolve({ head: headNote, dependent: dependentNote });
+                  this.chrome.storage.local.set(
+                    serialize(storable, this.compressor, true),
+                    () => {
+                      if (this.chrome.runtime.lastError) {
+                        reject(
+                          `could not store phrases after disestablishing relation: ${this.chrome.runtime.lastError}`
+                        );
+                      } else {
+                        this.checkCompressor()
+                          .then(() => {
+                            this.cache.set(headKey, headNote);
+                            this.cache.set(dependentKey, dependentNote);
+                            resolve({
+                              head: headNote,
+                              dependent: dependentNote,
+                            });
+                          })
+                          .catch(reject);
+                      }
                     }
-                  });
+                  );
                 }
               } else if (hn) {
                 reject("the dependent phrase has not been stored");
@@ -1049,19 +1121,27 @@ export class Index {
                     // save the altered index as well
                     const index = this.projectIndices.get(project.pk)!;
                     index.delete(norm);
-                    const m: { [key: string]: NoteRecord } = {};
-                    m[project.pk.toString()] = serialize(index);
+                    const m: any = {};
+                    m[project.pk.toString()] = serialize(
+                      index,
+                      this.compressor,
+                      false
+                    );
                     this.chrome.storage.local.set(m, () => {
                       if (this.chrome.runtime.lastError) {
                         reject(this.chrome.runtime.lastError);
                       } else {
-                        if (note.tags.length) {
-                          this.resetTags()
-                            .then(() => resolve(others))
-                            .catch((e) => reject(e));
-                        } else {
-                          resolve(others);
-                        }
+                        this.checkCompressor()
+                          .then(() => {
+                            if (note.tags.length) {
+                              this.resetTags()
+                                .then(() => resolve(others))
+                                .catch(reject);
+                            } else {
+                              resolve(others);
+                            }
+                          })
+                          .catch(reject);
                       }
                     });
                   };
@@ -1078,15 +1158,18 @@ export class Index {
             // remove from any related notes the relations concerning this note
             const continuation3 = () => {
               if (Object.keys(memoranda).length) {
-                this.chrome.storage.local.set(serialize(memoranda), () => {
-                  if (this.chrome.runtime.lastError) {
-                    reject(
-                      `could not store changes to notes affected by the deletion of "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`
-                    );
-                  } else {
-                    continuation2();
+                this.chrome.storage.local.set(
+                  serialize(memoranda, this.compressor, true),
+                  () => {
+                    if (this.chrome.runtime.lastError) {
+                      reject(
+                        `could not store changes to notes affected by the deletion of "${phrase}" from ${project.name}: ${this.chrome.runtime.lastError}`
+                      );
+                    } else {
+                      this.checkCompressor().then(continuation2).catch(reject);
+                    }
                   }
-                });
+                );
               } else {
                 continuation2();
               }
@@ -1135,7 +1218,7 @@ export class Index {
                     );
                   } else {
                     for (let [key, note] of found) {
-                      note = deserialize(note);
+                      note = deserialize(note, this.decompressor);
                       const [end, pair] = sought[key];
                       removeRelation(end, pair, note);
                     }
@@ -1157,7 +1240,7 @@ export class Index {
                   `could not retrieve note to be deleted for ${phrase} in ${project.name}: ${this.chrome.runtime.lastError}`
                 );
               } else {
-                note = deserialize(found[key]) as NoteRecord;
+                note = deserialize(found[key], this.decompressor) as NoteRecord;
                 continuation1(note);
               }
             });
@@ -1228,13 +1311,16 @@ export class Index {
               } else {
                 delete data2.relations[relation];
               }
-              this.chrome.storage.local.set(serialize(storable), () => {
-                if (this.chrome.runtime.lastError) {
-                  reject(this.chrome.runtime.lastError);
-                } else {
-                  resolve();
+              this.chrome.storage.local.set(
+                serialize(storable, this.compressor, true),
+                () => {
+                  if (this.chrome.runtime.lastError) {
+                    reject(this.chrome.runtime.lastError);
+                  } else {
+                    this.checkCompressor().then(resolve).catch(reject);
+                  }
                 }
-              });
+              );
             } else {
               reject(
                 `could not find the reversed relation for ${relation} in ${projectName}`
@@ -1250,7 +1336,10 @@ export class Index {
               if (this.chrome.runtime.lastError) {
                 reject(this.chrome.runtime.lastError);
               } else {
-                other = deserialize(found[otherKey]) as NoteRecord;
+                other = deserialize(
+                  found[otherKey],
+                  this.decompressor
+                ) as NoteRecord;
                 this.cache.set(otherKey, other);
                 continuation(other);
               }
@@ -1350,15 +1439,19 @@ export class Index {
         adHoc = newStacks.get("");
         newStacks.delete("");
       }
-      const storable = { stacks: serialize(newStacks) };
+      const storable = { stacks: serialize(newStacks, this.compressor, false) };
       this.chrome.storage.local.set(storable, () => {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError);
         } else {
-          this.stacks = newStacks;
-          // restore the ad hoc stack
-          if (adHoc) newStacks.set("", adHoc);
-          resolve();
+          this.checkCompressor()
+            .then(() => {
+              this.stacks = newStacks;
+              // restore the ad hoc stack
+              if (adHoc) newStacks.set("", adHoc);
+              resolve();
+            })
+            .catch(reject);
         }
       });
     });
@@ -1369,13 +1462,19 @@ export class Index {
       if (this.stacks.has(name)) {
         const newStacks: Map<string, CardStack> = deepClone(this.stacks);
         newStacks.delete(name);
-        const storable = { stacks: serialize(newStacks) };
+        const storable = {
+          stacks: serialize(newStacks, this.compressor, false),
+        };
         this.chrome.storage.local.set(storable, () => {
           if (this.chrome.runtime.lastError) {
             reject(this.chrome.runtime.lastError);
           } else {
-            this.stacks = newStacks;
-            resolve();
+            this.checkCompressor()
+              .then(() => {
+                this.stacks = newStacks;
+                resolve();
+              })
+              .catch(reject);
           }
         });
       } else {
@@ -1386,13 +1485,16 @@ export class Index {
   // delete all saved searches
   clearStacks(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.chrome.storage.local.set({ stacks: serialize(new Map()) }, () => {
-        if (this.chrome.runtime.lastError) {
-          reject(this.chrome.runtime.lastError);
-        } else {
-          resolve();
+      this.chrome.storage.local.set(
+        { stacks: serialize(new Map(), this.compressor, false) },
+        () => {
+          if (this.chrome.runtime.lastError) {
+            reject(this.chrome.runtime.lastError);
+          } else {
+            this.checkCompressor().then(resolve).catch(reject);
+          }
         }
-      });
+      );
     });
   }
   // convert a project in any representation, name, index, or info, into a [name, info] pair
@@ -1491,13 +1593,18 @@ export class Index {
       };
       this.projects.set(name, project);
       storable.projects = this.projects;
-      this.chrome.storage.local.set(serialize(storable), () => {
-        if (this.chrome.runtime.lastError) {
-          reject(this.chrome.runtime.lastError);
-        } else {
-          resolve(pk);
+      this.chrome.storage.local.set(
+        serialize(storable, this.compressor, true),
+        () => {
+          if (this.chrome.runtime.lastError) {
+            reject(this.chrome.runtime.lastError);
+          } else {
+            this.checkCompressor()
+              .then(() => resolve(pk))
+              .catch(reject);
+          }
         }
-      });
+      );
     });
   }
   removeProject(project: ProjectIdentifier): Promise<void> {
@@ -1550,20 +1657,27 @@ export class Index {
               }
               memoranda.projects = this.projects;
               // now we need to save the changes
-              this.chrome.storage.local.set(serialize(memoranda), () => {
-                if (this.chrome.runtime.lastError) {
-                  reject(
-                    `all the notes in ${projectInfo.name} have been deleted, but some changes could not be saved: ${this.chrome.runtime.lastError}`
-                  );
-                } else {
-                  for (const key of found) {
-                    this.cache.delete(key);
+              this.chrome.storage.local.set(
+                serialize(memoranda, this.compressor, true),
+                () => {
+                  if (this.chrome.runtime.lastError) {
+                    reject(
+                      `all the notes in ${projectInfo.name} have been deleted, but some changes could not be saved: ${this.chrome.runtime.lastError}`
+                    );
+                  } else {
+                    this.checkCompressor()
+                      .then(() => {
+                        for (const key of found) {
+                          this.cache.delete(key);
+                        }
+                        this.resetTags()
+                          .then(() => resolve())
+                          .catch(reject);
+                      })
+                      .catch(reject);
                   }
-                  this.resetTags()
-                    .then(() => resolve())
-                    .catch((e) => reject(e));
                 }
-              });
+              );
             }
           });
         };
@@ -1586,7 +1700,10 @@ export class Index {
               reject(this.chrome.runtime.lastError);
             } else {
               for (const [key, note] of Object.entries(found)) {
-                adjustables.push([key, deserialize(note) as NoteRecord]);
+                adjustables.push([
+                  key,
+                  deserialize(note, this.decompressor) as NoteRecord,
+                ]);
               }
               continuation2();
             }
@@ -1601,7 +1718,7 @@ export class Index {
             reject(this.chrome.runtime.lastError);
           } else {
             for (const note of Object.values(found)) {
-              notes.push(deserialize(note) as NoteRecord);
+              notes.push(deserialize(note, this.decompressor) as NoteRecord);
             }
             continuation1();
           }
@@ -1694,7 +1811,7 @@ export class Index {
   }
   // produce a JSON dump of everything in chrome.storage.local
   // NOTE keep this in sync with getIndex
-  dump(): Promise<{ [key: string]: any }> {
+  dump(readable = false): Promise<{ [key: string]: any }> {
     return new Promise((resolve, reject) => {
       // NOTE keep this in sync with getIndex
       const base = [
@@ -1705,6 +1822,7 @@ export class Index {
         "currentSorter",
         "stacks",
         "config",
+        "compressor",
       ];
       for (const [key, map] of this.projectIndices.entries()) {
         base.push(key.toString());
@@ -1716,7 +1834,94 @@ export class Index {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError);
         } else {
-          resolve(result);
+          resolve(readable ? deserialize(result, this.decompressor) : result);
+        }
+      });
+    });
+  }
+
+  // really this doesn't need to be exposed, because things will stay clean, but when I
+  // implement changes to make things *cleaner* I can run this to tidy stuff up
+  clean(): Promise<string> {
+    console.log("current state of compressor", this.compressor);
+    return new Promise((resolve, reject) => {
+      // remove things from the indices that are no longer stored
+      const findables: string[] = [];
+      for (const [pk, map] of this.projectIndices) {
+        for (const k of map.values()) {
+          findables.push(enkey([pk, k]));
+        }
+      }
+      let removedFromIndex = 0;
+      this.chrome.storage.local.get(findables, (result) => {
+        if (this.chrome.runtime.lastError) {
+          reject(this.chrome.runtime.lastError);
+        } else {
+          const broken = new Set<number>();
+          for (const kp of findables) {
+            if (!result[kp]) {
+              const [n1, n2] = kp.split(":")[0];
+              const pk = Number.parseInt(n2);
+              const project = Number.parseInt(n1);
+              let key;
+              for (const [k, v] of this.projectIndices.get(project)!) {
+                if (v === pk) {
+                  key = k;
+                  break;
+                }
+              }
+              if (key != null) {
+                this.projectIndices.get(project)!.delete(key);
+                broken.add(project);
+                removedFromIndex++;
+              }
+            }
+          }
+          // what to do after cleaning the indices
+          // compress all notes
+          const continuation1 = () => {
+            this.checkCompressor()
+              .then(() => {
+                const memoranda: any = {};
+                this.scan((n) => {
+                  memoranda[enkey(n.key)] = n;
+                })
+                  .then(() => {
+                    this.chrome.storage.local.set(
+                      serialize(memoranda, this.compressor, false),
+                      () => {
+                        if (this.chrome.runtime.lastError) {
+                          reject(this.chrome.runtime.lastError);
+                        } else {
+                          resolve(
+                            `All notes have passed through the compressor. Bad entries removed from indices: ${removedFromIndex}.`
+                          );
+                        }
+                      }
+                    );
+                  })
+                  .catch(reject);
+              })
+              .catch(reject);
+          };
+          if (broken.size) {
+            const memoranda: any = {};
+            for (const pk of broken) {
+              memoranda[pk] = this.projectIndices.get(pk);
+            }
+            this.chrome.storage.local.set(
+              serialize(memoranda, this.compressor, true),
+              () => {
+                if (this.chrome.runtime.lastError) {
+                  reject(this.chrome.runtime.lastError);
+                } else {
+                  continuation1();
+                }
+              }
+            );
+          } else {
+            continuation1();
+          }
         }
       });
     });
@@ -1726,64 +1931,78 @@ export class Index {
 // get an API to handle all storage needs
 export function getIndex(chrome: Chrome): Promise<Index> {
   return new Promise((resolve, reject) => {
-    chrome.storage.local.get(
-      [
-        "projects",
-        "currentProject",
-        "tags",
-        "sorters",
-        "currentSorter",
-        "stacks",
-        "config",
-      ],
-      (result) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          let {
-            projects = new Map(),
-            currentProject = 0,
-            tags = new Set(),
-            sorters = new Map(),
-            currentSorter = 0,
-            stacks = new Map(),
-            config = {},
-          } = deserialize(result) || {};
-          config = setConfigurationDefaults(config);
-          for (const v of sorters.values()) {
-            v.metric = buildEditDistanceMetric(v);
-          }
-          // now that we have the project we can fetch the project indices
-          const indices: string[] = [];
-          for (const [, projectInfo] of projects) {
-            indices.push(projectInfo.pk.toString());
-          }
-          chrome.storage.local.get(indices, (result) => {
+    chrome.storage.local.get(["compressor"], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        const { compressor = {} } = result;
+        const decompressor: { [key: string]: string } = {};
+        for (const [k, v] of Object.entries(compressor))
+          decompressor[v as string] = k;
+        chrome.storage.local.get(
+          [
+            "projects",
+            "currentProject",
+            "tags",
+            "sorters",
+            "currentSorter",
+            "stacks",
+            "config",
+          ],
+          (result) => {
             if (chrome.runtime.lastError) {
               reject(chrome.runtime.lastError);
             } else {
-              const projectIndices = new Map();
-              for (const [idx, ridx] of Object.entries(result)) {
-                projectIndices.set(Number.parseInt(idx), deserialize(ridx));
+              let {
+                projects = new Map(),
+                currentProject = 0,
+                tags = new Set(),
+                sorters = new Map(),
+                currentSorter = 0,
+                stacks = new Map(),
+                config = {},
+              } = deserialize(result, decompressor) || {};
+              config = setConfigurationDefaults(config);
+              for (const v of sorters.values()) {
+                v.metric = buildEditDistanceMetric(v);
               }
-              resolve(
-                new Index({
-                  chrome,
-                  projects,
-                  currentProject,
-                  projectIndices,
-                  tags,
-                  sorters,
-                  currentSorter,
-                  stacks,
-                  config,
-                })
-              );
+              // now that we have the project we can fetch the project indices
+              const indices: string[] = [];
+              for (const [, projectInfo] of projects) {
+                indices.push(projectInfo.pk.toString());
+              }
+              chrome.storage.local.get(indices, (result) => {
+                if (chrome.runtime.lastError) {
+                  reject(chrome.runtime.lastError);
+                } else {
+                  const projectIndices = new Map();
+                  for (const [idx, ridx] of Object.entries(result)) {
+                    projectIndices.set(
+                      Number.parseInt(idx),
+                      deserialize(ridx, decompressor)
+                    );
+                  }
+                  resolve(
+                    new Index({
+                      chrome,
+                      projects,
+                      currentProject,
+                      projectIndices,
+                      tags,
+                      sorters,
+                      currentSorter,
+                      stacks,
+                      config,
+                      compressor,
+                    })
+                  );
+                }
+              });
             }
-          });
-        }
+          }
+        );
       }
-    );
+    });
   });
 }
 
