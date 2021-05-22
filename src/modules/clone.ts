@@ -135,14 +135,14 @@ export function serialize(
       return null;
     } else if (obj instanceof Date) {
       return compress(
-        { __class__: "Date", args: obj.getTime() },
+        { __class__: "D", args: obj.getTime() },
         compressor,
         false
       );
     } else if (obj instanceof Set) {
       return compress(
         {
-          __class__: "Set",
+          __class__: "S",
           args: Array.from(obj).map((v) =>
             serialize(v, compressor, false, ...except)
           ),
@@ -153,7 +153,7 @@ export function serialize(
     } else if (obj instanceof Map) {
       return compress(
         {
-          __class__: "Map",
+          __class__: "M",
           args: Array.from(obj).map(([k, v]) => [
             serialize(k, compressor, false, ...except),
             serialize(v, compressor, false, ...except),
@@ -192,10 +192,14 @@ export function deserialize(
     } else {
       obj = decompress(obj, decompressor);
       switch (obj.__class__) {
+        // TODO remove long options when all notes properly compressed
+        case "D":
         case "Date":
           return new Date(obj.args);
+        case "S":
         case "Set":
           return new Set(deserialize(obj.args, decompressor));
+        case "M":
         case "Map":
           return new Map(deserialize(obj.args, decompressor));
         default:

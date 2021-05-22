@@ -56,7 +56,7 @@ export interface NoteRecord {
 }
 
 export type Trial = {
-  type: "gist" | "phrase"; // the part tested
+  type: "g" | "p"; // the part tested
   result: boolean; // true means success
   when: Date;
 };

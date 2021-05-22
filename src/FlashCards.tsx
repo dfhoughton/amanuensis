@@ -558,6 +558,20 @@ function init(
           );
         const done: Set<string> = new Set();
         for (const n of notes) {
+          // TODO remove this when all trials cleaned out
+          if (n.trials) {
+            // clean pre-compression data -- not possible except in my own broken data
+            for (const t of n.trials) {
+              switch (t.type as any) {
+                case "phrase":
+                  t.type = "p";
+                  break;
+                case "gist":
+                  t.type = "g";
+                  break;
+              }
+            }
+          }
           if (n.done) {
             done.add(enkey(n.key));
           }
@@ -639,11 +653,11 @@ function addTrial(
   note.trials.unshift({
     result: judgement,
     when: new Date(),
-    type: state.showingGist ? "gist" : "phrase",
+    type: state.showingGist ? "g" : "p",
   });
   // success with both sides?
-  const shownFirst = app.state.config.cards.first;
-  const flipped = state.showingGist === (shownFirst === "gist" ? false : true);
+  const shownFirst = app.state.config.cards.first === "phrase" ? "p" : "g";
+  const flipped = state.showingGist === (shownFirst === "g" ? false : true);
   if (flipped) {
     const prev = note.trials.find((t) => t.type === shownFirst);
     if (prev?.result) {
@@ -682,10 +696,10 @@ function sortNotes(
     if (a.trials || b.trials) {
       if (a.trials && b.trials) {
         const aThisShown = a.trials.filter(
-          (t) => t.type === (showingGist ? "gist" : "phrase")
+          (t) => t.type === (showingGist ? "g" : "p")
         );
         const bThisShown = b.trials.filter(
-          (t) => t.type === (showingGist ? "gist" : "phrase")
+          (t) => t.type === (showingGist ? "g" : "p")
         );
         if (aThisShown.length || bThisShown.length) {
           if (aThisShown.length && bThisShown.length) {
