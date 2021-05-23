@@ -1925,6 +1925,48 @@ export class Index {
       });
     });
   }
+
+  // remove all trial information from notes -- a garbage collection measure
+  clearTrials(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const storable: { [key: string]: NoteRecord } = {};
+      let changeCount = 0,
+        notesWithTrials = 0,
+        notesWithoutTrials = 0;
+      this.scan((n) => {
+        if (n.trials) {
+          changeCount += n.trials.length;
+          notesWithTrials++;
+          delete n.trials;
+          storable[enkey(n.key)] = n;
+        } else {
+          notesWithoutTrials++;
+        }
+      })
+        .catch(reject)
+        .then(() => {
+          if (changeCount) {
+            this.chrome.storage.local.set(
+              serialize(storable, this.compressor, false),
+              () => {
+                if (this.chrome.runtime.lastError) {
+                  reject(this.chrome.runtime.lastError);
+                } else {
+                  this.cache.clear();
+                  resolve(
+                    `notes with trials: ${notesWithTrials}; notes without trials: ${notesWithoutTrials}; trials deleted: ${changeCount}`
+                  );
+                }
+              }
+            );
+          } else {
+            resolve(
+              `no trials were deleted; notes without trials: ${notesWithoutTrials}`
+            );
+          }
+        });
+    });
+  }
 }
 
 // get an API to handle all storage needs

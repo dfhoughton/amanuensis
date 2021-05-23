@@ -6,6 +6,7 @@ import {
   Details,
   InfoBox,
   InfoSpinner,
+  TabLink,
   TitleBox,
 } from "./modules/components";
 import { Configuration } from "./modules/types";
@@ -364,6 +365,7 @@ function Clear({ config }: { config: Config }) {
   const classes = paramStyles();
   const [everythingInfo, setEverythingInfo] = useState<boolean>(false);
   const [savedSearchInfo, setSavedSearchInfo] = useState<boolean>(false);
+  const [trialInfo, setTrialInfo] = useState<boolean>(false);
   const maybeHide = config.state.initialized ? {} : { display: "none" };
   return (
     <TitleBox title="Clear Records" mt={3} style={maybeHide}>
@@ -458,6 +460,53 @@ function Clear({ config }: { config: Config }) {
       <InfoBox shown={savedSearchInfo}>
         This will delete only the saved search parameters stored by Amanuensis
         on your computer for this browser.
+      </InfoBox>
+      <Grid container alignItems="center" spacing={2}>
+        <Grid
+          item
+          xs={4}
+          className={classes.label}
+          container
+          justify="flex-end"
+        >
+          trials
+        </Grid>
+        <Grid item>
+          <IconButton
+            onClick={() =>
+              config.app.confirm({
+                title: "Delete All Trials?",
+                text: "This action cannot be undone. This will not affect any current flashcard session.",
+                callback: () =>
+                  new Promise((resolve, reject) => {
+                    config.app.switchboard
+                      .index!.clearTrials()
+                      .then((s) => resolve(s))
+                      .catch(reject);
+                  }),
+              })
+            }
+          >
+            <Delete className={classes.danger} />
+          </IconButton>
+        </Grid>
+        <Grid item>
+          <InfoSpinner flipped={trialInfo} setFlipped={setTrialInfo} />
+        </Grid>
+      </Grid>
+      <InfoBox shown={trialInfo}>
+        <Box mb={1}>
+          This will delete all trial information collected during{" "}
+          <TabLink tab="cards" app={config.app}>
+            flashcard sessions
+          </TabLink>
+          .
+        </Box>
+        <Box>
+          A trial is one guess at one side of a flashcard. The information
+          recorded for a trial is the time it occurred, the side of the card
+          showing, and whether you guessed correctly.
+        </Box>
       </InfoBox>
     </TitleBox>
   );

@@ -558,20 +558,6 @@ function init(
           );
         const done: Set<string> = new Set();
         for (const n of notes) {
-          // TODO remove this when all trials cleaned out
-          if (n.trials) {
-            // clean pre-compression data -- not possible except in my own broken data
-            for (const t of n.trials) {
-              switch (t.type as any) {
-                case "phrase":
-                  t.type = "p";
-                  break;
-                case "gist":
-                  t.type = "g";
-                  break;
-              }
-            }
-          }
           if (n.done) {
             done.add(enkey(n.key));
           }

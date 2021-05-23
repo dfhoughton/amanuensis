@@ -153,6 +153,10 @@ export class App extends React.Component<AppProps, AppState> {
     this.switchboard.then(() => {
       const config: Configuration = deepClone(this.switchboard.index!.config);
       this.setState({ config });
+      // this.switchboard
+      //   .index!.clean()
+      //   .then((s) => this.notify(s))
+      //   .catch((e) => this.error(e));
     });
   }
 

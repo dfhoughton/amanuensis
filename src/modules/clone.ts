@@ -193,6 +193,7 @@ export function deserialize(
       obj = decompress(obj, decompressor);
       switch (obj.__class__) {
         // TODO remove long options when all notes properly compressed
+        // check a JSON dump before doing this
         case "D":
         case "Date":
           return new Date(obj.args);
