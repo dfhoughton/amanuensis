@@ -93,7 +93,18 @@ export class Index {
       this.projects.set(project.name, project);
       this.projectIndices.set(project.pk, new Map());
       const storable = { projects: this.projects };
-      this.chrome.storage.local.set(serialize(storable, this.compressor, true));
+      this.chrome.storage.local.set(
+        serialize(storable, this.compressor, true),
+        () => {
+          if (this.chrome.runtime.lastError) {
+            throw new Error(this.chrome.runtime.lastError);
+          } else {
+            this.checkCompressor().catch((e) => {
+              throw new Error(e);
+            });
+          }
+        }
+      );
     }
     if (this.sorters.size === 0) {
       const lev: Sorter = makeDefaultSorter();
@@ -1892,9 +1903,13 @@ export class Index {
                         if (this.chrome.runtime.lastError) {
                           reject(this.chrome.runtime.lastError);
                         } else {
-                          resolve(
-                            `All notes have passed through the compressor. Bad entries removed from indices: ${removedFromIndex}.`
-                          );
+                          this.checkCompressor()
+                            .then(() =>
+                              resolve(
+                                `All notes have passed through the compressor. Bad entries removed from indices: ${removedFromIndex}.`
+                              )
+                            )
+                            .catch(reject);
                         }
                       }
                     );
@@ -1914,7 +1929,7 @@ export class Index {
                 if (this.chrome.runtime.lastError) {
                   reject(this.chrome.runtime.lastError);
                 } else {
-                  continuation1();
+                  this.checkCompressor().then(continuation1).catch(reject);
                 }
               }
             );
@@ -1952,10 +1967,14 @@ export class Index {
                 if (this.chrome.runtime.lastError) {
                   reject(this.chrome.runtime.lastError);
                 } else {
-                  this.cache.clear();
-                  resolve(
-                    `notes with trials: ${notesWithTrials}; notes without trials: ${notesWithoutTrials}; trials deleted: ${changeCount}`
-                  );
+                  this.checkCompressor()
+                    .catch(reject)
+                    .then(() => {
+                      this.cache.clear();
+                      resolve(
+                        `notes with trials: ${notesWithTrials}; notes without trials: ${notesWithoutTrials}; trials deleted: ${changeCount}`
+                      );
+                    });
                 }
               }
             );
