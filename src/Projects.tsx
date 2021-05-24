@@ -23,7 +23,7 @@ import {
   TextField,
   Typography as T,
 } from "@material-ui/core";
-import { Clear, Edit, FileCopy, TextFields } from "@material-ui/icons";
+import { Clear, Edit, FileCopy } from "@material-ui/icons";
 import { ProjectInfo } from "./modules/types";
 import { deepClone } from "./modules/clone";
 import { Autocomplete, createFilterOptions } from "@material-ui/lab";
