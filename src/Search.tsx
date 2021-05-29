@@ -63,7 +63,6 @@ import {
   CardGiftcard,
   Clear,
   ExpandMore,
-  ExpandLess,
   ChevronRight,
 } from "@material-ui/icons"
 

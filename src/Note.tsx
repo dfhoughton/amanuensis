@@ -1175,7 +1175,18 @@ function Similar({ app, n }: { app: App; n: Note }) {
       })
   }
   const similarSearch = () => {
-    app.setState({ tab: Section.search, search })
+    app.switchboard.index?.find(search).then((r) => {
+      let searchResults: NoteRecord[] = []
+      switch (r.type) {
+        case "ambiguous":
+          searchResults = r.matches
+          break
+        case "found":
+          searchResults.push(r.match)
+          break
+      }
+      app.setState({ tab: Section.search, search, searchResults })
+    })
   }
   return (
     <>
