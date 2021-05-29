@@ -536,17 +536,6 @@ export class Index {
                   )
                     return false;
                   break;
-                case "substring":
-                  norm = normalized!.get(pk) || "";
-                  if (
-                    none(
-                      note.citations,
-                      (c: CitationRecord) =>
-                        this.normalize(c.phrase, pk).indexOf(norm) > -1
-                    )
-                  )
-                    return false;
-                  break;
               }
             }
             return true;

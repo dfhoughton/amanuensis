@@ -152,7 +152,7 @@ export type RelativePeriod =
 export interface AdHocQuery {
   type: "ad hoc";
   phrase?: string;
-  strictness?: "exact" | "substring" | "fuzzy" | "similar";
+  strictness?: "exact" | "fuzzy" | "similar";
   sorter?: number;
   project?: number[];
   tags?: string[];

@@ -232,7 +232,7 @@ function ResultsInfo({
               onChange={(e) => setSampleType(e.target.value as SampleType)}
             >
               {["random", "hard", "novel"].map((s) => (
-                <MenuItem key={s} value={s}>
+                <MenuItem dense key={s} value={s}>
                   {s}
                 </MenuItem>
               ))}
@@ -443,7 +443,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           }}
         >
           {savedSearchNames.map((n) => (
-            <MenuItem key={n} value={n}>
+            <MenuItem dense key={n} value={n}>
               {n}
             </MenuItem>
           ))}
@@ -475,7 +475,6 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                     switch (v.target.value) {
                       case "exact":
                       case "fuzzy":
-                      case "substring":
                         search.strictness = v.target.value;
                         delete search.sorter;
                         app.setState({ search });
@@ -501,15 +500,9 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                     label="fuzzy"
                   />
                   <FormControlLabel
-                    value="substring"
-                    disabled={!phrase}
-                    control={<Radio />}
-                    label="substring"
-                  />
-                  <FormControlLabel
                     label={`similar (${
                       app.switchboard.index!.sorters.get(
-                        search.sorter || app.switchboard.index!.currentSorter
+                        search.sorter ?? app.switchboard.index!.currentSorter
                       )!.name
                     })`}
                     value="similar"
@@ -665,6 +658,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                 <MenuItem
                   key={p}
                   value={p}
+                  dense
                   disabled={p === "ever" && relativeInterpretation === "on"}
                 >
                   {p}
@@ -1072,7 +1066,7 @@ function NavLinker({
               fullWidth
             >
               {Array.from(relationMap.keys()).map((n) => (
-                <MenuItem value={n} key={n}>
+                <MenuItem dense value={n} key={n}>
                   {n}
                 </MenuItem>
               ))}
@@ -1206,6 +1200,7 @@ function SorterOption({
     <MenuItem
       key={sorter.pk}
       selected={selected}
+      dense
       onClick={() => {
         search.sorter = sorter.pk;
         app.setState({ search });
