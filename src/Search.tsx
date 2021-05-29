@@ -61,6 +61,7 @@ import {
   Done,
   AllInclusive,
   CardGiftcard,
+  Clear,
 } from "@material-ui/icons";
 
 interface SearchProps {
@@ -708,21 +709,38 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           />
         </Grid>
       )}
-      <TextField
-        id="url"
-        label="URL"
-        className={classes.item}
-        value={url || ""}
-        onChange={(event) => {
-          search = deepClone(search);
-          if (nws(event.target.value)) {
-            search.url = event.target.value;
-          } else {
-            delete search.url;
-          }
-          app.setState({ search });
-        }}
-      />
+      <Grid container spacing={1} alignContent="space-between">
+        <Grid item xs={search.url ? 11 : 12}>
+          <TextField
+            id="url"
+            label="URL"
+            fullWidth
+            value={url || ""}
+            onChange={(event) => {
+              search = deepClone(search);
+              if (nws(event.target.value)) {
+                search.url = event.target.value;
+              } else {
+                delete search.url;
+              }
+              app.setState({ search });
+            }}
+          />
+        </Grid>
+        {!!search.url && (
+          <Grid item container xs={1} alignContent="center">
+            <IconButton
+              size="small"
+              onClick={() => {
+                delete search.url;
+                app.setState({ search });
+              }}
+            >
+              <Clear />
+            </IconButton>
+          </Grid>
+        )}
+      </Grid>
       <div className={classes.centered}>
         <Grid container justify="space-evenly" className={classes.item}>
           {anyResults && !search.sample && (
