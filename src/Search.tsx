@@ -62,6 +62,9 @@ import {
   AllInclusive,
   CardGiftcard,
   Clear,
+  ExpandMore,
+  ExpandLess,
+  ChevronRight,
 } from "@material-ui/icons"
 
 interface SearchProps {
@@ -366,6 +369,15 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
   const [searchName, setSearchName] = useState<string | undefined>(
     savedSearch?.name
   )
+  const [showSearchDetails, setShowSearchDetails] = useState<boolean>(
+    !!(
+      search.after ||
+      search.before ||
+      search.project ||
+      search.tags ||
+      search.url
+    )
+  )
   const [searchDescription, setSearchDescription] = useState<string | null>(
     savedSearch?.description || null
   )
@@ -448,20 +460,38 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           ))}
         </TextField>
       )}
-      <TextField
-        id="phrase"
-        label="Phrase"
+      <Grid
+        container
+        spacing={1}
+        alignContent="space-between"
         className={classes.item}
-        value={phrase || ""}
-        onChange={(event) => {
-          if (nws(event.target.value)) {
-            search.phrase = event.target.value
-          } else {
-            delete search.phrase
-          }
-          app.setState({ search })
-        }}
-      />
+      >
+        <Grid item xs={11}>
+          <TextField
+            id="phrase"
+            label="Phrase"
+            // className={classes.item}
+            fullWidth
+            value={phrase || ""}
+            onChange={(event) => {
+              if (nws(event.target.value)) {
+                search.phrase = event.target.value
+              } else {
+                delete search.phrase
+              }
+              app.setState({ search })
+            }}
+          />
+        </Grid>
+        <Grid item container xs={1} alignContent="center">
+          <IconButton
+            size="small"
+            onClick={() => setShowSearchDetails(!showSearchDetails)}
+          >
+            {showSearchDetails ? <ExpandMore /> : <ChevronRight />}
+          </IconButton>
+        </Grid>
+      </Grid>
       {phrase && nws(phrase) && (
         <div className={classes.centered}>
           <Grid container justify="space-between">
@@ -528,297 +558,315 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           </Grid>
         </div>
       )}
-      {projects.length > 1 && (
-        <Autocomplete
-          id="project"
-          className={classes.item}
-          options={projects}
-          value={project}
-          multiple
-          autoComplete
-          getOptionLabel={(option) =>
-            app.switchboard.index!.reverseProjectIndex.get(option) || "default"
-          }
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Projects"
-              placeholder="project name"
+      {showSearchDetails && (
+        <>
+          {projects.length > 1 && (
+            <Autocomplete
+              id="project"
+              className={classes.item}
+              options={projects}
+              value={project}
+              multiple
+              autoComplete
+              getOptionLabel={(option) =>
+                app.switchboard.index!.reverseProjectIndex.get(option) ||
+                "default"
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Projects"
+                  placeholder="project name"
+                />
+              )}
+              onChange={(_event, project) => {
+                search = deepClone(search)
+                search.project = project as number[]
+                app.setState({ search })
+              }}
+              renderTags={(value, getTagProps) => {
+                // not sure why this needs flattening; maybe some day I will be wiser...
+                const chips = value.map((obj, i) => (
+                  <Chip
+                    variant="outlined"
+                    size="small"
+                    label={
+                      app.switchboard.index!.reverseProjectIndex.get(obj) ||
+                      "default"
+                    }
+                    {...getTagProps({ index: i })}
+                  />
+                ))
+                return chips
+              }}
             />
           )}
-          onChange={(_event, project) => {
-            search = deepClone(search)
-            search.project = project as number[]
-            app.setState({ search })
-          }}
-          renderTags={(value, getTagProps) => {
-            // not sure why this needs flattening; maybe some day I will be wiser...
-            const chips = value.map((obj, i) => (
-              <Chip
-                variant="outlined"
-                size="small"
-                label={
-                  app.switchboard.index!.reverseProjectIndex.get(obj) ||
-                  "default"
+          {!!tags.length && (
+            <Autocomplete
+              id="tags-required"
+              className={classes.item}
+              options={tags}
+              value={tagRequired || []}
+              multiple
+              autoComplete
+              renderInput={(params) => (
+                <TextField {...params} label="Tags" placeholder="tag" />
+              )}
+              onChange={(_event, newTags) => {
+                search = deepClone(search)
+                if (newTags.length) {
+                  search.tags = newTags
+                } else {
+                  delete search.tags
                 }
-                {...getTagProps({ index: i })}
-              />
-            ))
-            return chips
-          }}
-        />
-      )}
-      {!!tags.length && (
-        <Autocomplete
-          id="tags-required"
-          className={classes.item}
-          options={tags}
-          value={tagRequired || []}
-          multiple
-          autoComplete
-          renderInput={(params) => (
-            <TextField {...params} label="Tags" placeholder="tag" />
+                app.setState({ search })
+              }}
+              renderTags={(value, getTagProps) =>
+                value.map((obj, i) => (
+                  <Chip
+                    variant="outlined"
+                    size="small"
+                    label={obj}
+                    {...getTagProps({ index: i })}
+                  />
+                ))
+              }
+            />
           )}
-          onChange={(_event, newTags) => {
-            search = deepClone(search)
-            if (newTags.length) {
-              search.tags = newTags
-            } else {
-              delete search.tags
-            }
-            app.setState({ search })
-          }}
-          renderTags={(value, getTagProps) =>
-            value.map((obj, i) => (
-              <Chip
-                variant="outlined"
-                size="small"
-                label={obj}
-                {...getTagProps({ index: i })}
-              />
-            ))
-          }
-        />
-      )}
-      <Grid container justify="center" className={classes.time}>
-        <Grid item>
-          <Grid component="label" container alignItems="center" spacing={1}>
-            <Grid item>Relative Time</Grid>
+          <Grid container justify="center" className={classes.time}>
             <Grid item>
-              <Switch
-                checked={!relativeTime}
-                onChange={() => {
-                  search.relativeTime = !relativeTime
+              <Grid component="label" container alignItems="center" spacing={1}>
+                <Grid item>Relative Time</Grid>
+                <Grid item>
+                  <Switch
+                    checked={!relativeTime}
+                    onChange={() => {
+                      search.relativeTime = !relativeTime
+                      app.setState({ search })
+                    }}
+                  />
+                </Grid>
+                <Grid item>Absolute Time</Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+          {relativeTime && (
+            <Grid
+              container
+              alignItems="center"
+              justify="space-evenly"
+              className={classes.item}
+            >
+              <Grid item>
+                <Grid
+                  component="label"
+                  container
+                  alignItems="center"
+                  spacing={1}
+                >
+                  <Grid item>Since</Grid>
+                  <Grid item>
+                    <Switch
+                      checked={relativeInterpretation === "on"}
+                      disabled={
+                        relativeInterpretation === "since" &&
+                        relativePeriod === "ever"
+                      }
+                      onChange={() => {
+                        search.relativeInterpretation =
+                          relativeInterpretation === "on" ? "since" : "on"
+                        app.setState({ search })
+                      }}
+                    />
+                  </Grid>
+                  <Grid item>On</Grid>
+                </Grid>
+              </Grid>
+              <Grid item>
+                <TextField
+                  onChange={(event) => {
+                    search.relativePeriod = event.target.value as RelativePeriod
+                    app.setState({ search })
+                  }}
+                  value={relativePeriod}
+                  select
+                >
+                  {allPeriods.map((p) => (
+                    <MenuItem
+                      key={p}
+                      value={p}
+                      dense
+                      disabled={p === "ever" && relativeInterpretation === "on"}
+                    >
+                      {p}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
+          )}
+          {!relativeTime && (
+            <Grid container justify="space-between" className={classes.item}>
+              <TextField
+                id="after"
+                label="After"
+                type="date"
+                value={ymd(after)}
+                onChange={(e) => {
+                  search = deepClone(search)
+                  if (e.target.value) {
+                    search.after = new Date(e.target.value)
+                  } else {
+                    delete search.after
+                  }
+                  app.setState({ search })
+                }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+              <TextField
+                id="before"
+                label="Before"
+                type="date"
+                value={ymd(before)}
+                onChange={(e) => {
+                  search = deepClone(search)
+                  if (e.target.value) {
+                    search.before = new Date(e.target.value)
+                  } else {
+                    delete search.before
+                  }
+                  app.setState({ search })
+                }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Grid>
+          )}
+          <Grid container spacing={1} alignContent="space-between">
+            <Grid item xs={search.url ? 11 : 12}>
+              <TextField
+                id="url"
+                label="URL"
+                fullWidth
+                value={url || ""}
+                onChange={(event) => {
+                  search = deepClone(search)
+                  if (nws(event.target.value)) {
+                    search.url = event.target.value
+                  } else {
+                    delete search.url
+                  }
                   app.setState({ search })
                 }}
               />
             </Grid>
-            <Grid item>Absolute Time</Grid>
-          </Grid>
-        </Grid>
-      </Grid>
-      {relativeTime && (
-        <Grid
-          container
-          alignItems="center"
-          justify="space-evenly"
-          className={classes.item}
-        >
-          <Grid item>
-            <Grid component="label" container alignItems="center" spacing={1}>
-              <Grid item>Since</Grid>
-              <Grid item>
-                <Switch
-                  checked={relativeInterpretation === "on"}
-                  disabled={
-                    relativeInterpretation === "since" &&
-                    relativePeriod === "ever"
-                  }
-                  onChange={() => {
-                    search.relativeInterpretation =
-                      relativeInterpretation === "on" ? "since" : "on"
+            {!!search.url && (
+              <Grid item container xs={1} alignContent="center">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    delete search.url
                     app.setState({ search })
                   }}
-                />
-              </Grid>
-              <Grid item>On</Grid>
-            </Grid>
-          </Grid>
-          <Grid item>
-            <TextField
-              onChange={(event) => {
-                search.relativePeriod = event.target.value as RelativePeriod
-                app.setState({ search })
-              }}
-              value={relativePeriod}
-              select
-            >
-              {allPeriods.map((p) => (
-                <MenuItem
-                  key={p}
-                  value={p}
-                  dense
-                  disabled={p === "ever" && relativeInterpretation === "on"}
                 >
-                  {p}
-                </MenuItem>
-              ))}
-            </TextField>
+                  <Clear />
+                </IconButton>
+              </Grid>
+            )}
           </Grid>
-        </Grid>
+        </>
       )}
-      {!relativeTime && (
-        <Grid container justify="space-between" className={classes.item}>
-          <TextField
-            id="after"
-            label="After"
-            type="date"
-            value={ymd(after)}
-            onChange={(e) => {
-              search = deepClone(search)
-              if (e.target.value) {
-                search.after = new Date(e.target.value)
-              } else {
-                delete search.after
-              }
-              app.setState({ search })
-            }}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-          <TextField
-            id="before"
-            label="Before"
-            type="date"
-            value={ymd(before)}
-            onChange={(e) => {
-              search = deepClone(search)
-              if (e.target.value) {
-                search.before = new Date(e.target.value)
-              } else {
-                delete search.before
-              }
-              app.setState({ search })
-            }}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-        </Grid>
-      )}
-      <Grid container spacing={1} alignContent="space-between">
-        <Grid item xs={search.url ? 11 : 12}>
-          <TextField
-            id="url"
-            label="URL"
-            fullWidth
-            value={url || ""}
-            onChange={(event) => {
-              search = deepClone(search)
-              if (nws(event.target.value)) {
-                search.url = event.target.value
-              } else {
-                delete search.url
-              }
-              app.setState({ search })
-            }}
-          />
-        </Grid>
-        {!!search.url && (
-          <Grid item container xs={1} alignContent="center">
-            <IconButton
-              size="small"
-              onClick={() => {
-                delete search.url
-                app.setState({ search })
-              }}
-            >
-              <Clear />
-            </IconButton>
-          </Grid>
-        )}
-      </Grid>
-      <div className={classes.centered}>
-        <Grid container justify="space-evenly" className={classes.item}>
-          {anyResults && !search.sample && (
-            <IconButton
-              hidden={!anyResults || !!search.sample}
+      <Box mt={1}>
+        <div className={classes.centered}>
+          <Grid container justify="space-evenly" className={classes.item}>
+            {anyResults && !search.sample && (
+              <IconButton
+                hidden={!anyResults || !!search.sample}
+                className={classes.inCentered}
+                onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
+              >
+                <TT msg="save search">
+                  <Save color={showSaveSearchForm ? "secondary" : "primary"} />
+                </TT>
+              </IconButton>
+            )}
+            <Button
+              color="primary"
               className={classes.inCentered}
-              onClick={() => setShowSaveSearchForm(!showSaveSearchForm)}
-            >
-              <TT msg="save search">
-                <Save color={showSaveSearchForm ? "secondary" : "primary"} />
-              </TT>
-            </IconButton>
-          )}
-          <Button
-            color="primary"
-            className={classes.inCentered}
-            variant="contained"
-            endIcon={<SearchIcon />}
-            onClick={() => {
-              app.switchboard
-                .index!.find(search)
-                .then((found) => {
-                  switch (found.type) {
-                    case "none":
-                      app.setState({ searchResults: [] }, () => reset(search))
-                      break
-                    case "ambiguous":
-                      app.setState({ searchResults: found.matches }, () =>
-                        reset(search)
-                      )
-                      break
-                    case "found":
-                      app.setState({ searchResults: [found.match] }, () =>
-                        reset(search)
-                      )
-                  }
-                })
-                .catch((e) => app.error(e))
-            }}
-          >
-            Search
-          </Button>
-          <Button
-            color="secondary"
-            className={classes.inCentered}
-            variant="contained"
-            onClick={clear}
-          >
-            Clear
-          </Button>
-          {anyResults && (
-            <IconButton
-              className={classes.inCentered}
+              variant="contained"
+              endIcon={<SearchIcon />}
               onClick={() => {
-                if (savedSearch && !anyDifference(savedSearch.query, search)) {
-                  app.setState({ tab: Section.cards, stack: savedSearch.name })
-                } else {
-                  // install a new ad hoc flashcard stack
-                  const adHoc: CardStack = {
-                    name: "",
-                    description: "",
-                    lastAccess: new Date(),
-                    query: search,
-                  }
-                  app.switchboard.index!.stacks.set("", adHoc)
-                  app.setState({
-                    tab: Section.cards,
-                    stack: "",
-                    flashcards: undefined,
+                app.switchboard
+                  .index!.find(search)
+                  .then((found) => {
+                    switch (found.type) {
+                      case "none":
+                        app.setState({ searchResults: [] }, () => reset(search))
+                        break
+                      case "ambiguous":
+                        app.setState({ searchResults: found.matches }, () =>
+                          reset(search)
+                        )
+                        break
+                      case "found":
+                        app.setState({ searchResults: [found.match] }, () =>
+                          reset(search)
+                        )
+                    }
                   })
-                }
+                  .catch((e) => app.error(e))
               }}
             >
-              <TT msg="make search results into flash card stack">
-                <School color="primary" />
-              </TT>
-            </IconButton>
-          )}
-        </Grid>
-      </div>
+              Search
+            </Button>
+            <Button
+              color="secondary"
+              className={classes.inCentered}
+              variant="contained"
+              onClick={clear}
+            >
+              Clear
+            </Button>
+            {anyResults && (
+              <IconButton
+                className={classes.inCentered}
+                onClick={() => {
+                  if (
+                    savedSearch &&
+                    !anyDifference(savedSearch.query, search)
+                  ) {
+                    app.setState({
+                      tab: Section.cards,
+                      stack: savedSearch.name,
+                    })
+                  } else {
+                    // install a new ad hoc flashcard stack
+                    const adHoc: CardStack = {
+                      name: "",
+                      description: "",
+                      lastAccess: new Date(),
+                      query: search,
+                    }
+                    app.switchboard.index!.stacks.set("", adHoc)
+                    app.setState({
+                      tab: Section.cards,
+                      stack: "",
+                      flashcards: undefined,
+                    })
+                  }
+                }}
+              >
+                <TT msg="make search results into flash card stack">
+                  <School color="primary" />
+                </TT>
+              </IconButton>
+            )}
+          </Grid>
+        </div>
+      </Box>
       <Collapse in={showSaveSearchForm} className={classes.saveSearchForm}>
         <div className={classes.centered}>
           <h3>Save This Search</h3>
