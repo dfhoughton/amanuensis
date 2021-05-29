@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState } from "react"
 
-import { App, Section, Visit } from "./App";
+import { App, Section, Visit } from "./App"
 import {
   flatten,
   sameNote,
@@ -11,14 +11,14 @@ import {
   seed,
   notePhrase,
   nameRelation,
-} from "./modules/util";
+} from "./modules/util"
 import {
   Details,
   TT,
   formatDates as fd,
   Expando,
   AboutLink,
-} from "./modules/components";
+} from "./modules/components"
 import {
   AdHocQuery,
   allPeriods,
@@ -28,9 +28,9 @@ import {
   RelativePeriod,
   SampleType,
   Sorter,
-} from "./modules/types";
-import { enkey } from "./modules/storage";
-import { anyDifference, deepClone } from "./modules/clone";
+} from "./modules/types"
+import { enkey } from "./modules/storage"
+import { anyDifference, deepClone } from "./modules/clone"
 
 import {
   Box,
@@ -49,8 +49,8 @@ import {
   RadioGroup,
   Switch,
   TextField,
-} from "@material-ui/core";
-import { Autocomplete, Pagination } from "@material-ui/lab";
+} from "@material-ui/core"
+import { Autocomplete, Pagination } from "@material-ui/lab"
 import {
   Search as SearchIcon,
   Visibility,
@@ -62,10 +62,10 @@ import {
   AllInclusive,
   CardGiftcard,
   Clear,
-} from "@material-ui/icons";
+} from "@material-ui/icons"
 
 interface SearchProps {
-  app: App;
+  app: App
 }
 
 const searchStyles = makeStyles((theme) => ({
@@ -79,19 +79,19 @@ const searchStyles = makeStyles((theme) => ({
     margin: "0 auto",
     marginTop: theme.spacing(2),
   },
-}));
+}))
 
 function Search({ app }: SearchProps) {
-  const classes = searchStyles();
-  const results = app.state.searchResults;
-  const paginate = results.length > 10;
-  const [page, setPage] = useState<number>(1);
-  const [showSample, setShowSample] = useState<boolean>(false);
-  const [relation, setRelation] = useState("see also");
-  const offset = (page - 1) * 10;
-  let end = offset + 10;
-  if (end > results.length) end = results.length;
-  const pagedResults = paginate ? results.slice(offset, end) : results;
+  const classes = searchStyles()
+  const results = app.state.searchResults
+  const paginate = results.length > 10
+  const [page, setPage] = useState<number>(1)
+  const [showSample, setShowSample] = useState<boolean>(false)
+  const [relation, setRelation] = useState("see also")
+  const offset = (page - 1) * 10
+  let end = offset + 10
+  if (end > results.length) end = results.length
+  const pagedResults = paginate ? results.slice(offset, end) : results
   return (
     <>
       <Details header="Search">
@@ -133,19 +133,19 @@ function Search({ app }: SearchProps) {
         )}
       </Box>
     </>
-  );
+  )
 }
 
-export default Search;
+export default Search
 
 type ResultsInfoProps = {
-  app: App;
-  offset: number;
-  end: number;
-  results: NoteRecord[];
-  showSample: boolean;
-  setShowSample: (v: boolean) => void;
-};
+  app: App
+  offset: number
+  end: number
+  results: NoteRecord[]
+  showSample: boolean
+  setShowSample: (v: boolean) => void
+}
 function ResultsInfo({
   app,
   offset,
@@ -154,9 +154,9 @@ function ResultsInfo({
   showSample,
   setShowSample,
 }: ResultsInfoProps) {
-  const search = app.state.search as AdHocQuery;
-  const [sample, setSample] = useState<number>(1);
-  const [sampleType, setSampleType] = useState<SampleType>("random");
+  const search = app.state.search as AdHocQuery
+  const [sample, setSample] = useState<number>(1)
+  const [sampleType, setSampleType] = useState<SampleType>("random")
   return (
     <>
       <Grid container justify="center" alignItems="center" spacing={2}>
@@ -168,27 +168,27 @@ function ResultsInfo({
             <IconButton
               size="small"
               onClick={() => {
-                const s: AdHocQuery = deepClone(search);
-                delete s.sample;
+                const s: AdHocQuery = deepClone(search)
+                delete s.sample
                 app.switchboard
                   .index!.find(s)
                   .then((results) => {
-                    let searchResults: NoteRecord[];
+                    let searchResults: NoteRecord[]
                     switch (results.type) {
                       case "ambiguous":
-                        searchResults = results.matches;
-                        break;
+                        searchResults = results.matches
+                        break
                       case "none":
-                        searchResults = [];
-                        break;
+                        searchResults = []
+                        break
                       case "found":
-                        searchResults = [results.match];
-                        break;
+                        searchResults = [results.match]
+                        break
                     }
-                    setShowSample(false);
-                    app.setState({ search: s, searchResults });
+                    setShowSample(false)
+                    app.setState({ search: s, searchResults })
                   })
-                  .catch((e) => app.error(e));
+                  .catch((e) => app.error(e))
               }}
             >
               <TT msg="show all">
@@ -217,9 +217,9 @@ function ResultsInfo({
               InputProps={{ inputProps: { min: 1, step: 1 } }}
               value={sample}
               onChange={(e) => {
-                const v = e.target.value ? Number.parseInt(e.target.value) : 0;
+                const v = e.target.value ? Number.parseInt(e.target.value) : 0
                 if (v) {
-                  setSample(v);
+                  setSample(v)
                 }
               }}
             />
@@ -244,29 +244,29 @@ function ResultsInfo({
               color="primary"
               variant="outlined"
               onClick={() => {
-                const s: AdHocQuery = deepClone(search);
-                s.sample = sample;
-                s.sampleType = sampleType;
-                s.seed = seed();
+                const s: AdHocQuery = deepClone(search)
+                s.sample = sample
+                s.sampleType = sampleType
+                s.seed = seed()
                 app.switchboard
                   .index!.find(s)
                   .then((results) => {
-                    let searchResults: NoteRecord[];
+                    let searchResults: NoteRecord[]
                     switch (results.type) {
                       case "ambiguous":
-                        searchResults = results.matches;
-                        break;
+                        searchResults = results.matches
+                        break
                       case "none":
-                        searchResults = [];
-                        break;
+                        searchResults = []
+                        break
                       case "found":
-                        searchResults = [results.match];
-                        break;
+                        searchResults = [results.match]
+                        break
                     }
-                    setShowSample(false);
-                    app.setState({ search: s, searchResults });
+                    setShowSample(false)
+                    app.setState({ search: s, searchResults })
                   })
-                  .catch((e) => app.error(e));
+                  .catch((e) => app.error(e))
               }}
             >
               Sample
@@ -284,7 +284,7 @@ function ResultsInfo({
         </Grid>
       </Collapse>
     </>
-  );
+  )
 }
 
 const formStyles = makeStyles((theme) => ({
@@ -321,28 +321,28 @@ const formStyles = makeStyles((theme) => ({
   discard: {
     color: theme.palette.error.dark,
   },
-}));
+}))
 
 function Form({ app, resetter }: { app: App; resetter: () => void }) {
-  const classes = formStyles();
-  let search: AdHocQuery;
+  const classes = formStyles()
+  let search: AdHocQuery
   switch (app.state.search.type) {
     case "lookup":
       // convert the lookup search into an ad hoc search
-      search = { type: "ad hoc", phrase: app.state.search.phrase };
-      app.setState({ search });
-      break;
+      search = { type: "ad hoc", phrase: app.state.search.phrase }
+      app.setState({ search })
+      break
     default:
-      search = deepClone(app.state.search);
-      break;
+      search = deepClone(app.state.search)
+      break
   }
   const findSearch = () =>
     Array.from(app.switchboard.index!.stacks.values()).find(
       (s) => !anyDifference(s.query, search)
-    );
+    )
   const [savedSearch, setSavedSearch] = useState<CardStack | undefined>(
     findSearch()
-  );
+  )
   const {
     phrase,
     after,
@@ -354,44 +354,42 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
     relativeInterpretation = "since",
     relativePeriod = "ever",
     strictness = "exact",
-  } = search;
+  } = search
   const showSorter = !!(
     phrase &&
     strictness === "similar" &&
     app.switchboard.index!.sorters.size > 1
-  );
-  const projects = Array.from(
-    app.switchboard.index!.reverseProjectIndex.keys()
-  );
-  const tags = Array.from(app.switchboard.index!.tags).sort();
-  const [showSaveSearchForm, setShowSaveSearchForm] = useState<boolean>(false);
+  )
+  const projects = Array.from(app.switchboard.index!.reverseProjectIndex.keys())
+  const tags = Array.from(app.switchboard.index!.tags).sort()
+  const [showSaveSearchForm, setShowSaveSearchForm] = useState<boolean>(false)
   const [searchName, setSearchName] = useState<string | undefined>(
     savedSearch?.name
-  );
+  )
   const [searchDescription, setSearchDescription] = useState<string | null>(
     savedSearch?.description || null
-  );
+  )
   const reset = (s: AdHocQuery, ss?: CardStack | undefined) => {
-    setSavedSearch(ss || findSearch());
-    search = s;
-    resetter();
-    setShowSaveSearchForm(false);
-    setSearchName((ss || savedSearch)?.name);
-    setSearchDescription((ss || savedSearch)?.description || null);
-  };
-  const anyResults = !!app.state.searchResults.length;
+    setSavedSearch(ss || findSearch())
+    search = s
+    resetter()
+    setShowSaveSearchForm(false)
+    setSearchName((ss || savedSearch)?.name)
+    setSearchDescription((ss || savedSearch)?.description || null)
+  }
+  const anyResults = !!app.state.searchResults.length
   const clear = () => {
-    search = { type: "ad hoc" };
-    setShowSaveSearchForm(false);
-    setSearchName(undefined);
-    setSearchDescription(null);
+    search = { type: "ad hoc" }
+    setShowSaveSearchForm(false)
+    setSearchName(undefined)
+    setSearchDescription(null)
     app.setState({ search, searchResults: [] }, () => {
-      const found = findSearch();
-      setSavedSearch(found);
-      setSearchName(found?.name);
-    });
-  };
-  let searchNameError;
+      const found = findSearch()
+      setSavedSearch(found)
+      setSearchName(found?.name)
+    })
+  }
+  let searchNameError
   if (nws(searchName || "")) {
     if (
       !savedSearch &&
@@ -400,14 +398,14 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
         (s: CardStack) => s.name === searchName
       )
     ) {
-      searchNameError = "this is already the name of a different search";
+      searchNameError = "this is already the name of a different search"
     }
   } else {
-    searchNameError = "saved searches must be named";
+    searchNameError = "saved searches must be named"
   }
   const savedSearchNames = Array.from(
     app.switchboard.index!.stacks.keys()
-  ).sort();
+  ).sort()
   return (
     <div className={classes.root}>
       {!!app.switchboard.index!.stacks.size && (
@@ -417,30 +415,30 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           className={classes.item}
           value={savedSearch?.name}
           onChange={(e) => {
-            const stack = app.switchboard.index!.stacks.get(e.target.value)!;
+            const stack = app.switchboard.index!.stacks.get(e.target.value)!
             app.switchboard
               .index!.find(stack.query)
               .then((results) => {
-                let searchResults: NoteRecord[];
+                let searchResults: NoteRecord[]
                 switch (results.type) {
                   case "none":
-                    searchResults = [];
-                    break;
+                    searchResults = []
+                    break
                   case "found":
-                    searchResults = [results.match];
-                    break;
+                    searchResults = [results.match]
+                    break
                   case "ambiguous":
-                    searchResults = results.matches;
-                    break;
+                    searchResults = results.matches
+                    break
                 }
                 const newState = {
                   searchResults,
                   stack: e.target.value,
                   search: stack.query,
-                };
-                app.setState(newState, () => reset(stack.query, stack));
+                }
+                app.setState(newState, () => reset(stack.query, stack))
               })
-              .catch((e) => app.error(e));
+              .catch((e) => app.error(e))
           }}
         >
           {savedSearchNames.map((n) => (
@@ -457,11 +455,11 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
         value={phrase || ""}
         onChange={(event) => {
           if (nws(event.target.value)) {
-            search.phrase = event.target.value;
+            search.phrase = event.target.value
           } else {
-            delete search.phrase;
+            delete search.phrase
           }
-          app.setState({ search });
+          app.setState({ search })
         }}
       />
       {phrase && nws(phrase) && (
@@ -476,15 +474,15 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                     switch (v.target.value) {
                       case "exact":
                       case "fuzzy":
-                        search.strictness = v.target.value;
-                        delete search.sorter;
-                        app.setState({ search });
-                        break;
+                        search.strictness = v.target.value
+                        delete search.sorter
+                        app.setState({ search })
+                        break
                       case "similar":
-                        search.strictness = v.target.value;
-                        search.sorter = app.switchboard.index!.currentSorter;
-                        app.setState({ search });
-                        break;
+                        search.strictness = v.target.value
+                        search.sorter = app.switchboard.index!.currentSorter
+                        app.setState({ search })
+                        break
                     }
                   }}
                 >
@@ -549,9 +547,9 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             />
           )}
           onChange={(_event, project) => {
-            search = deepClone(search);
-            search.project = project as number[];
-            app.setState({ search });
+            search = deepClone(search)
+            search.project = project as number[]
+            app.setState({ search })
           }}
           renderTags={(value, getTagProps) => {
             // not sure why this needs flattening; maybe some day I will be wiser...
@@ -565,8 +563,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                 }
                 {...getTagProps({ index: i })}
               />
-            ));
-            return chips;
+            ))
+            return chips
           }}
         />
       )}
@@ -582,13 +580,13 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             <TextField {...params} label="Tags" placeholder="tag" />
           )}
           onChange={(_event, newTags) => {
-            search = deepClone(search);
+            search = deepClone(search)
             if (newTags.length) {
-              search.tags = newTags;
+              search.tags = newTags
             } else {
-              delete search.tags;
+              delete search.tags
             }
-            app.setState({ search });
+            app.setState({ search })
           }}
           renderTags={(value, getTagProps) =>
             value.map((obj, i) => (
@@ -610,8 +608,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
               <Switch
                 checked={!relativeTime}
                 onChange={() => {
-                  search.relativeTime = !relativeTime;
-                  app.setState({ search });
+                  search.relativeTime = !relativeTime
+                  app.setState({ search })
                 }}
               />
             </Grid>
@@ -638,8 +636,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                   }
                   onChange={() => {
                     search.relativeInterpretation =
-                      relativeInterpretation === "on" ? "since" : "on";
-                    app.setState({ search });
+                      relativeInterpretation === "on" ? "since" : "on"
+                    app.setState({ search })
                   }}
                 />
               </Grid>
@@ -649,8 +647,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           <Grid item>
             <TextField
               onChange={(event) => {
-                search.relativePeriod = event.target.value as RelativePeriod;
-                app.setState({ search });
+                search.relativePeriod = event.target.value as RelativePeriod
+                app.setState({ search })
               }}
               value={relativePeriod}
               select
@@ -677,13 +675,13 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             type="date"
             value={ymd(after)}
             onChange={(e) => {
-              search = deepClone(search);
+              search = deepClone(search)
               if (e.target.value) {
-                search.after = new Date(e.target.value);
+                search.after = new Date(e.target.value)
               } else {
-                delete search.after;
+                delete search.after
               }
-              app.setState({ search });
+              app.setState({ search })
             }}
             InputLabelProps={{
               shrink: true,
@@ -695,13 +693,13 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             type="date"
             value={ymd(before)}
             onChange={(e) => {
-              search = deepClone(search);
+              search = deepClone(search)
               if (e.target.value) {
-                search.before = new Date(e.target.value);
+                search.before = new Date(e.target.value)
               } else {
-                delete search.before;
+                delete search.before
               }
-              app.setState({ search });
+              app.setState({ search })
             }}
             InputLabelProps={{
               shrink: true,
@@ -717,13 +715,13 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             fullWidth
             value={url || ""}
             onChange={(event) => {
-              search = deepClone(search);
+              search = deepClone(search)
               if (nws(event.target.value)) {
-                search.url = event.target.value;
+                search.url = event.target.value
               } else {
-                delete search.url;
+                delete search.url
               }
-              app.setState({ search });
+              app.setState({ search })
             }}
           />
         </Grid>
@@ -732,8 +730,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             <IconButton
               size="small"
               onClick={() => {
-                delete search.url;
-                app.setState({ search });
+                delete search.url
+                app.setState({ search })
               }}
             >
               <Clear />
@@ -765,20 +763,20 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                 .then((found) => {
                   switch (found.type) {
                     case "none":
-                      app.setState({ searchResults: [] }, () => reset(search));
-                      break;
+                      app.setState({ searchResults: [] }, () => reset(search))
+                      break
                     case "ambiguous":
                       app.setState({ searchResults: found.matches }, () =>
                         reset(search)
-                      );
-                      break;
+                      )
+                      break
                     case "found":
                       app.setState({ searchResults: [found.match] }, () =>
                         reset(search)
-                      );
+                      )
                   }
                 })
-                .catch((e) => app.error(e));
+                .catch((e) => app.error(e))
             }}
           >
             Search
@@ -796,7 +794,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
               className={classes.inCentered}
               onClick={() => {
                 if (savedSearch && !anyDifference(savedSearch.query, search)) {
-                  app.setState({ tab: Section.cards, stack: savedSearch.name });
+                  app.setState({ tab: Section.cards, stack: savedSearch.name })
                 } else {
                   // install a new ad hoc flashcard stack
                   const adHoc: CardStack = {
@@ -804,13 +802,13 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                     description: "",
                     lastAccess: new Date(),
                     query: search,
-                  };
-                  app.switchboard.index!.stacks.set("", adHoc);
+                  }
+                  app.switchboard.index!.stacks.set("", adHoc)
                   app.setState({
                     tab: Section.cards,
                     stack: "",
                     flashcards: undefined,
-                  });
+                  })
                 }
               }}
             >
@@ -850,7 +848,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             onClick={() => {
               const name = searchName!
                 .replace(/^\s+|\s+$/g, "")
-                .replace(/\s+/g, " ");
+                .replace(/\s+/g, " ")
               app.switchboard
                 .index!.saveStack({
                   name,
@@ -859,13 +857,13 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                   query: search,
                 })
                 .then(() => {
-                  setSearchName(name);
+                  setSearchName(name)
                   app.setState({ stack: name }, () => {
-                    app.success(`saved search "${name}"`);
-                    setShowSaveSearchForm(false);
-                  });
+                    app.success(`saved search "${name}"`)
+                    setShowSaveSearchForm(false)
+                  })
                 })
-                .catch((e) => app.error(e));
+                .catch((e) => app.error(e))
             }}
           >
             Save
@@ -887,14 +885,14 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                     .index!.deleteStack(savedSearch!.name)
                     .then(() => {
                       if (app.state.stack === savedSearch!.name) {
-                        app.setState({ stack: undefined });
+                        app.setState({ stack: undefined })
                       }
                       app.success(
                         `discarded saved search "${savedSearch!.name}"`
-                      );
-                      setShowSaveSearchForm(false);
+                      )
+                      setShowSaveSearchForm(false)
                     })
-                    .catch((e) => app.error(e));
+                    .catch((e) => app.error(e))
                 }}
               >
                 <Delete />
@@ -904,7 +902,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
         </div>
       </Collapse>
     </div>
-  );
+  )
 }
 
 const resultStyles = makeStyles((theme) => ({
@@ -942,20 +940,20 @@ const resultStyles = makeStyles((theme) => ({
     fontSize: "smaller",
   },
   urls: {},
-}));
+}))
 
 type ResultOps = {
-  note: NoteRecord;
-  app: App;
-  relation: string;
-  setRelation: (r: string) => void;
-};
+  note: NoteRecord
+  app: App
+  relation: string
+  setRelation: (r: string) => void
+}
 export function Result({ note, app, relation, setRelation }: ResultOps) {
-  const classes = resultStyles();
+  const classes = resultStyles()
   const project = app.switchboard.index!.projects.get(
     app.switchboard.index!.reverseProjectIndex.get(note.key[0]) || ""
-  );
-  const key = enkey(note.key);
+  )
+  const key = enkey(note.key)
   return (
     <Card className={classes.root} key={key}>
       <CardContent>
@@ -989,7 +987,7 @@ export function Result({ note, app, relation, setRelation }: ResultOps) {
         </Grid>
       </CardContent>
     </Card>
-  );
+  )
 }
 
 const linkerStyles = makeStyles((theme) => ({
@@ -1004,54 +1002,54 @@ const linkerStyles = makeStyles((theme) => ({
     cursor: "pointer",
     color: theme.palette.success.dark,
   },
-}));
+}))
 
 type NavLinkerOps = {
-  note: NoteRecord;
-  app: App;
-  relation: string;
-  setRelation: (r: string) => void;
-};
+  note: NoteRecord
+  app: App
+  relation: string
+  setRelation: (r: string) => void
+}
 function NavLinker({
   note,
   app,
   relation,
   setRelation,
 }: NavLinkerOps): React.ReactElement {
-  const classes = linkerStyles();
-  const cn = app.currentNote();
-  let link;
+  const classes = linkerStyles()
+  const cn = app.currentNote()
+  let link
   if (cn && cn.citations.length && !sameNote(cn, note)) {
     // maybe not the most efficient, but easy to conceptualize;
     const parseRelation = (
       r: string
     ): {
-      headRole: string;
-      dependentRole: string;
-      reversed: boolean;
+      headRole: string
+      dependentRole: string
+      reversed: boolean
     } | null => {
-      const [left, right] = r.split("-");
+      const [left, right] = r.split("-")
       const relations = app.switchboard.index!.findProject(note.key[0])![1]
-        .relations;
+        .relations
       for (const [headRole, dependentRole] of relations) {
         if (headRole === left && dependentRole === (right || left)) {
-          return { headRole, dependentRole, reversed: false };
+          return { headRole, dependentRole, reversed: false }
         } else if (dependentRole === left) {
-          return { headRole, dependentRole, reversed: true };
+          return { headRole, dependentRole, reversed: true }
         }
       }
-      return null;
-    };
-    const parsedRelation = parseRelation(relation)!;
-    const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`;
+      return null
+    }
+    const parsedRelation = parseRelation(relation)!
+    const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
     const [r1, r2] = parsedRelation.reversed
       ? [parsedRelation.dependentRole, parsedRelation.headRole]
-      : [parsedRelation.headRole, parsedRelation.dependentRole];
+      : [parsedRelation.headRole, parsedRelation.dependentRole]
     const relate = () => {
       const relationMap = new Map<
         string,
         { headRole: string; dependentRole: string; reversed: boolean }
-      >();
+      >()
       app.switchboard
         .index!.findProject(note.key[0])![1]
         .relations.forEach(([headRole, dependentRole]) => {
@@ -1059,15 +1057,15 @@ function NavLinker({
             headRole,
             dependentRole,
             reversed: false,
-          });
+          })
           if (headRole !== dependentRole) {
             relationMap.set(nameRelation(dependentRole, headRole), {
               headRole,
               dependentRole,
               reversed: true,
-            });
+            })
           }
-        });
+        })
       app.confirm({
         title: message,
         text: (
@@ -1093,30 +1091,30 @@ function NavLinker({
         ),
         callback: () =>
           new Promise((resolve, _reject) => {
-            const [n1, n2] = parsedRelation.reversed ? [cn, note] : [note, cn];
+            const [n1, n2] = parsedRelation.reversed ? [cn, note] : [note, cn]
             app.switchboard.index
               ?.relate(
                 { phrase: n1.key, role: parsedRelation.headRole },
                 { phrase: n2.key, role: parsedRelation.dependentRole }
               )
               .then(({ head }) => {
-                const history: Visit[] = deepClone(app.state.history);
-                const { current } = history[app.state.historyIndex]!;
-                current.relations = head.relations;
+                const history: Visit[] = deepClone(app.state.history)
+                const { current } = history[app.state.historyIndex]!
+                current.relations = head.relations
                 app.setState({ history }, () => {
-                  app.cleanSearch();
-                  app.cleanHistory(true);
+                  app.cleanSearch()
+                  app.cleanHistory(true)
                   resolve(
                     `linked ${notePhrase(note)} to ${notePhrase(
                       cn
                     )} via relation ${nameRelation(r1, r2)}`
-                  );
-                });
+                  )
+                })
               })
-              .catch((e) => app.error(e));
+              .catch((e) => app.error(e))
           }),
-      });
-    };
+      })
+    }
     link = (
       <TT msg={message}>
         <Link
@@ -1126,7 +1124,7 @@ function NavLinker({
           onClick={relate}
         />
       </TT>
-    );
+    )
   }
   return (
     <div>
@@ -1144,36 +1142,36 @@ function NavLinker({
           <Done
             className={classes.done}
             onClick={() => {
-              const r: NoteRecord[] = deepClone(app.state.searchResults);
-              const n = r.find((n) => sameNote(n, note))!;
-              delete n.done;
+              const r: NoteRecord[] = deepClone(app.state.searchResults)
+              const n = r.find((n) => sameNote(n, note))!
+              delete n.done
               app.switchboard
                 .index!.save(n)
                 .then(() => {
-                  app.setState({ searchResults: r });
+                  app.setState({ searchResults: r })
                 })
-                .catch((e) => app.error(e));
+                .catch((e) => app.error(e))
             }}
           />
         </TT>
       )}
     </div>
-  );
+  )
 }
 
 function formatDates(note: NoteRecord): string | React.ReactElement {
-  let ar: Date[] = flatten(note.citations.map((c) => c.when));
-  return fd(ar);
+  let ar: Date[] = flatten(note.citations.map((c) => c.when))
+  return fd(ar)
 }
 
 function formatTags(note: NoteRecord): string {
-  return note.tags.sort().join(", ");
+  return note.tags.sort().join(", ")
 }
 
 function formatUrls(note: NoteRecord, key: string): React.ReactElement[] {
   return uniq(note.citations, (c: CitationRecord) => c.source.url)
     .sort((a, b) => (a.source.url < b.source.url ? -1 : 1))
-    .map((c: CitationRecord, i) => <Url c={c} i={i} key={key} />);
+    .map((c: CitationRecord, i) => <Url c={c} i={i} key={key} />)
 }
 
 const urlStyles = makeStyles((theme) => ({
@@ -1185,10 +1183,10 @@ const urlStyles = makeStyles((theme) => ({
   url: {
     color: theme.palette.grey[500],
   },
-}));
+}))
 
 function Url({ c, i, key }: { c: CitationRecord; i: number; key: string }) {
-  const classes = urlStyles();
+  const classes = urlStyles()
   return (
     <Grid container key={i} spacing={1} className={classes.root}>
       <Grid item xs={6}>
@@ -1198,7 +1196,7 @@ function Url({ c, i, key }: { c: CitationRecord; i: number; key: string }) {
         <Expando text={c.source.url} id={`${key}:${i}-url`} />
       </Grid>
     </Grid>
-  );
+  )
 }
 
 function SorterOption({
@@ -1206,27 +1204,27 @@ function SorterOption({
   sorter,
   search,
 }: {
-  app: App;
-  sorter: Sorter;
-  search: AdHocQuery;
+  app: App
+  sorter: Sorter
+  search: AdHocQuery
 }) {
   const selected =
     search.sorter === sorter.pk ||
     (search.sorter == null &&
-      app.switchboard.index!.currentSorter === sorter.pk);
+      app.switchboard.index!.currentSorter === sorter.pk)
   return (
     <MenuItem
       key={sorter.pk}
       selected={selected}
       dense
       onClick={() => {
-        search.sorter = sorter.pk;
-        app.setState({ search });
+        search.sorter = sorter.pk
+        app.setState({ search })
       }}
     >
       {sorter.name}
     </MenuItem>
-  );
+  )
 }
 
 function SearchDetails({ app }: { app: App }) {
@@ -1235,5 +1233,5 @@ function SearchDetails({ app }: { app: App }) {
       More to come.
       <AboutLink app={app} />
     </>
-  );
+  )
 }

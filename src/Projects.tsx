@@ -1,7 +1,7 @@
-import React from "react";
-import { nws } from "./modules/util";
-import { AboutLink, Details, Mark, TT } from "./modules/components";
-import { App } from "./App";
+import React from "react"
+import { nws } from "./modules/util"
+import { AboutLink, Details, Mark, TT } from "./modules/components"
+import { App } from "./App"
 import {
   Button,
   Card,
@@ -22,32 +22,32 @@ import {
   Select,
   TextField,
   Typography as T,
-} from "@material-ui/core";
-import { Clear, Edit, FileCopy } from "@material-ui/icons";
-import { ProjectInfo } from "./modules/types";
-import { deepClone } from "./modules/clone";
-import { Autocomplete, createFilterOptions } from "@material-ui/lab";
-import { normalizers } from "./modules/storage";
+} from "@material-ui/core"
+import { Clear, Edit, FileCopy } from "@material-ui/icons"
+import { ProjectInfo } from "./modules/types"
+import { deepClone } from "./modules/clone"
+import { Autocomplete, createFilterOptions } from "@material-ui/lab"
+import { normalizers } from "./modules/storage"
 
 interface ProjectProps {
-  app: App;
+  app: App
 }
 
 interface ProjectState {
-  action: "cloning" | "editing" | "destroying" | null;
-  modifying: ProjectInfo | null; // the project currently being modified
-  projects: { [name: string]: ProjectInfo };
+  action: "cloning" | "editing" | "destroying" | null
+  modifying: ProjectInfo | null // the project currently being modified
+  projects: { [name: string]: ProjectInfo }
 }
 
 class Projects extends React.Component<ProjectProps, ProjectState> {
-  app: App;
+  app: App
   constructor(props: ProjectProps) {
-    super(props);
-    this.app = props.app;
-    this.state = { action: null, modifying: null, projects: {} };
+    super(props)
+    this.app = props.app
+    this.state = { action: null, modifying: null, projects: {} }
   }
   componentDidMount() {
-    this.props.app.switchboard.then(() => this.initProjects());
+    this.props.app.switchboard.then(() => this.initProjects())
   }
   render(): React.ReactNode {
     return (
@@ -61,29 +61,29 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
         <ChangeModal proj={this} app={this.app} />
         <DestroyModal proj={this} />
       </div>
-    );
+    )
   }
 
   initProjects() {
-    const p: { [name: string]: ProjectInfo } = {};
+    const p: { [name: string]: ProjectInfo } = {}
     this.props.app.switchboard.index!.projects.forEach((info, name, _map) => {
-      p[name] = info;
-    });
-    this.setState({ projects: p });
+      p[name] = info
+    })
+    this.setState({ projects: p })
   }
 
   // destroy the project marked for destruction
   destroy() {
-    const { app } = this.props;
+    const { app } = this.props
     if (this.state.action === "destroying") {
-      const name = this.state.modifying!.name;
+      const name = this.state.modifying!.name
       const changeToDefault = (this.state.modifying!.pk =
-        app.switchboard.index!.currentProject);
+        app.switchboard.index!.currentProject)
       app.switchboard
         .index!.removeProject(this.state.modifying!.pk)
         .then(() => {
-          this.initProjects();
-          this.setState({ action: null, modifying: null });
+          this.initProjects()
+          this.setState({ action: null, modifying: null })
           app
             .cleanHistory(true)
             .then(() => {
@@ -92,37 +92,37 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
                 .catch((e) => app.error(e))
                 .then(() => {
                   if (changeToDefault) {
-                    app.setState({ defaultProject: 0 });
+                    app.setState({ defaultProject: 0 })
                   }
-                  app.success(`Removed project ${name}`);
-                });
+                  app.success(`Removed project ${name}`)
+                })
             })
-            .catch((e) => app.error(e));
+            .catch((e) => app.error(e))
         })
         .catch((error) =>
           app.error(`Could not remove project ${name}: ${error}`)
-        );
+        )
     } else {
-      app.warn("No project to remove");
+      app.warn("No project to remove")
     }
   }
 
   // turn state.cloning into a new project
   alterProject() {
-    const action = this.state.action;
+    const action = this.state.action
     if (action === "cloning" || action === "editing") {
-      const proj = deepClone(this.state.modifying) || {};
+      const proj = deepClone(this.state.modifying) || {}
       console.log(proj)
-      delete proj.pk;
+      delete proj.pk
       this.props.app.switchboard
         .index!.saveProject(proj)
         .then((pk) => {
-          this.initProjects();
-          this.setState({ action: null, modifying: null });
-          const verb = action === "cloning" ? "Created" : "Edited";
+          this.initProjects()
+          this.setState({ action: null, modifying: null })
+          const verb = action === "cloning" ? "Created" : "Edited"
           this.props.app.success(
             `${verb} project ${proj.name} (primary key: ${pk})`
-          );
+          )
         })
         .catch((error) =>
           this.props.app.error(
@@ -130,15 +130,15 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
               action === "cloning" ? "create new" : "edit"
             } project ${proj.name}: ${error}`
           )
-        );
+        )
     } else {
       // should be unreachable
-      this.props.app.error("makeProject called when none is staged");
+      this.props.app.error("makeProject called when none is staged")
     }
   }
 }
 
-export default Projects;
+export default Projects
 
 const projectStyles = makeStyles((theme) => ({
   title: {
@@ -155,31 +155,31 @@ const projectStyles = makeStyles((theme) => ({
     fontSize: 14,
     fontWeight: "bold",
   },
-}));
+}))
 
 function ProjectCard({
   proj,
   name,
   info,
 }: {
-  proj: Projects;
-  name: string;
-  info: ProjectInfo;
+  proj: Projects
+  name: string
+  info: ProjectInfo
 }) {
-  const classes = projectStyles();
-  const defaultProject = info.pk === 0;
-  const appDefault = info.pk === proj.props.app.state.defaultProject;
+  const classes = projectStyles()
+  const defaultProject = info.pk === 0
+  const appDefault = info.pk === proj.props.app.state.defaultProject
   const startEditing = function () {
-    if (defaultProject) return;
-    proj.setState({ action: "editing", modifying: deepClone(info) });
-  };
+    if (defaultProject) return
+    proj.setState({ action: "editing", modifying: deepClone(info) })
+  }
   const startCloning = function () {
-    proj.setState({ action: "cloning", modifying: deepClone(info) });
-  };
+    proj.setState({ action: "cloning", modifying: deepClone(info) })
+  }
   const startDestroying = function () {
-    if (defaultProject) return;
-    proj.setState({ action: "destroying", modifying: deepClone(info) });
-  };
+    if (defaultProject) return
+    proj.setState({ action: "destroying", modifying: deepClone(info) })
+  }
   const makeDefaultProject = appDefault
     ? undefined
     : function () {
@@ -188,8 +188,8 @@ function ProjectCard({
           .then(() => proj.props.app.setState({ defaultProject: info.pk }))
           .catch((error) =>
             proj.props.app.error(`Could not change default project: ${error}`)
-          );
-      };
+          )
+      }
   const sorter = proj.app.switchboard.index?.sorters.get(info.sorter ?? 0)
   return (
     <Grid item xs={12} key={info.pk}>
@@ -218,9 +218,7 @@ function ProjectCard({
           </span>
           <br />
           <span className={classes.header}>Sorter</span>
-          <span style={{ marginLeft: "1rem" }}>
-            {sorter?.name}
-          </span>
+          <span style={{ marginLeft: "1rem" }}>{sorter?.name}</span>
           <br />
           <T className={classes.header}>Relations</T>
           <ul className={classes.relations}>
@@ -230,8 +228,8 @@ function ProjectCard({
                   left
                 ) : (
                   <PairedRelation left={left} right={right} />
-                );
-              return <li key={`${left}/${right}`}>{n}</li>;
+                )
+              return <li key={`${left}/${right}`}>{n}</li>
             })}
           </ul>
         </CardContent>
@@ -254,7 +252,7 @@ function ProjectCard({
         </CardActions>
       </Card>
     </Grid>
-  );
+  )
 }
 
 const changeStyles = makeStyles((theme) => ({
@@ -265,58 +263,58 @@ const changeStyles = makeStyles((theme) => ({
       marginTop: 0,
     },
   },
-}));
+}))
 
 const relationFilterOptions = createFilterOptions({
   stringify: (option: [string, string]) => {
-    const [left, right] = option;
-    return left === right ? left : `${left}/${right}`;
+    const [left, right] = option
+    return left === right ? left : `${left}/${right}`
   },
-});
+})
 
 function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
-  const action = proj.state.action;
+  const action = proj.state.action
   if (!(action === "cloning" || action === "editing")) {
-    return null;
+    return null
   }
-  const classes = changeStyles();
-  const mod = proj.state.modifying!;
+  const classes = changeStyles()
+  const mod = proj.state.modifying!
   // the name may change but the primary key will not
-  const name = app.switchboard.index!.reverseProjectIndex.get(mod.pk);
-  const modifyingName = mod.name;
-  let allRelations: [string, string][] = [];
+  const name = app.switchboard.index!.reverseProjectIndex.get(mod.pk)
+  const modifyingName = mod.name
+  let allRelations: [string, string][] = []
   for (const p of Object.values(proj.state.projects)) {
-    allRelations = allRelations.concat(p.relations);
+    allRelations = allRelations.concat(p.relations)
   }
   allRelations = Array.from(
     new Set(allRelations.map((r) => JSON.stringify(r)))
-  ).map((r) => JSON.parse(r));
-  let nameError: string | undefined;
+  ).map((r) => JSON.parse(r))
+  let nameError: string | undefined
   if (!nws(proj.state.modifying!.name)) {
-    nameError = "required";
+    nameError = "required"
   } else if (
     proj.state.projects[modifyingName] &&
     (action !== "editing" || name !== modifyingName)
   ) {
-    nameError = "already in use";
+    nameError = "already in use"
   }
-  let relationError: string | undefined;
+  let relationError: string | undefined
   for (const [left, right] of mod.relations) {
     if (relationError) {
-      break;
+      break
     }
     if ((left === "see also") !== (right === "see also")) {
-      relationError = '"see also" can only be symmetric';
+      relationError = '"see also" can only be symmetric'
     } else if (right.indexOf("/") >= 0) {
       relationError =
-        'the character "/" can only be used to separate non-symmetric relations';
+        'the character "/" can only be used to separate non-symmetric relations'
     } else if (!(nws(left) && nws(right))) {
-      relationError = "relation names must not be blank";
+      relationError = "relation names must not be blank"
     }
   }
   const disableNormalizerChange =
     action === "editing" &&
-    !!app.switchboard.index?.projectIndices.get(mod.pk)!.size;
+    !!app.switchboard.index?.projectIndices.get(mod.pk)!.size
   return (
     <Dialog
       open
@@ -335,9 +333,9 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
               label="Name"
               className={classes.text}
               onChange={(e) => {
-                const modifying = deepClone(mod);
-                modifying.name = e.target.value;
-                proj.setState({ modifying });
+                const modifying = deepClone(mod)
+                modifying.name = e.target.value
+                proj.setState({ modifying })
               }}
               error={!!nameError}
               helperText={nameError}
@@ -349,9 +347,9 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
               label="Description"
               className={classes.text}
               onChange={(e) => {
-                const modifying = deepClone(mod);
-                modifying.description = e.target.value;
-                proj.setState({ modifying });
+                const modifying = deepClone(mod)
+                modifying.description = e.target.value
+                proj.setState({ modifying })
               }}
               multiline
               error={false}
@@ -367,13 +365,15 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
                 value={mod.normalizer}
                 disabled={disableNormalizerChange}
                 onChange={(event) => {
-                  const modifying = deepClone(mod);
-                  modifying.normalizer = event.target.value;
-                  proj.setState({ modifying });
+                  const modifying = deepClone(mod)
+                  modifying.normalizer = event.target.value
+                  proj.setState({ modifying })
                 }}
               >
                 {Object.entries(normalizers).map(([name, n], _i) => (
-                  <MenuItem key={n.pk} value={name}>{n.name}</MenuItem>
+                  <MenuItem key={n.pk} value={name}>
+                    {n.name}
+                  </MenuItem>
                 ))}
               </Select>
               {disableNormalizerChange && (
@@ -383,21 +383,25 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
               )}
             </FormControl>
             <FormControl className={classes.text}>
-              <InputLabel id="change-form-sorter-label">
-                Sorter
-              </InputLabel>
+              <InputLabel id="change-form-sorter-label">Sorter</InputLabel>
               <Select
                 id="change-form-sorter"
                 value={mod.sorter}
                 onChange={(event) => {
-                  const modifying = deepClone(mod);
-                  modifying.sorter = Number.parseInt(event.target.value as string);
-                  proj.setState({ modifying });
+                  const modifying = deepClone(mod)
+                  modifying.sorter = Number.parseInt(
+                    event.target.value as string
+                  )
+                  proj.setState({ modifying })
                 }}
               >
-                {Array.from(app.switchboard.index!.sorters.values()).map(sorter => (
-                  <MenuItem key={sorter.pk} value={sorter.pk}>{sorter.name}</MenuItem>
-                ))}
+                {Array.from(app.switchboard.index!.sorters.values()).map(
+                  (sorter) => (
+                    <MenuItem key={sorter.pk} value={sorter.pk}>
+                      {sorter.name}
+                    </MenuItem>
+                  )
+                )}
               </Select>
             </FormControl>
             <Autocomplete
@@ -428,7 +432,7 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
                 value.map((obj, index) => {
                   const [left, right] = Array.isArray(obj)
                     ? obj
-                    : stringToRelation(obj);
+                    : stringToRelation(obj)
                   return (
                     <Chip
                       variant="outlined"
@@ -442,7 +446,7 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
                       }
                       {...getTagProps({ index })}
                     />
-                  );
+                  )
                 })
               }
               renderOption={([left, right]) =>
@@ -454,19 +458,19 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
               }
               filterOptions={relationFilterOptions}
               onChange={(_event, value, _reason) => {
-                const relations = [];
+                const relations = []
                 for (const r of value) {
                   if (Array.isArray(r)) {
-                    relations.push(r);
+                    relations.push(r)
                   } else {
-                    relations.push(stringToRelation(r));
+                    relations.push(stringToRelation(r))
                   }
                 }
-                const modifying = deepClone(mod);
+                const modifying = deepClone(mod)
                 modifying.relations = Array.from(
                   new Set(relations.map((r) => JSON.stringify(r)))
-                ).map((r) => JSON.parse(r));
-                proj.setState({ modifying });
+                ).map((r) => JSON.parse(r))
+                proj.setState({ modifying })
               }}
             />
           </form>
@@ -488,15 +492,15 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
         </Button>
       </DialogActions>
     </Dialog>
-  );
+  )
 }
 
 function stringToRelation(r: string) {
   const [left, ...right] = r
     .split("/")
-    .map((s) => s.replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "));
-  const other = right.join("/");
-  return [left, other ? other : left];
+    .map((s) => s.replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "))
+  const other = right.join("/")
+  return [left, other ? other : left]
 }
 
 const separatorStyle = makeStyles((theme) => ({
@@ -506,25 +510,25 @@ const separatorStyle = makeStyles((theme) => ({
     color: theme.palette.grey[500],
     fontWeight: "bold",
   },
-}));
+}))
 
 function PairedRelation({ left, right }: { left: string; right: string }) {
-  const classes = separatorStyle();
+  const classes = separatorStyle()
   return (
     <span>
       {left}
       <span className={classes.sep}>/</span>
       {right}
     </span>
-  );
+  )
 }
 
 // TODO delegate this to app.confirm
 function DestroyModal({ proj }: { proj: Projects }) {
   if (proj.state.action !== "destroying") {
-    return null;
+    return null
   }
-  const name = proj.state.modifying!.name;
+  const name = proj.state.modifying!.name
   return (
     <Dialog
       open
@@ -553,7 +557,7 @@ function DestroyModal({ proj }: { proj: Projects }) {
         </Button>
       </DialogActions>
     </Dialog>
-  );
+  )
 }
 
 const detailsStyle = makeStyles((theme) => ({
@@ -561,10 +565,10 @@ const detailsStyle = makeStyles((theme) => ({
     verticalAlign: "top",
     fontWeight: "bold",
   },
-}));
+}))
 
 function ProjectDetails({ app }: { app: App }) {
-  const classes = detailsStyle();
+  const classes = detailsStyle()
   return (
     <Details header="Projects">
       <>
@@ -644,5 +648,5 @@ function ProjectDetails({ app }: { app: App }) {
         <AboutLink app={app} />
       </>
     </Details>
-  );
+  )
 }

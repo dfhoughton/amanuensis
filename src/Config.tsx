@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState } from "react"
 
-import { App } from "./App";
+import { App } from "./App"
 import {
   AboutLink,
   Details,
@@ -8,9 +8,9 @@ import {
   InfoSpinner,
   TabLink,
   TitleBox,
-} from "./modules/components";
-import { Configuration } from "./modules/types";
-import { deepClone } from "./modules/clone";
+} from "./modules/components"
+import { Configuration } from "./modules/types"
+import { deepClone } from "./modules/clone"
 
 import {
   Box,
@@ -20,32 +20,32 @@ import {
   makeStyles,
   Switch,
   Typography as T,
-} from "@material-ui/core";
-import { Delete, GetApp, Publish } from "@material-ui/icons";
-import { formatNumber } from "./modules/util";
+} from "@material-ui/core"
+import { Delete, GetApp, Publish } from "@material-ui/icons"
+import { formatNumber } from "./modules/util"
 
 interface ConfigProps {
-  app: App;
+  app: App
 }
 
 type ConfigState = {
-  initialized: boolean;
-  amountMemoryUsed: number;
-  amountMemoryAvailable: number;
-  initializedMemory: boolean;
-};
+  initialized: boolean
+  amountMemoryUsed: number
+  amountMemoryAvailable: number
+  initializedMemory: boolean
+}
 
 class Config extends React.Component<ConfigProps, ConfigState> {
-  app: App;
+  app: App
   constructor(props: Readonly<ConfigProps>) {
-    super(props);
-    this.app = props.app;
+    super(props)
+    this.app = props.app
     this.state = {
       initialized: false,
       amountMemoryUsed: 0,
       amountMemoryAvailable: 100,
       initializedMemory: false,
-    };
+    }
     this.app.switchboard
       .index!.memfree()
       .then(([a, u]) =>
@@ -55,11 +55,11 @@ class Config extends React.Component<ConfigProps, ConfigState> {
           initializedMemory: true,
         })
       )
-      .catch((e) => this.app.error(e));
+      .catch((e) => this.app.error(e))
   }
 
   componentDidMount() {
-    this.app.switchboard.then(() => this.setState({ initialized: true }));
+    this.app.switchboard.then(() => this.setState({ initialized: true }))
   }
 
   render() {
@@ -78,11 +78,11 @@ class Config extends React.Component<ConfigProps, ConfigState> {
         <Stats config={this} />
         <DownloadUpload config={this} />
       </div>
-    );
+    )
   }
 }
 
-export default Config;
+export default Config
 
 const paramStyles = makeStyles((theme) => ({
   label: {
@@ -95,14 +95,14 @@ const paramStyles = makeStyles((theme) => ({
   abstract: {
     fontStyle: "italic",
   },
-}));
+}))
 
 function Params({ config }: { config: Config }) {
-  const conf = config.app.state.config;
-  const [firstInfo, setFirstInfo] = useState<boolean>(false);
-  const classes = paramStyles();
+  const conf = config.app.state.config
+  const [firstInfo, setFirstInfo] = useState<boolean>(false)
+  const classes = paramStyles()
   const configError = (e: any) =>
-    config.app.error(`could not save configuration change: ${e}`);
+    config.app.error(`could not save configuration change: ${e}`)
   return (
     <TitleBox title="Parameters" mt={3}>
       <strong>Flashcards</strong>
@@ -119,15 +119,15 @@ function Params({ config }: { config: Config }) {
               <Switch
                 checked={conf.cards.first === "phrase"}
                 onChange={() => {
-                  const newConf: Configuration = deepClone(conf);
+                  const newConf: Configuration = deepClone(conf)
                   newConf.cards.first =
-                    conf.cards.first === "gist" ? "phrase" : "gist";
+                    conf.cards.first === "gist" ? "phrase" : "gist"
                   config.app.switchboard
                     .index!.saveConfiguration(newConf)
                     .then(() => {
-                      config.app.setState({ config: newConf });
+                      config.app.setState({ config: newConf })
                     })
-                    .catch(configError);
+                    .catch(configError)
                 }}
               />
             </Grid>
@@ -147,49 +147,49 @@ function Params({ config }: { config: Config }) {
         start with the phrase.
       </InfoBox>
     </TitleBox>
-  );
+  )
 }
 
 function DownloadUpload({ config }: { config: Config }) {
-  const [showDownloadInfo, setShowDownloadInfo] = useState<boolean>(false);
-  const [showUploadInfo, setShowUploadInfo] = useState<boolean>(false);
-  const classes = paramStyles();
-  if (!config.state.initialized) return null;
+  const [showDownloadInfo, setShowDownloadInfo] = useState<boolean>(false)
+  const [showUploadInfo, setShowUploadInfo] = useState<boolean>(false)
+  const classes = paramStyles()
+  if (!config.state.initialized) return null
 
   const downloadHandler = () => {
     config.app.switchboard.then(() => {
       config.app.switchboard
         .index!.dump()
         .then((json) => {
-          const text = JSON.stringify(json);
-          const e = document.createElement("a");
+          const text = JSON.stringify(json)
+          const e = document.createElement("a")
           e.setAttribute(
             "href",
             "data:application/json;charset=utf-8," + encodeURIComponent(text)
-          );
-          e.setAttribute("download", "amanuensis.json");
-          e.style.display = "none";
-          document.body.appendChild(e);
-          e.click();
-          document.body.removeChild(e);
+          )
+          e.setAttribute("download", "amanuensis.json")
+          e.style.display = "none"
+          document.body.appendChild(e)
+          e.click()
+          document.body.removeChild(e)
         })
-        .catch((e) => config.app.error(`could not obtain JSON: ${e}`));
-    });
-  };
+        .catch((e) => config.app.error(`could not obtain JSON: ${e}`))
+    })
+  }
   const uploadHandler = (e: any) => {
     const element = document.getElementById(
       "uploaded-state"
-    )! as HTMLInputElement;
+    )! as HTMLInputElement
     if (element.files?.length) {
-      const f = element.files[0];
+      const f = element.files[0]
       if (f.type === "application/json") {
-        const reader = new FileReader();
-        reader.readAsText(f);
+        const reader = new FileReader()
+        reader.readAsText(f)
         reader.onload = (e) => {
-          const text = e.target?.result;
+          const text = e.target?.result
           if (text) {
             try {
-              const data = JSON.parse(text.toString());
+              const data = JSON.parse(text.toString())
               config.app.confirm({
                 title: `Replace current state with that saved in ${f.name}?`,
                 text: (
@@ -213,29 +213,29 @@ function DownloadUpload({ config }: { config: Config }) {
                       .index!.load(data)
                       .then(() => {
                         config.app.switchboard.rebootIndex().then(() => {
-                          config.app.clear();
-                          resolve("");
-                        });
+                          config.app.clear()
+                          resolve("")
+                        })
                       })
                       .catch((e) =>
                         reject(
                           `could not store state in ${f.name} on disk: ${e}`
                         )
-                      );
+                      )
                   }),
-              });
+              })
             } catch (e) {
               config.app.error(
                 `the text in ${f.name} is not parsable as JSON: ${e.message}`
-              );
+              )
             }
           }
-        };
+        }
       } else {
-        config.app.error(`the uploaded file, ${f.name}, is not JSON`);
+        config.app.error(`the uploaded file, ${f.name}, is not JSON`)
       }
     }
-  };
+  }
 
   return (
     <TitleBox title="Upload/Download" mt={3}>
@@ -307,16 +307,16 @@ function DownloadUpload({ config }: { config: Config }) {
         </Box>
       </InfoBox>
     </TitleBox>
-  );
+  )
 }
 
 function Stats({ config }: { config: Config }) {
-  const classes = paramStyles();
-  const [showMemoryInfo, setShowMemoryInfo] = useState<boolean>(false);
-  const maybeHide = config.state.initializedMemory ? {} : { display: "none" };
+  const classes = paramStyles()
+  const [showMemoryInfo, setShowMemoryInfo] = useState<boolean>(false)
+  const maybeHide = config.state.initializedMemory ? {} : { display: "none" }
   const { amountMemoryUsed: used, amountMemoryAvailable: available } =
-    config.state;
-  const value = Math.round((100 * used) / available);
+    config.state
+  const value = Math.round((100 * used) / available)
   return (
     <TitleBox title="Statistics" mt={3} style={maybeHide}>
       <Grid container alignItems="center" spacing={2}>
@@ -357,16 +357,16 @@ function Stats({ config }: { config: Config }) {
         </Box>
       </InfoBox>
     </TitleBox>
-  );
+  )
 }
 
 // generates the clear all button portion of the config panel
 function Clear({ config }: { config: Config }) {
-  const classes = paramStyles();
-  const [everythingInfo, setEverythingInfo] = useState<boolean>(false);
-  const [savedSearchInfo, setSavedSearchInfo] = useState<boolean>(false);
-  const [trialInfo, setTrialInfo] = useState<boolean>(false);
-  const maybeHide = config.state.initialized ? {} : { display: "none" };
+  const classes = paramStyles()
+  const [everythingInfo, setEverythingInfo] = useState<boolean>(false)
+  const [savedSearchInfo, setSavedSearchInfo] = useState<boolean>(false)
+  const [trialInfo, setTrialInfo] = useState<boolean>(false)
+  const maybeHide = config.state.initialized ? {} : { display: "none" }
   return (
     <TitleBox title="Clear Records" mt={3} style={maybeHide}>
       <p className={classes.abstract}>
@@ -396,10 +396,10 @@ function Clear({ config }: { config: Config }) {
                     config.app.switchboard
                       .index!.clear()
                       .then(() => {
-                        config.app.setState({ defaultProject: 0 });
-                        resolve("everything is gone");
+                        config.app.setState({ defaultProject: 0 })
+                        resolve("everything is gone")
                       })
-                      .catch((e) => reject(e));
+                      .catch((e) => reject(e))
                   }),
               })
             }
@@ -439,10 +439,10 @@ function Clear({ config }: { config: Config }) {
                     config.app.switchboard
                       .index!.clearStacks()
                       .then(() => {
-                        config.app.setState({ stack: undefined });
-                        resolve("all saved searches have been deleted");
+                        config.app.setState({ stack: undefined })
+                        resolve("all saved searches have been deleted")
                       })
-                      .catch((e) => reject(e));
+                      .catch((e) => reject(e))
                   }),
               })
             }
@@ -482,7 +482,7 @@ function Clear({ config }: { config: Config }) {
                     config.app.switchboard
                       .index!.clearTrials()
                       .then((s) => resolve(s))
-                      .catch(reject);
+                      .catch(reject)
                   }),
               })
             }
@@ -509,5 +509,5 @@ function Clear({ config }: { config: Config }) {
         </Box>
       </InfoBox>
     </TitleBox>
-  );
+  )
 }

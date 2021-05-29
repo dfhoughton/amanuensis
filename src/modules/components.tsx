@@ -8,8 +8,8 @@ import {
   makeStyles,
   Popover,
   Typography,
-} from "@material-ui/core";
-import Tooltip from "@material-ui/core/Tooltip";
+} from "@material-ui/core"
+import Tooltip from "@material-ui/core/Tooltip"
 import {
   ArrowUpward,
   Build,
@@ -21,20 +21,20 @@ import {
   StarBorder,
   Search,
   Sort,
-} from "@material-ui/icons";
-import React, { ReactElement } from "react";
-import { App, Section, Sections } from "../App";
-import { uniq, ymd } from "./util";
+} from "@material-ui/icons"
+import React, { ReactElement } from "react"
+import { App, Section, Sections } from "../App"
+import { uniq, ymd } from "./util"
 
 // the sorts of things that are children in React components
 // probably there's some standard way to do this
-type Child = string | React.ReactElement;
-export type Children = Child | Child[];
+type Child = string | React.ReactElement
+export type Children = Child | Child[]
 
 interface TTProps {
-  children: ReactElement;
-  msg: string;
-  wrap?: boolean;
+  children: ReactElement
+  msg: string
+  wrap?: boolean
   placement?:
     | "top-start"
     | "top"
@@ -47,24 +47,24 @@ interface TTProps {
     | "bottom-end"
     | "left-start"
     | "left"
-    | "left-end";
+    | "left-end"
 }
 
 // decorate an element with a tooltip
 export function TT({ children, msg, placement, wrap }: TTProps): ReactElement {
-  const child = wrap ? <span>{children}</span> : children;
+  const child = wrap ? <span>{children}</span> : children
   if (placement) {
     return (
       <Tooltip title={msg} placement={placement} arrow>
         {child}
       </Tooltip>
-    );
+    )
   } else {
     return (
       <Tooltip title={msg} arrow>
         {child}
       </Tooltip>
-    );
+    )
   }
 }
 
@@ -79,14 +79,14 @@ const detailsStyles = makeStyles((theme) => ({
   details: {
     fontSize: theme.typography.pxToRem(14),
   },
-}));
+}))
 
 type DetailsProps = {
-  children: Children;
-  header?: string;
-  expanded?: boolean;
-  onChange?: (event: object, expanded: boolean) => void;
-};
+  children: Children
+  header?: string
+  expanded?: boolean
+  onChange?: (event: object, expanded: boolean) => void
+}
 
 // a widget that displays the contents of a tab, a help button, and some expandable help text
 export function Details({
@@ -94,12 +94,12 @@ export function Details({
   header,
   ...accordionProps
 }: DetailsProps): ReactElement {
-  const classes = detailsStyles();
+  const classes = detailsStyles()
   const headerElement = !header ? null : (
     <Typography>
       <div className={classes.header}>{header}</div>
     </Typography>
-  );
+  )
   return (
     <div className={classes.root}>
       <Accordion {...accordionProps}>
@@ -113,7 +113,7 @@ export function Details({
         </AccordionDetails>
       </Accordion>
     </div>
-  );
+  )
 }
 
 const starStyles = makeStyles((theme) => ({
@@ -123,7 +123,7 @@ const starStyles = makeStyles((theme) => ({
   pointy: {
     cursor: "pointer",
   },
-}));
+}))
 
 // for making a gold/grey-bordered star for bookmarks and such
 export function Mark({
@@ -132,25 +132,25 @@ export function Mark({
   fontSize,
   style,
 }: {
-  starred: boolean;
-  style?: any;
-  fontSize?: any;
-  onClick?: () => void;
+  starred: boolean
+  style?: any
+  fontSize?: any
+  onClick?: () => void
 }) {
-  const classes = starStyles();
+  const classes = starStyles()
   const cz = onClick
     ? starred
       ? undefined
       : `${classes.unstarred} ${classes.pointy}`
     : starred
     ? undefined
-    : classes.unstarred;
-  const opts = { onClick, fontSize, style, className: cz };
+    : classes.unstarred
+  const opts = { onClick, fontSize, style, className: cz }
   return starred ? (
     <Star color="secondary" {...opts} />
   ) : (
     <StarBorder {...opts} />
-  );
+  )
 }
 
 const expandoStyles = makeStyles((theme) => ({
@@ -173,25 +173,25 @@ const expandoStyles = makeStyles((theme) => ({
     fontWeight: "bold",
     marginLeft: theme.spacing(1),
   },
-}));
+}))
 
 type ExpandoOpts = {
-  text: Children;
-  id: string;
-  className?: string;
-};
+  text: Children
+  id: string
+  className?: string
+}
 
 export function Expando({ text, id, className }: ExpandoOpts) {
-  const classes = expandoStyles();
-  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
-  const open = Boolean(anchorEl);
-  const cz = className ? `${className} ${classes.root}` : classes.root;
+  const classes = expandoStyles()
+  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
+  const open = Boolean(anchorEl)
+  const cz = className ? `${className} ${classes.root}` : classes.root
   return (
     <span className={cz}>
       <span
         className={classes.item}
         onClick={(event) => {
-          setAnchorEl(event.currentTarget);
+          setAnchorEl(event.currentTarget)
         }}
       >
         {text}
@@ -210,22 +210,22 @@ export function Expando({ text, id, className }: ExpandoOpts) {
         </div>
       </Popover>
     </span>
-  );
+  )
 }
 
 // a general way to format a sequence of timestamps
 export function formatDates(dates: Date[]): string | React.ReactElement {
-  let ar = uniq(dates.map((d) => ymd(d) || "")).sort();
-  const joined = ar.join(", ");
+  let ar = uniq(dates.map((d) => ymd(d) || "")).sort()
+  const joined = ar.join(", ")
   if (ar.length > 3) {
-    ar = [ar[0], "...", ar[ar.length - 1]];
+    ar = [ar[0], "...", ar[ar.length - 1]]
     return (
       <TT msg={joined}>
         <span>{ar.join(" ")}</span>
       </TT>
-    );
+    )
   }
-  return joined;
+  return joined
 }
 
 const titleboxStyles = makeStyles((theme) => ({
@@ -249,35 +249,35 @@ const titleboxStyles = makeStyles((theme) => ({
     padding: theme.spacing(2),
     paddingTop: 0,
   },
-}));
+}))
 
 type TitleBoxProps = {
-  title: string;
-  children: Children;
-  m?: number;
-  mt?: number;
-  mb?: number;
-  ml?: number;
-  mr?: number;
-  style?: { [key: string]: any };
-};
+  title: string
+  children: Children
+  m?: number
+  mt?: number
+  mb?: number
+  ml?: number
+  mr?: number
+  style?: { [key: string]: any }
+}
 
 export function TitleBox(props: TitleBoxProps): ReactElement {
-  const { title, children, ...boxProps } = props;
-  const classes = titleboxStyles();
+  const { title, children, ...boxProps } = props
+  const classes = titleboxStyles()
   return (
     <Box className={classes.box} {...boxProps}>
       <span className={classes.title}>{title}</span>
       <div className={classes.inner}>{children}</div>
     </Box>
-  );
+  )
 }
 
 type InfoProps = {
-  flipped?: boolean;
-  setFlipped?: (flipped: boolean) => void;
-  fontSize?: "inherit" | "default" | "large" | "small" | "tiny";
-};
+  flipped?: boolean
+  setFlipped?: (flipped: boolean) => void
+  fontSize?: "inherit" | "default" | "large" | "small" | "tiny"
+}
 
 const infoSpinnerStyles = makeStyles((theme) => ({
   root: {
@@ -297,15 +297,15 @@ const infoSpinnerStyles = makeStyles((theme) => ({
     transform: "rotate(0deg)",
     transition: "transform 0.3s",
   },
-}));
+}))
 
 export function InfoSpinner({
   flipped = false,
   setFlipped = (b: boolean) => {},
   fontSize = "small",
 }: InfoProps) {
-  const classes = infoSpinnerStyles();
-  const cz = `${classes.root} ${flipped ? classes.flipped : classes.unflipped}`;
+  const classes = infoSpinnerStyles()
+  const cz = `${classes.root} ${flipped ? classes.flipped : classes.unflipped}`
   if (fontSize === "tiny") {
     return (
       <span
@@ -316,7 +316,7 @@ export function InfoSpinner({
           <span>ⓘ</span>
         </TT>
       </span>
-    );
+    )
   } else {
     return (
       <Help
@@ -324,7 +324,7 @@ export function InfoSpinner({
         className={cz}
         onClick={() => setFlipped(!flipped)}
       />
-    );
+    )
   }
 }
 
@@ -332,28 +332,28 @@ const infoBoxStyles = makeStyles((theme) => ({
   box: {
     padding: theme.spacing(1),
   },
-}));
+}))
 
 type InfoBoxProps = {
-  children: Children;
-  shown: boolean;
-  m?: number;
-  mt?: number;
-  mb?: number;
-  ml?: number;
-  mr?: number;
-};
+  children: Children
+  shown: boolean
+  m?: number
+  mt?: number
+  mb?: number
+  ml?: number
+  mr?: number
+}
 
 export function InfoBox(props: InfoBoxProps) {
-  const { shown, children, ...boxProps } = props;
-  const classes = infoBoxStyles();
+  const { shown, children, ...boxProps } = props
+  const classes = infoBoxStyles()
   return (
     <Collapse in={shown}>
       <Box className={classes.box} {...boxProps}>
         {children}
       </Box>
     </Collapse>
-  );
+  )
 }
 
 // creates a smooth-scrolling link to the element elsewhere in the document with the given id
@@ -363,10 +363,10 @@ export function LinkDown({
   children,
   className,
 }: {
-  to: string;
-  children: Children;
-  className?: string;
-  id?: string;
+  to: string
+  children: Children
+  className?: string
+  id?: string
 }) {
   return (
     <a
@@ -374,19 +374,17 @@ export function LinkDown({
       id={id}
       className={className}
       onClick={(e) => {
-        e.preventDefault();
-        document
-          .getElementById(to)
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "center",
-          });
+        e.preventDefault()
+        document.getElementById(to)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "center",
+        })
       }}
     >
       {children}
     </a>
-  );
+  )
 }
 
 // a LinkDown that looks for the table of contents
@@ -395,7 +393,7 @@ export function LinkUp() {
     <LinkDown to="toc">
       <ArrowUpward fontSize="small" />
     </LinkDown>
-  );
+  )
 }
 
 // a link to another Amanuensis tab
@@ -404,44 +402,44 @@ export function TabLink({
   app,
   children,
 }: {
-  tab: Sections;
-  app: App;
-  children?: Children;
+  tab: Sections
+  app: App
+  children?: Children
 }) {
-  let icon;
+  let icon
   switch (tab) {
     case "cards":
-      icon = <School fontSize="small" />;
-      break;
+      icon = <School fontSize="small" />
+      break
     case "config":
-      icon = <Build fontSize="small" />;
-      break;
+      icon = <Build fontSize="small" />
+      break
     case "note":
-      icon = <Edit fontSize="small" />;
-      break;
+      icon = <Edit fontSize="small" />
+      break
     case "projects":
-      icon = <LocalLibrary fontSize="small" />;
-      break;
+      icon = <LocalLibrary fontSize="small" />
+      break
     case "search":
-      icon = <Search fontSize="small" />;
-      break;
+      icon = <Search fontSize="small" />
+      break
     case "sorters":
-      icon = <Sort fontSize="small" />;
-      break;
+      icon = <Sort fontSize="small" />
+      break
     default:
-      throw new Error("we should never get here");
+      throw new Error("we should never get here")
   }
   return (
     <a
       href="bogus"
       onClick={(e) => {
-        e.preventDefault();
-        app.setState({ tab: Section[tab] });
+        e.preventDefault()
+        app.setState({ tab: Section[tab] })
       }}
     >
       {children} {icon}
     </a>
-  );
+  )
 }
 
 const aboutLinkStyles = makeStyles((theme) => ({
@@ -452,13 +450,13 @@ const aboutLinkStyles = makeStyles((theme) => ({
   link: {
     fontSize: "smaller",
   },
-}));
+}))
 
 // generate the about link, which will pop up stuff like license information in a modal
 export function AboutLink({ app }: { app: App }) {
-  const classes = aboutLinkStyles();
+  const classes = aboutLinkStyles()
   const onClick = (e: any) => {
-    e.preventDefault();
+    e.preventDefault()
     app.confirm({
       title: "About Amanuensis",
       alert: true,
@@ -476,12 +474,12 @@ export function AboutLink({ app }: { app: App }) {
           </a>
         </>
       ),
-    });
-  };
+    })
+  }
   const linkClick = (url: string) => (e: any) => {
-    e.preventDefault();
-    app.load(url);
-  };
+    e.preventDefault()
+    app.load(url)
+  }
   return (
     <Grid container direction="row" justify="flex-end" className={classes.root}>
       <Grid item>
@@ -490,5 +488,5 @@ export function AboutLink({ app }: { app: App }) {
         </a>
       </Grid>
     </Grid>
-  );
+  )
 }

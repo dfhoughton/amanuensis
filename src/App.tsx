@@ -1,12 +1,12 @@
-import React, { ReactElement, SyntheticEvent } from "react";
-import Note, { NoteState } from "./Note";
-import Config from "./Config";
-import Switchboard from "./modules/switchboard";
-import Projects from "./Projects";
-import Search from "./Search";
+import React, { ReactElement, SyntheticEvent } from "react"
+import Note, { NoteState } from "./Note"
+import Config from "./Config"
+import Switchboard from "./modules/switchboard"
+import Projects from "./Projects"
+import Search from "./Search"
 
-import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
-import { withStyles } from "@material-ui/core/styles";
+import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles"
+import { withStyles } from "@material-ui/core/styles"
 
 import {
   Build,
@@ -15,9 +15,9 @@ import {
   School,
   Search as SearchIcon,
   Sort,
-} from "@material-ui/icons";
+} from "@material-ui/icons"
 
-import { amber, indigo } from "@material-ui/core/colors";
+import { amber, indigo } from "@material-ui/core/colors"
 import {
   AppBar,
   Box,
@@ -31,8 +31,8 @@ import {
   Tab,
   Tabs,
   Typography,
-} from "@material-ui/core";
-import { Alert } from "@material-ui/lab";
+} from "@material-ui/core"
+import { Alert } from "@material-ui/lab"
 import {
   AdHocQuery,
   Chrome,
@@ -40,64 +40,64 @@ import {
   KeyPair,
   NoteRecord,
   Query,
-} from "./modules/types";
-import { anyDifference, deepClone } from "./modules/clone";
-import { enkey, setConfigurationDefaults } from "./modules/storage";
-import { flatten, notePhrase, sameKey, sameNote } from "./modules/util";
-import Sorting from "./Sorting";
-import FlashCards, { FlashCardState } from "./FlashCards";
+} from "./modules/types"
+import { anyDifference, deepClone } from "./modules/clone"
+import { enkey, setConfigurationDefaults } from "./modules/storage"
+import { flatten, notePhrase, sameKey, sameNote } from "./modules/util"
+import Sorting from "./Sorting"
+import FlashCards, { FlashCardState } from "./FlashCards"
 
-export const projectName = "Amanuensis";
+export const projectName = "Amanuensis"
 
 const theme = createMuiTheme({
   palette: {
     primary: indigo,
     secondary: amber,
   },
-});
+})
 
 interface AppProps {
   // injected style props
   classes: {
-    root: string;
-  };
+    root: string
+  }
 }
 
 interface ConfirmationState {
-  callback?: () => Promise<string | undefined>;
-  title?: string;
-  text?: string | ReactElement;
-  ok?: string;
-  alert?: boolean;
+  callback?: () => Promise<string | undefined>
+  title?: string
+  text?: string | ReactElement
+  ok?: string
+  alert?: boolean
 }
 
 interface AppState {
-  tab: number;
-  url: string | null;
-  message: Message | null;
-  history: Visit[];
-  historyIndex: number;
-  defaultProject: number;
-  search: Query;
-  searchResults: NoteRecord[];
-  confirmation: ConfirmationState;
-  stack?: string; // the flash card stack currently being worked on
-  flashcards?: FlashCardState;
-  config: Configuration;
+  tab: number
+  url: string | null
+  message: Message | null
+  history: Visit[]
+  historyIndex: number
+  defaultProject: number
+  search: Query
+  searchResults: NoteRecord[]
+  confirmation: ConfirmationState
+  stack?: string // the flash card stack currently being worked on
+  flashcards?: FlashCardState
+  config: Configuration
 }
 
 interface Message {
-  text: string | ReactElement;
-  level: MessageLevels;
-  hideIn?: number;
+  text: string | ReactElement
+  level: MessageLevels
+  hideIn?: number
 }
 
 export interface Visit {
-  current: NoteState;
-  saved: NoteState;
+  current: NoteState
+  saved: NoteState
 }
 
-type MessageLevels = "error" | "warning" | "info" | "success";
+type MessageLevels = "error" | "warning" | "info" | "success"
 
 // an enum of the app tabs
 export const Section = {
@@ -107,7 +107,7 @@ export const Section = {
   sorters: 3,
   config: 4,
   cards: 5,
-};
+}
 // NOTE: keep this in sync with Section
 export type Sections =
   | "note"
@@ -115,7 +115,7 @@ export type Sections =
   | "projects"
   | "sorters"
   | "config"
-  | "cards";
+  | "cards"
 
 const styles = (theme: any) => ({
   root: {
@@ -126,7 +126,7 @@ const styles = (theme: any) => ({
   button: {
     margin: theme.spacing(1),
   },
-});
+})
 
 const nullState: AppState = {
   tab: Section.note,
@@ -139,42 +139,42 @@ const nullState: AppState = {
   searchResults: [],
   confirmation: {},
   config: setConfigurationDefaults({}),
-};
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 /*global chrome*/
-declare var chrome: Chrome;
+declare var chrome: Chrome
 export class App extends React.Component<AppProps, AppState> {
-  switchboard: Switchboard;
+  switchboard: Switchboard
   constructor(props: AppProps) {
-    super(props);
-    this.switchboard = new Switchboard(chrome);
-    this.state = deepClone(nullState);
+    super(props)
+    this.switchboard = new Switchboard(chrome)
+    this.state = deepClone(nullState)
     this.switchboard.then(() => {
-      const config: Configuration = deepClone(this.switchboard.index!.config);
-      this.setState({ config });
+      const config: Configuration = deepClone(this.switchboard.index!.config)
+      this.setState({ config })
       // this.switchboard
       //   .index!.clean()
       //   .then((s) => this.notify(s))
       //   .catch((e) => this.error(e));
-    });
+    })
   }
 
   clear() {
     this.setState(deepClone(nullState), () => {
-      this.setState({ defaultProject: this.switchboard.index!.currentProject });
-    });
+      this.setState({ defaultProject: this.switchboard.index!.currentProject })
+    })
   }
 
   render() {
-    const { classes } = this.props;
+    const { classes } = this.props
 
     const handleChange = (_event: any, newValue: number) => {
-      this.setState({ tab: newValue });
-    };
+      this.setState({ tab: newValue })
+    }
     const closeBar = (event: SyntheticEvent<Element, Event>) => {
-      this.clearMessage();
-    };
+      this.clearMessage()
+    }
     return (
       <ThemeProvider theme={theme}>
         <div className={classes.root}>
@@ -238,24 +238,24 @@ export class App extends React.Component<AppProps, AppState> {
           />
         </div>
       </ThemeProvider>
-    );
+    )
   }
 
   componentDidMount() {
     this.switchboard
       .mounted()
-      .catch((e) => this.error(`error mounting the switchboard: ${e}`));
+      .catch((e) => this.error(`error mounting the switchboard: ${e}`))
     this.switchboard.then(() => {
-      this.setState({ defaultProject: this.switchboard.index!.currentProject });
+      this.setState({ defaultProject: this.switchboard.index!.currentProject })
       // this.switchboard
       //   .index!.clean()
       //   .then((m) => this.success(m))
       //   .catch((e) => this.error(e));
-    });
+    })
     this.switchboard.addActions("app", {
       url: ({ url }) => this.setState({ url }),
       error: ({ message }: { message: string }) => this.error(message),
-    });
+    })
   }
 
   notify(
@@ -265,36 +265,36 @@ export class App extends React.Component<AppProps, AppState> {
   ) {
     switch (level) {
       case "error":
-        console.error(text);
-        break;
+        console.error(text)
+        break
       case "warning":
-        console.warn(text);
-        break;
+        console.warn(text)
+        break
       case "info":
-        console.info(level, text);
-        break;
+        console.info(level, text)
+        break
       case "success":
-        console.log(level, text);
-        break;
+        console.log(level, text)
+        break
     }
-    this.setState({ message: { text, level, hideIn } });
+    this.setState({ message: { text, level, hideIn } })
   }
   success(message: string | ReactElement, hideIn?: number) {
-    this.notify(message, "success", hideIn);
+    this.notify(message, "success", hideIn)
   }
   error(message: string | ReactElement, hideIn?: number) {
-    this.notify(message, "error", hideIn);
+    this.notify(message, "error", hideIn)
   }
   warn(message: string | ReactElement, hideIn?: number) {
-    this.notify(message, "warning", hideIn);
+    this.notify(message, "warning", hideIn)
   }
   clearMessage() {
-    this.setState({ message: null });
+    this.setState({ message: null })
   }
 
   // pop open the confirmation modal
   confirm(confirmation: ConfirmationState) {
-    this.setState({ confirmation });
+    this.setState({ confirmation })
   }
 
   // search for any citations from the current URL
@@ -303,86 +303,86 @@ export class App extends React.Component<AppProps, AppState> {
       const search: AdHocQuery = {
         type: "ad hoc",
         url: this.state.url,
-      };
+      }
       this.switchboard.index
         .find(search)
         .then((found) => {
           switch (found.type) {
             case "none":
-              this.setState({ search, tab: Section.search, searchResults: [] });
-              break;
+              this.setState({ search, tab: Section.search, searchResults: [] })
+              break
             case "ambiguous":
               this.setState({
                 search,
                 tab: Section.search,
                 searchResults: found.matches,
-              });
-              break;
+              })
+              break
             case "found":
               this.setState({
                 search,
                 tab: Section.search,
                 searchResults: [found.match],
-              });
+              })
           }
         })
-        .catch((e) => this.error(e));
+        .catch((e) => this.error(e))
     }
   }
 
   recentHistory(): Visit | undefined {
-    return this.state.history[this.state.historyIndex];
+    return this.state.history[this.state.historyIndex]
   }
 
   currentNote(): NoteState | undefined {
-    return this.recentHistory()?.current;
+    return this.recentHistory()?.current
   }
 
   // to happen after a save
   changeHistory(current: NoteState, saved: NoteState) {
-    const newHistory = deepClone(this.state.history);
-    newHistory[this.state.historyIndex] = { current, saved };
-    this.setState({ history: newHistory });
+    const newHistory = deepClone(this.state.history)
+    newHistory[this.state.historyIndex] = { current, saved }
+    this.setState({ history: newHistory })
   }
 
   // to happen when a note is navigated away from to another tab
   makeHistory(current: NoteState, saved: NoteState) {
     let historyIndex = 0,
-      found = false;
+      found = false
     for (let l = this.state.history.length; historyIndex < l; historyIndex++) {
-      const v = this.state.history[historyIndex];
+      const v = this.state.history[historyIndex]
       if (sameNote(v.current, current)) {
-        found = true;
+        found = true
         if (!anyDifference(v.current, current)) {
-          this.setState({ historyIndex });
-          return;
+          this.setState({ historyIndex })
+          return
         }
-        break;
+        break
       }
     }
-    const newEvent = { current, saved };
-    const history: Visit[] = deepClone(this.state.history);
+    const newEvent = { current, saved }
+    const history: Visit[] = deepClone(this.state.history)
     if (found) {
-      history[historyIndex] = newEvent;
+      history[historyIndex] = newEvent
     } else {
-      historyIndex = history.length;
-      history.push(newEvent);
+      historyIndex = history.length
+      history.push(newEvent)
     }
-    this.setState({ history, historyIndex });
+    this.setState({ history, historyIndex })
   }
 
   // go to an existing saved note
   goto(note: NoteRecord | NoteState, callback: () => void = () => {}) {
-    let historyIndex = 0;
+    let historyIndex = 0
     // erase the null state if it's present in the history
     const history: Visit[] = (deepClone(this.state.history) as Visit[]).filter(
       (v) => v.current.citations.length > 0
-    );
+    )
     for (let l = history.length; historyIndex < l; historyIndex++) {
-      const v = this.state.history[historyIndex];
+      const v = this.state.history[historyIndex]
       if (sameNote(v.current, note)) {
-        this.setState({ history, historyIndex, tab: Section.note }, callback);
-        return;
+        this.setState({ history, historyIndex, tab: Section.note }, callback)
+        return
       }
     }
     const current: NoteState = {
@@ -391,21 +391,21 @@ export class App extends React.Component<AppProps, AppState> {
       citationIndex: 0,
       unsavedContent: false,
       unsavedCitation: false,
-    };
-    const saved: NoteState = deepClone(current);
-    history.push({ current, saved });
-    this.setState({ tab: Section.note, history, historyIndex }, callback);
+    }
+    const saved: NoteState = deepClone(current)
+    history.push({ current, saved })
+    this.setState({ tab: Section.note, history, historyIndex }, callback)
   }
 
   // for just changing the URL of the content page without highlighting anything
   load(url: string) {
     this.switchboard.then(() => {
-      this.switchboard.port!.postMessage({ action: "load", url });
-    });
+      this.switchboard.port!.postMessage({ action: "load", url })
+    })
   }
 
   removeNote(note: NoteState) {
-    const [, project] = this.switchboard.index!.findProject(note.key[0]);
+    const [, project] = this.switchboard.index!.findProject(note.key[0])
     this.switchboard.index
       ?.delete({ phrase: notePhrase(note), project })
       .then((otherNotesModified) => {
@@ -422,23 +422,23 @@ export class App extends React.Component<AppProps, AppState> {
                     note
                   )}" has been deleted from the ${project.name} project.`
                 )
-              );
-          });
+              )
+          })
       })
-      .catch((e) => this.error(e));
+      .catch((e) => this.error(e))
   }
 
   // change a note from one project to another
   switchProjects(note: NoteRecord, project: number): Promise<NoteRecord> {
     return new Promise((resolve, reject) => {
-      const oldKey: KeyPair = deepClone(note.key);
+      const oldKey: KeyPair = deepClone(note.key)
       this.switchboard
         .index!.switch(note, project)
         .then((note) => {
-          this.cleanSearch().catch((e) => reject(e));
-          const history: Visit[] = deepClone(this.state.history);
+          this.cleanSearch().catch((e) => reject(e))
+          const history: Visit[] = deepClone(this.state.history)
           for (let i = 0, l = history.length; i < l; i++) {
-            const { current, saved } = history[i];
+            const { current, saved } = history[i]
             if (sameKey(oldKey, current.key)) {
               const newState: NoteState = {
                 ...current,
@@ -446,34 +446,34 @@ export class App extends React.Component<AppProps, AppState> {
                 unsavedContent: false,
                 unsavedCitation: false,
                 everSaved: true,
-              };
+              }
               history[i] = {
                 current: deepClone(newState),
                 saved: deepClone(newState),
-              };
+              }
             } else {
               for (const ns of [current, saved]) {
                 for (let [r, pairs] of Object.entries(ns.relations)) {
                   if (r === "see also") {
-                    const idx = pairs.findIndex((kp) => sameKey(kp, oldKey));
+                    const idx = pairs.findIndex((kp) => sameKey(kp, oldKey))
                     if (idx != null) {
-                      pairs[idx] = deepClone(note.key);
+                      pairs[idx] = deepClone(note.key)
                     }
                   } else {
-                    pairs = pairs.filter((kp) => !sameKey(kp, oldKey));
+                    pairs = pairs.filter((kp) => !sameKey(kp, oldKey))
                     if (pairs.length === 0) {
-                      delete ns.relations[r];
+                      delete ns.relations[r]
                     }
                   }
                 }
               }
             }
           }
-          this.setState({ history });
-          resolve(note);
+          this.setState({ history })
+          resolve(note)
         })
-        .catch((e) => reject(e));
-    });
+        .catch((e) => reject(e))
+    })
   }
 
   // clean up the search state after some deletion
@@ -482,44 +482,42 @@ export class App extends React.Component<AppProps, AppState> {
       const search: Query =
         this.state.search.type === "lookup"
           ? { type: "ad hoc" }
-          : deepClone(this.state.search);
-      const p = search.project == null ? null : flatten(search.project);
+          : deepClone(this.state.search)
+      const p = search.project == null ? null : flatten(search.project)
       if (p) {
         // projects may be deleted
         for (let i = p.length - 1; i >= 0; i--) {
           if (!this.switchboard.index!.reverseProjectIndex.has(p[i])) {
-            p.splice(i, 1);
+            p.splice(i, 1)
           }
         }
-        if (!p.length) delete search.project;
+        if (!p.length) delete search.project
       }
       this.switchboard.index
         ?.find(search)
         .catch((e) => reject(e))
         .then((found) => {
-          const changes: any = { search, historyIndex: 0 };
+          const changes: any = { search, historyIndex: 0 }
           if (found) {
             switch (found.type) {
               case "none":
-                changes.searchResults = [];
-                break;
+                changes.searchResults = []
+                break
               case "ambiguous":
-                changes.searchResults = found.matches;
-                break;
+                changes.searchResults = found.matches
+                break
               case "found":
-                changes.searchResults = [found.match];
+                changes.searchResults = [found.match]
             }
           }
-          this.setState(changes, resolve);
-        });
-    });
+          this.setState(changes, resolve)
+        })
+    })
   }
   // fix the state of everything in navigational history
   cleanHistory(otherNotesModified: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
-      const keys: string[] = this.state.history.map((v) =>
-        enkey(v.current.key)
-      );
+      const keys: string[] = this.state.history.map((v) => enkey(v.current.key))
       this.switchboard.index
         ?.getBatch(keys)
         .catch((e) =>
@@ -528,13 +526,13 @@ export class App extends React.Component<AppProps, AppState> {
           )
         )
         .then((found) => {
-          const history: Visit[] = deepClone(this.state.history);
-          let historyIndex = this.state.historyIndex;
+          const history: Visit[] = deepClone(this.state.history)
+          let historyIndex = this.state.historyIndex
           for (let i = history.length - 1; i >= 0; i--) {
-            const visit = history[i];
-            const key = enkey(visit.current.key);
-            const retrieved = found && found[key];
-            let current, saved: NoteState;
+            const visit = history[i]
+            const key = enkey(visit.current.key)
+            const retrieved = found && found[key]
+            let current, saved: NoteState
             if (retrieved) {
               if (otherNotesModified) {
                 // erase any unsaved changes (Gordian Knot solution -- we could do better)
@@ -544,40 +542,40 @@ export class App extends React.Component<AppProps, AppState> {
                   unsavedCitation: false,
                   everSaved: true,
                   citationIndex: visit.current.citationIndex,
-                };
-                saved = deepClone(current);
-                history[i] = { current, saved };
+                }
+                saved = deepClone(current)
+                history[i] = { current, saved }
               }
             } else {
               // remove it from navigational history
               if (historyIndex > i) {
-                historyIndex--;
+                historyIndex--
               } else if (historyIndex === i) {
-                historyIndex = 0;
+                historyIndex = 0
               }
-              history.splice(i, 1);
+              history.splice(i, 1)
             }
           }
-          this.setState({ history, historyIndex }, () => resolve());
-        });
-    });
+          this.setState({ history, historyIndex }, () => resolve())
+        })
+    })
   }
 
   // return the sorter appropriate for the note
   sorterFor(n: Note): number {
     const [, projectInfo] =
-      this.switchboard.index?.findProject(n.state.key[0]) ?? [];
-    return projectInfo?.sorter ?? 0;
+      this.switchboard.index?.findProject(n.state.key[0]) ?? []
+    return projectInfo?.sorter ?? 0
   }
 
   noteCount(): number {
     return Array.from(this.switchboard.index?.projectIndices.values() || [])
       .map((m) => m.size)
-      .reduce((p, n) => p + n);
+      .reduce((p, n) => p + n)
   }
 }
 
-export default withStyles(styles)(App);
+export default withStyles(styles)(App)
 
 // code below taken with little or no modification from the material-ui value demo code
 
@@ -586,9 +584,9 @@ function TabPanel({
   value,
   index,
 }: {
-  children: ReactElement;
-  value: number;
-  index: number;
+  children: ReactElement
+  value: number
+  index: number
 }) {
   return (
     <div
@@ -603,14 +601,14 @@ function TabPanel({
         </Box>
       )}
     </div>
-  );
+  )
 }
 
 function a11yProps(index: number) {
   return {
     id: `full-width-tab-${index}`,
     "aria-controls": `full-width-tabpanel-${index}`,
-  };
+  }
 }
 
 function ConfirmationModal({
@@ -618,11 +616,11 @@ function ConfirmationModal({
   confOps,
   cancel,
 }: {
-  app: App;
-  confOps: ConfirmationState;
-  cancel: () => void;
+  app: App
+  confOps: ConfirmationState
+  cancel: () => void
 }) {
-  const { text, callback, title = "Confirm", ok = "Ok", alert } = confOps;
+  const { text, callback, title = "Confirm", ok = "Ok", alert } = confOps
   return (
     <>
       {!!(text && callback) && (
@@ -645,11 +643,11 @@ function ConfirmationModal({
                   .then((message) =>
                     app.setState({ confirmation: {} }, () => {
                       if (message) {
-                        app.success(message);
+                        app.success(message)
                       }
                     })
                   )
-                  .catch((e) => app.error(e.message));
+                  .catch((e) => app.error(e.message))
               }}
               color="primary"
               autoFocus
@@ -660,5 +658,5 @@ function ConfirmationModal({
         </Dialog>
       )}
     </>
-  );
+  )
 }

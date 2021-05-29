@@ -1,9 +1,9 @@
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useState } from "react"
 
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import Chip from "@material-ui/core/Chip";
-import TextField from "@material-ui/core/TextField";
-import { makeStyles } from "@material-ui/core/styles";
+import Autocomplete from "@material-ui/lab/Autocomplete"
+import Chip from "@material-ui/core/Chip"
+import TextField from "@material-ui/core/TextField"
+import { makeStyles } from "@material-ui/core/styles"
 import {
   Box,
   Collapse,
@@ -13,7 +13,7 @@ import {
   MenuItem,
   Popover,
   Typography as T,
-} from "@material-ui/core";
+} from "@material-ui/core"
 import {
   Cancel,
   Clear,
@@ -26,9 +26,9 @@ import {
   Search,
   UnfoldLess,
   UnfoldMore,
-} from "@material-ui/icons";
+} from "@material-ui/icons"
 
-import { deepClone, anyDifference } from "./modules/clone";
+import { deepClone, anyDifference } from "./modules/clone"
 import {
   NoteRecord,
   ContentSelection,
@@ -38,8 +38,8 @@ import {
   Query,
   PhraseInContext,
   AdHocQuery,
-} from "./modules/types";
-import { debounce, notePhrase, nws, sameNote } from "./modules/util";
+} from "./modules/types"
+import { debounce, notePhrase, nws, sameNote } from "./modules/util"
 import {
   AboutLink,
   Details,
@@ -51,88 +51,88 @@ import {
   Mark,
   TabLink,
   TT,
-} from "./modules/components";
-import { App, Section, Visit } from "./App";
-import { enkey } from "./modules/storage";
-import { useHotkeys } from "react-hotkeys-hook";
+} from "./modules/components"
+import { App, Section, Visit } from "./App"
+import { enkey } from "./modules/storage"
+import { useHotkeys } from "react-hotkeys-hook"
 
 interface NoteProps {
-  app: App;
+  app: App
 }
 
 export interface NoteState extends NoteRecord {
-  unsavedContent: boolean;
-  everSaved: boolean;
-  unsavedCitation: boolean;
-  citationIndex: number;
-  similars?: string[];
+  unsavedContent: boolean
+  everSaved: boolean
+  unsavedCitation: boolean
+  citationIndex: number
+  similars?: string[]
 }
 
 class Note extends React.Component<NoteProps, NoteState> {
-  savedState: NoteState;
-  app: App;
-  debouncedCheckSavedState: () => void;
-  focusing: CitationRecord | null;
+  savedState: NoteState
+  app: App
+  debouncedCheckSavedState: () => void
+  focusing: CitationRecord | null
   constructor(props: Readonly<NoteProps>) {
-    super(props);
-    this.focusing = null;
-    this.app = props.app;
-    const visit = this.app.recentHistory();
+    super(props)
+    this.focusing = null
+    this.app = props.app
+    const visit = this.app.recentHistory()
     if (visit) {
-      const { current, saved }: Visit = deepClone(visit);
+      const { current, saved }: Visit = deepClone(visit)
       if (current.canonicalCitation) {
-        current.citationIndex = current.canonicalCitation;
+        current.citationIndex = current.canonicalCitation
       }
-      this.state = current;
-      this.savedState = saved;
-      this.checkForDeletions();
+      this.state = current
+      this.savedState = saved
+      this.checkForDeletions()
     } else {
-      this.state = nullState();
-      this.savedState = nullState(); // used as basis of comparison to see whether the record is dirty
+      this.state = nullState()
+      this.savedState = nullState() // used as basis of comparison to see whether the record is dirty
     }
     this.app.switchboard.addActions("note", {
       selection: (msg) => {
-        this.showSelection(msg);
+        this.showSelection(msg)
       },
       reloaded: (msg) => {
-        this.focused(msg.url);
+        this.focused(msg.url)
       },
       noSelection: (msg) => {
-        this.app.urlSearch();
+        this.app.urlSearch()
       },
-    });
+    })
     // make a debounced function that checks to see whether the note is dirty and needs a save
-    this.debouncedCheckSavedState = debounce()(() => this.checkSavedState());
+    this.debouncedCheckSavedState = debounce()(() => this.checkSavedState())
   }
 
   render() {
-    return <Editor note={this} />;
+    return <Editor note={this} />
   }
 
   // bring a citation into focus
   focus() {
-    this.focusing = this.currentCitation();
-    this.app.switchboard.send({ action: "goto", citation: this.focusing });
+    this.focusing = this.currentCitation()
+    this.app.switchboard.send({ action: "goto", citation: this.focusing })
   }
 
   componentDidMount() {
     if (!this.state.everSaved) {
       this.app.switchboard.then(() => {
-        const key = deepClone(this.state.key);
-        key[0] = this.app.switchboard.index!.currentProject;
-        this.setState({ key });
-      });
+        const key = deepClone(this.state.key)
+        key[0] = this.app.switchboard.index!.currentProject
+        this.setState({ key })
+      })
     }
   }
 
   componentWillUnmount() {
-    this.app.makeHistory(this.state, this.savedState);
+    this.app.makeHistory(this.state, this.savedState)
     this.app.switchboard.removeActions("note", [
       "selection",
       "focused",
       "reloaded",
       "noSelection",
-    ]);
+    ])
   }
 
   checkSavedState() {
@@ -145,7 +145,7 @@ class Note extends React.Component<NoteProps, NoteState> {
         "everSaved",
         "unsavedCitation"
       ),
-    });
+    })
   }
 
   // check to see whether any information relevant to the display of this note has changed
@@ -162,8 +162,8 @@ class Note extends React.Component<NoteProps, NoteState> {
           switch (response.type) {
             case "ambiguous":
               // this should be unreachable since we have a project at this point
-              this.app.warn("unexpected state found in checkForDeletions"); // TODO we probably don't want this in the wild
-              break;
+              this.app.warn("unexpected state found in checkForDeletions") // TODO we probably don't want this in the wild
+              break
             case "found":
               // check to see whether any of the citations are missing
               // TODO make sure this works
@@ -173,7 +173,7 @@ class Note extends React.Component<NoteProps, NoteState> {
                     acc.concat(pairs.map((p) => enkey(p))),
                   []
                 )
-              );
+              )
               this.app.switchboard.index
                 ?.missing(keys)
                 .then((missing) => {
@@ -184,66 +184,66 @@ class Note extends React.Component<NoteProps, NoteState> {
                       everSaved: true,
                       citationIndex: 0,
                       ...response.match,
-                    };
-                    const relations = deepClone(this.state.relations);
+                    }
+                    const relations = deepClone(this.state.relations)
                     for (let [k, v] of Object.entries(relations)) {
-                      let ar = v as KeyPair[];
-                      ar = ar.filter((p) => !missing.has(enkey(p)));
+                      let ar = v as KeyPair[]
+                      ar = ar.filter((p) => !missing.has(enkey(p)))
                       if (ar.length) {
-                        relations[k] = ar;
+                        relations[k] = ar
                       } else {
-                        delete relations[k];
+                        delete relations[k]
                       }
                     }
-                    this.setState({ relations }, () => this.checkSavedState());
-                    this.app.notify("some relations have been deleted");
+                    this.setState({ relations }, () => this.checkSavedState())
+                    this.app.notify("some relations have been deleted")
                   }
                 })
                 .catch((error) =>
                   this.app.error(
                     `Error when looking for missing relations: ${error}`
                   )
-                );
-              break;
+                )
+              break
             case "none":
-              this.savedState = nullState();
+              this.savedState = nullState()
               const newState = {
                 key: deepClone(this.state.key),
                 unsavedContent: true,
                 relations: {},
                 citations: deepClone(this.state.citations.slice(0, 1)),
-              };
+              }
               if (
                 !this.app.switchboard.index?.reverseProjectIndex.has(
                   this.state.key[0]
                 )
               ) {
-                newState.key[0] = 0; // set to the default project
+                newState.key[0] = 0 // set to the default project
               }
-              this.setState(newState);
-              this.app.notify("this note is no longer saved");
-              break;
+              this.setState(newState)
+              this.app.notify("this note is no longer saved")
+              break
           }
         })
-        .catch((error) => this.app.error(error));
+        .catch((error) => this.app.error(error))
     }
   }
 
   currentCitation(): CitationRecord {
-    return this.state.citations[this.state.citationIndex];
+    return this.state.citations[this.state.citationIndex]
   }
 
   hasWord(): boolean {
     return !!(
       this.currentCitation()?.phrase && nws(this.currentCitation().phrase)
-    );
+    )
   }
 
   focused(url: string) {
-    const citation = this.currentCitation();
+    const citation = this.currentCitation()
     if (citation?.source.url === url) {
-      this.focusing = null;
-      this.app.switchboard.send({ action: "select", selection: citation });
+      this.focusing = null
+      this.app.switchboard.send({ action: "select", selection: citation })
     }
   }
 
@@ -251,20 +251,20 @@ class Note extends React.Component<NoteProps, NoteState> {
     selection,
     source,
   }: {
-    selection: ContentSelection;
-    source: SourceRecord;
+    selection: ContentSelection
+    source: SourceRecord
   }) {
     const citation: CitationRecord = {
       source,
       note: "",
       ...selection,
       when: [new Date()],
-    };
+    }
     const query: Query = {
       type: "lookup",
       phrase: selection.phrase,
       project: this.state.key[0],
-    };
+    }
     this.app.switchboard
       .index!.find(query)
       .then((found) => {
@@ -276,43 +276,43 @@ class Note extends React.Component<NoteProps, NoteState> {
               unsavedCitation: true,
               citationIndex: found.match.canonicalCitation || 0,
               ...found.match,
-            };
-            const index = mergeCitation(foundState, citation);
-            if (index === undefined) {
-              foundState.citationIndex = foundState.citations.length - 1;
-            } else {
-              foundState.citationIndex = index;
-              foundState.unsavedCitation = false;
             }
-            this.app.setState({ search: query, searchResults: [found.match] });
-            this.setState(foundState);
-            break;
+            const index = mergeCitation(foundState, citation)
+            if (index === undefined) {
+              foundState.citationIndex = foundState.citations.length - 1
+            } else {
+              foundState.citationIndex = index
+              foundState.unsavedCitation = false
+            }
+            this.app.setState({ search: query, searchResults: [found.match] })
+            this.setState(foundState)
+            break
           case "none":
-            this.app.setState({ search: query, searchResults: [] });
-            const newState = nullState();
-            newState.unsavedCitation = true;
-            newState.key[0] = this.app.state.defaultProject;
-            newState.unsavedContent = true;
-            newState.citations.push(citation);
-            this.setState(newState);
-            break;
+            this.app.setState({ search: query, searchResults: [] })
+            const newState = nullState()
+            newState.unsavedCitation = true
+            newState.key[0] = this.app.state.defaultProject
+            newState.unsavedContent = true
+            newState.citations.push(citation)
+            this.setState(newState)
+            break
           case "ambiguous":
             this.app.setState({
               tab: Section.search,
               search: query,
               searchResults: found.matches,
-            });
-            break;
+            })
+            break
         }
       })
-      .catch((error) => this.app.error(error));
+      .catch((error) => this.app.error(error))
   }
 
   save() {
     if (!this.state.unsavedContent) {
-      return;
+      return
     }
-    const data = deepClone(this.state, "unsavedContent", "project");
+    const data = deepClone(this.state, "unsavedContent", "project")
     this.app.switchboard.index
       ?.add({
         phrase: this.currentCitation().phrase,
@@ -320,52 +320,52 @@ class Note extends React.Component<NoteProps, NoteState> {
         data: data,
       })
       .then((pk) => {
-        this.savedState = deepClone(this.state);
-        const key = deepClone(this.state.key);
-        key[1] = pk;
-        this.savedState.key = key;
+        this.savedState = deepClone(this.state)
+        const key = deepClone(this.state.key)
+        key[1] = pk
+        this.savedState.key = key
         this.setState({
           key,
           unsavedContent: false,
           everSaved: true,
           unsavedCitation: false,
-        });
-      });
+        })
+      })
   }
 
   // obtain all the tags ever used
   allTags() {
-    return Array.from(this.app.switchboard.index?.tags || []).sort();
+    return Array.from(this.app.switchboard.index?.tags || []).sort()
   }
 }
 
-export default Note;
+export default Note
 
 function Editor({ note }: { note: Note }) {
   const keyCallback = (event: KeyboardEvent, handler: any) => {
     switch (handler.key) {
       case "ctrl+shift+s": // pop open similars popup
-        document.getElementById("similar-target")?.click();
-        break;
+        document.getElementById("similar-target")?.click()
+        break
       case "ctrl+s": // save the note
-        note.save();
-        break;
+        note.save()
+        break
       default:
         console.error("unhandled keyboard event, check code", {
           event,
           handler,
-        });
+        })
     }
-  };
+  }
   // overriding the filter option so we can save while in textareas and such
   useHotkeys(
     "ctrl+s,ctrl+shift+s",
     keyCallback,
     { enableOnTags: ["INPUT", "TEXTAREA", "SELECT"] },
     [note.state]
-  );
-  const [showDetails, setShowDetails] = useState<boolean>(false);
-  const hasWord = note.hasWord();
+  )
+  const [showDetails, setShowDetails] = useState<boolean>(false)
+  const hasWord = note.hasWord()
   return (
     <>
       <Collapse in={showDetails}>
@@ -390,9 +390,9 @@ function Editor({ note }: { note: Note }) {
             details={note.state.details}
             citationNote={note.currentCitation()?.note || ""}
             citationNoteHandler={(e) => {
-              const citations = deepClone(note.state.citations);
-              citations[note.state.citationIndex].note = e.target.value;
-              note.setState({ citations }, note.debouncedCheckSavedState);
+              const citations = deepClone(note.state.citations)
+              citations[note.state.citationIndex].note = e.target.value
+              note.setState({ citations }, note.debouncedCheckSavedState)
             }}
             gistHandler={(e) =>
               note.setState(
@@ -413,7 +413,7 @@ function Editor({ note }: { note: Note }) {
         <Citations note={note} />
       </Collapse>
     </>
-  );
+  )
 }
 
 const headerStyles = makeStyles((theme) => ({
@@ -439,7 +439,7 @@ const headerStyles = makeStyles((theme) => ({
     fontStyle: "italic",
     color: theme.palette.grey[500],
   },
-}));
+}))
 
 function Header({
   note,
@@ -447,37 +447,37 @@ function Header({
   showDetails,
   setShowDetails,
 }: {
-  note: Note;
-  show: boolean;
-  showDetails: boolean;
-  setShowDetails: (b: boolean) => void;
+  note: Note
+  show: boolean
+  showDetails: boolean
+  setShowDetails: (b: boolean) => void
 }) {
-  const time = note.currentCitation()?.when;
-  const realm = note.state.key[0];
-  const classes = headerStyles();
+  const time = note.currentCitation()?.when
+  const realm = note.state.key[0]
+  const classes = headerStyles()
   // const [showDetails, setShowDetails] = useState<boolean>(false)
-  let t = time ? time[0] : null;
-  const project = note.app.switchboard.index?.reverseProjectIndex.get(realm);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  let changer;
+  let t = time ? time[0] : null
+  const project = note.app.switchboard.index?.reverseProjectIndex.get(realm)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  let changer
   if (note.hasWord() && note.app.switchboard.index!.projects.size > 1) {
-    const open = Boolean(anchorEl);
+    const open = Boolean(anchorEl)
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-      setAnchorEl(event.currentTarget);
-    };
+      setAnchorEl(event.currentTarget)
+    }
     const closer = (i: number) => {
       return () => {
-        setAnchorEl(null);
+        setAnchorEl(null)
         if (note.state.unsavedCitation) {
-          const key = deepClone(note.state.key);
-          key[0] = i;
+          const key = deepClone(note.state.key)
+          key[0] = i
           note.app.setState({ defaultProject: i }, () => {
             note.app.switchboard
               .index!.setCurrentProject(i)
-              .then(() => note.setState({ key }));
-          });
+              .then(() => note.setState({ key }))
+          })
         } else {
-          const beforeState: NoteState = deepClone(note.state);
+          const beforeState: NoteState = deepClone(note.state)
           note.app
             .switchProjects(note.state, i)
             .then((ns) => {
@@ -487,12 +487,12 @@ function Header({
                 everSaved: true,
                 unsavedCitation: false,
                 unsavedContent: false,
-              });
+              })
             })
-            .catch((e) => note.app.error(e));
+            .catch((e) => note.app.error(e))
         }
-      };
-    };
+      }
+    }
     changer = (
       <>
         <span
@@ -527,7 +527,7 @@ function Header({
           )}
         </Menu>
       </>
-    );
+    )
   }
   // NOTE keep in sync with NoteHeaderExample below
   return (
@@ -554,13 +554,13 @@ function Header({
         </T>
       </Grid>
     </Grid>
-  );
+  )
 }
 
 // for use in NoteDetails
 // NOTE keep in sync with return value immediately above
 function NoteHeaderExample() {
-  const classes = headerStyles();
+  const classes = headerStyles()
   return (
     <Grid container spacing={1}>
       <Grid container item xs>
@@ -573,7 +573,7 @@ function NoteHeaderExample() {
         </T>
       </Grid>
     </Grid>
-  );
+  )
 }
 
 const noteDetailsStyles = makeStyles((theme) => ({
@@ -586,20 +586,20 @@ const noteDetailsStyles = makeStyles((theme) => ({
   delete: {
     color: theme.palette.error.dark,
   },
-}));
+}))
 
 function NoteDetails({
   showDetails,
   setShowDetails,
   app,
 }: {
-  showDetails: boolean;
-  setShowDetails: (b: boolean) => void;
-  app: App;
+  showDetails: boolean
+  setShowDetails: (b: boolean) => void
+  app: App
 }) {
-  const classes = noteDetailsStyles();
-  const annotationClasses = annotationStyles();
-  const tagClasses = tagStyles();
+  const classes = noteDetailsStyles()
+  const annotationClasses = annotationStyles()
+  const tagClasses = tagStyles()
   return (
     <>
       <Details
@@ -1061,7 +1061,7 @@ function NoteDetails({
       </p>
       <AboutLink app={app} />
     </>
-  );
+  )
 }
 
 const widgetStyles = makeStyles((theme) => ({
@@ -1082,10 +1082,10 @@ const widgetStyles = makeStyles((theme) => ({
     display: "block",
     color: theme.palette.error.dark,
   },
-}));
+}))
 
 function Widgets({ app, n }: { n: Note; app: App }) {
-  const classes = widgetStyles();
+  const classes = widgetStyles()
 
   const t = () => {
     app.confirm({
@@ -1093,18 +1093,18 @@ function Widgets({ app, n }: { n: Note; app: App }) {
       text: `Delete this note concerning "${notePhrase(n.state)}"?`,
       callback: () => {
         return new Promise((resolve, _reject) => {
-          app.removeNote(n.state);
-          n.savedState = nullState();
-          const state: NoteState = deepClone(n.state);
-          state.relations = {};
-          state.everSaved = false;
-          state.unsavedContent = true;
-          n.setState(state);
-          resolve(undefined);
-        });
+          app.removeNote(n.state)
+          n.savedState = nullState()
+          const state: NoteState = deepClone(n.state)
+          state.relations = {}
+          state.everSaved = false
+          state.unsavedContent = true
+          n.setState(state)
+          resolve(undefined)
+        })
       },
-    });
-  };
+    })
+  }
   return (
     <div className={classes.root}>
       <Nav app={app} n={n} />
@@ -1116,7 +1116,7 @@ function Widgets({ app, n }: { n: Note; app: App }) {
       {n.state.everSaved && <Delete className={classes.delete} onClick={t} />}
       {n.hasWord() && <Similar app={app} n={n} />}
     </div>
-  );
+  )
 }
 
 const similarStyles = makeStyles((theme) => ({
@@ -1136,47 +1136,47 @@ const similarStyles = makeStyles((theme) => ({
     margin: "0 auto",
     marginBottom: theme.spacing(0.1),
   },
-}));
+}))
 
 function Similar({ app, n }: { app: App; n: Note }) {
-  const classes = similarStyles();
-  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
-  const [fallback, setFallback] = useState("...");
-  const open = Boolean(anchorEl);
-  const id = open ? "similar-popover" : undefined;
+  const classes = similarStyles()
+  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
+  const [fallback, setFallback] = useState("...")
+  const open = Boolean(anchorEl)
+  const id = open ? "similar-popover" : undefined
   const search: AdHocQuery = {
     type: "ad hoc",
     phrase: n.currentCitation().phrase,
     sorter: app.sorterFor(n),
     strictness: "similar",
-  };
+  }
   const findSimilar = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    setAnchorEl(e.currentTarget);
+    setAnchorEl(e.currentTarget)
     app.switchboard.index
       ?.find({
         ...search,
         limit: 5, // TODO make this configurable
       })
       .then((found) => {
-        let matches: NoteRecord[] = [];
+        let matches: NoteRecord[] = []
         switch (found.type) {
           case "found":
-            matches.push(found.match);
-            break;
+            matches.push(found.match)
+            break
           case "ambiguous":
-            matches = found.matches;
-            break;
+            matches = found.matches
+            break
         }
         const similars = matches
           .map((m) => notePhrase(m))
-          .filter((w) => w !== search.phrase);
-        setFallback(similars.length ? "" : "none");
-        n.setState({ similars });
-      });
-  };
+          .filter((w) => w !== search.phrase)
+        setFallback(similars.length ? "" : "none")
+        n.setState({ similars })
+      })
+  }
   const similarSearch = () => {
-    app.setState({ tab: Section.search, search });
-  };
+    app.setState({ tab: Section.search, search })
+  }
   return (
     <>
       {app.noteCount() > 1 && (
@@ -1209,17 +1209,17 @@ function Similar({ app, n }: { app: App; n: Note }) {
         </div>
       )}
     </>
-  );
+  )
 }
 
 function DemoSimilar() {
-  const classes = similarStyles();
-  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
-  const open = Boolean(anchorEl);
-  const id = open ? "demo-similar-popover" : undefined;
+  const classes = similarStyles()
+  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
+  const open = Boolean(anchorEl)
+  const id = open ? "demo-similar-popover" : undefined
   const findSimilar = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    setAnchorEl(e.currentTarget);
-  };
+    setAnchorEl(e.currentTarget)
+  }
   return (
     <div>
       <span className={classes.filter} onClick={findSimilar}>
@@ -1241,7 +1241,7 @@ function DemoSimilar() {
         </div>
       </Popover>
     </div>
-  );
+  )
 }
 
 const navStyles = makeStyles((theme) => ({
@@ -1257,22 +1257,22 @@ const navStyles = makeStyles((theme) => ({
     margin: "0 auto",
     marginBottom: theme.spacing(0.1),
   },
-}));
+}))
 
 function Nav({ app, n }: { app: App; n: Note }) {
-  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null);
+  const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
   if (app.state.history.length < 1) {
-    return null;
+    return null
   }
-  const classes = navStyles();
-  const open = Boolean(anchorEl);
-  const id = open ? "simple-popover" : undefined;
+  const classes = navStyles()
+  const open = Boolean(anchorEl)
+  const id = open ? "simple-popover" : undefined
   return (
     <div>
       <span
         className={classes.arrow}
         onClick={(event) => {
-          setAnchorEl(event.currentTarget);
+          setAnchorEl(event.currentTarget)
         }}
       >
         <Navigation color="primary" id="nav" />
@@ -1293,21 +1293,21 @@ function Nav({ app, n }: { app: App; n: Note }) {
         </div>
       </Popover>
     </div>
-  );
+  )
 }
 
 // for use in NoteDetails
 function DemoNav() {
-  const classes = navStyles();
-  const linkClasses = historyLinkStyles();
-  const [anchorEl, setAnchorEl] = useState<null | Element>(null);
-  const open = Boolean(anchorEl);
+  const classes = navStyles()
+  const linkClasses = historyLinkStyles()
+  const [anchorEl, setAnchorEl] = useState<null | Element>(null)
+  const open = Boolean(anchorEl)
   return (
     <>
       <span
         className={classes.arrow}
         onClick={(event) => {
-          setAnchorEl(event.currentTarget);
+          setAnchorEl(event.currentTarget)
         }}
       >
         <Navigation color="primary" />
@@ -1325,17 +1325,17 @@ function DemoNav() {
             const cz =
               v === "foo"
                 ? `${linkClasses.root} ${linkClasses.current}`
-                : linkClasses.root;
+                : linkClasses.root
             return (
               <div key={v} className={cz}>
                 {v}
               </div>
-            );
+            )
           })}
         </div>
       </Popover>
     </>
-  );
+  )
 }
 
 const historyLinkStyles = makeStyles((theme) => ({
@@ -1347,27 +1347,27 @@ const historyLinkStyles = makeStyles((theme) => ({
   current: {
     backgroundColor: theme.palette.secondary.light,
   },
-}));
+}))
 
 function HistoryLink({ v, app, n }: { v: Visit; app: App; n: Note }) {
-  const classes = historyLinkStyles();
-  const note = app.currentNote();
-  const currentKey = note && sameNote(note, v.current);
+  const classes = historyLinkStyles()
+  const note = app.currentNote()
+  const currentKey = note && sameNote(note, v.current)
   const callback = () => {
     if (!currentKey) {
       app.goto(v.current, () => {
-        const visit = app.recentHistory();
-        n.savedState = visit!.saved;
-        n.setState(visit!.current);
-      });
+        const visit = app.recentHistory()
+        n.savedState = visit!.saved
+        n.setState(visit!.current)
+      })
     }
-  };
-  const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root;
+  }
+  const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root
   return (
     <div key={enkey(v.current.key)} onClick={callback} className={cz}>
       {v.current.citations[v.current.canonicalCitation || 0].phrase}
     </div>
-  );
+  )
 }
 
 const phraseStyles = makeStyles((theme) => ({
@@ -1375,26 +1375,26 @@ const phraseStyles = makeStyles((theme) => ({
   word: {
     backgroundColor: theme.palette.secondary.light,
   },
-}));
+}))
 
 export function Phrase({
   hasWord = true,
   phrase,
   trim,
 }: {
-  hasWord?: boolean;
-  phrase: PhraseInContext;
-  trim?: number;
+  hasWord?: boolean
+  phrase: PhraseInContext
+  trim?: number
 }) {
-  const classes = phraseStyles();
+  const classes = phraseStyles()
   if (hasWord) {
-    let { before, after } = phrase ?? {};
+    let { before, after } = phrase ?? {}
     if (trim) {
       if (before && before.length > trim) {
-        before = "\u2026" + before.substr(before.length - trim, trim);
+        before = "\u2026" + before.substr(before.length - trim, trim)
       }
       if (after && after.length > trim) {
-        after = after.substr(0, trim) + "\u2026";
+        after = after.substr(0, trim) + "\u2026"
       }
     }
     return (
@@ -1403,9 +1403,9 @@ export function Phrase({
         <span className={classes.word}>{phrase.phrase}</span>
         <span>{after}</span>
       </div>
-    );
+    )
   } else {
-    return <div className={classes.root}>No phrase</div>;
+    return <div className={classes.root}>No phrase</div>
   }
 }
 
@@ -1417,20 +1417,20 @@ const tagStyles = makeStyles((theme) => ({
       marginTop: 0,
     },
   },
-}));
+}))
 
 function Tags(props: { note: Note }) {
-  const classes = tagStyles();
-  const { note } = props;
-  const { tags } = note.state;
+  const classes = tagStyles()
+  const { note } = props
+  const { tags } = note.state
   if (!note.hasWord()) {
-    return null;
+    return null
   }
-  let options: string[];
+  let options: string[]
   if (note.app.switchboard.index?.tags) {
-    options = Array.from(note.app.switchboard.index.tags);
+    options = Array.from(note.app.switchboard.index.tags)
   } else {
-    options = [];
+    options = []
   }
   return (
     <Autocomplete
@@ -1458,7 +1458,7 @@ function Tags(props: { note: Note }) {
         ))
       }
     />
-  );
+  )
 }
 
 function Citations({ note }: { note: Note }) {
@@ -1468,7 +1468,7 @@ function Citations({ note }: { note: Note }) {
         <Cite note={note} i={i} c={c} />
       ))}
     </div>
-  );
+  )
 }
 
 const citationsStyles = makeStyles((theme) => ({
@@ -1493,36 +1493,36 @@ const citationsStyles = makeStyles((theme) => ({
   remover: {
     cursor: "pointer",
   },
-}));
+}))
 
 function Cite({ note, i, c }: { note: Note; i: number; c: CitationRecord }) {
-  const current = i === note.state.citationIndex;
-  let cz: "repeat" | "first" | "current" = "first";
+  const current = i === note.state.citationIndex
+  let cz: "repeat" | "first" | "current" = "first"
   if (current) {
-    cz = "current";
+    cz = "current"
   } else if (i > 0 && c.phrase === note.state.citations[i - 1].phrase) {
-    cz = "repeat";
+    cz = "repeat"
   }
-  let cb;
+  let cb
   if (!current) {
-    cb = () => note.setState({ citationIndex: i });
+    cb = () => note.setState({ citationIndex: i })
   }
-  const key = `${note.state.key[0]}:${note.state.key[1]}:${i}`;
-  const onlyCitation = note.state.citations.length === 1;
-  const starred = i === note.state.canonicalCitation;
-  let makeCanonical, removeCitation;
+  const key = `${note.state.key[0]}:${note.state.key[1]}:${i}`
+  const onlyCitation = note.state.citations.length === 1
+  const starred = i === note.state.canonicalCitation
+  let makeCanonical, removeCitation
   if (!(onlyCitation || starred)) {
     makeCanonical = () =>
-      note.setState({ canonicalCitation: i, unsavedContent: true });
+      note.setState({ canonicalCitation: i, unsavedContent: true })
     removeCitation = () => {
-      const citations = deepClone(note.state.citations);
-      citations.splice(i, 1);
-      const changes: any = { citations, unsavedContent: true };
+      const citations = deepClone(note.state.citations)
+      citations.splice(i, 1)
+      const changes: any = { citations, unsavedContent: true }
       if (i === note.state.canonicalCitation) {
-        changes.canonicalCitation = undefined;
+        changes.canonicalCitation = undefined
       }
-      note.setState(changes);
-    };
+      note.setState(changes)
+    }
   }
   return (
     <Citation
@@ -1538,22 +1538,22 @@ function Cite({ note, i, c }: { note: Note; i: number; c: CitationRecord }) {
       starCallback={makeCanonical}
       deleteCallback={removeCitation}
     />
-  );
+  )
 }
 
 type CitationProps = {
-  starred: boolean;
-  phrase: string;
-  title: string;
-  url: string;
-  key: string;
-  when: Date[];
-  onlyCitation: boolean;
-  cz: "first" | "current" | "repeat";
-  phraseCallback?: () => void;
-  starCallback?: () => void;
-  deleteCallback?: () => void;
-};
+  starred: boolean
+  phrase: string
+  title: string
+  url: string
+  key: string
+  when: Date[]
+  onlyCitation: boolean
+  cz: "first" | "current" | "repeat"
+  phraseCallback?: () => void
+  starCallback?: () => void
+  deleteCallback?: () => void
+}
 
 // factored out of Cite to facilitate use in NoteDetails
 function Citation({
@@ -1569,7 +1569,7 @@ function Citation({
   starCallback = () => {},
   deleteCallback = () => {},
 }: CitationProps) {
-  const classes = citationsStyles();
+  const classes = citationsStyles()
   return (
     <Grid container spacing={1} key={key}>
       <Grid item xs={2} className={classes[cz]} onClick={phraseCallback}>
@@ -1599,7 +1599,7 @@ function Citation({
         </Grid>
       )}
     </Grid>
-  );
+  )
 }
 
 const annotationStyles = makeStyles((theme) => ({
@@ -1617,7 +1617,7 @@ const annotationStyles = makeStyles((theme) => ({
     display: "table",
     margin: "auto auto",
   },
-}));
+}))
 
 function Annotations({
   gist,
@@ -1627,20 +1627,20 @@ function Annotations({
   notesHandler,
   citationNoteHandler,
 }: {
-  gist: string;
-  citationNote: string;
-  details: string;
-  citationNoteHandler: (e: ChangeEvent<HTMLInputElement>) => void;
-  gistHandler: (e: ChangeEvent<HTMLInputElement>) => void;
-  notesHandler: (e: ChangeEvent<HTMLTextAreaElement>) => void;
+  gist: string
+  citationNote: string
+  details: string
+  citationNoteHandler: (e: ChangeEvent<HTMLInputElement>) => void
+  gistHandler: (e: ChangeEvent<HTMLInputElement>) => void
+  notesHandler: (e: ChangeEvent<HTMLTextAreaElement>) => void
 }) {
-  const classes = annotationStyles();
-  const [showMore, setShowMore] = useState(false);
+  const classes = annotationStyles()
+  const [showMore, setShowMore] = useState(false)
   const showerOpts: any = {
     className: classes.unfolder,
     onClick: () => setShowMore(!showMore),
-  };
-  if (citationNote || details) showerOpts.color = "secondary";
+  }
+  if (citationNote || details) showerOpts.color = "secondary"
   return (
     <div>
       <Collapse in={showMore}>
@@ -1691,18 +1691,18 @@ function Annotations({
         />
       </Collapse>
     </div>
-  );
+  )
 }
 
 function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
-  const [initialize, setInitialize] = useState(true);
-  const [phraseMap, setPhraseMap] = useState(new Map<string, string>());
-  const { relations } = note.state;
+  const [initialize, setInitialize] = useState(true)
+  const [phraseMap, setPhraseMap] = useState(new Map<string, string>())
+  const { relations } = note.state
   if (initialize) {
-    const keys: string[] = [];
+    const keys: string[] = []
     for (const others of Object.values(relations)) {
       for (const k of others) {
-        keys.push(enkey(k));
+        keys.push(enkey(k))
       }
     }
     if (keys.length) {
@@ -1710,22 +1710,22 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
         note.app.switchboard
           .index!.getBatch(keys)
           .then((results) => {
-            const realMap = new Map<string, string>();
+            const realMap = new Map<string, string>()
             Object.entries(results).forEach(([key, n]) => {
-              realMap.set(key, notePhrase(n));
-              note.app.switchboard.index!.cache.set(key, n);
-            });
-            setInitialize(false);
-            setPhraseMap(realMap);
+              realMap.set(key, notePhrase(n))
+              note.app.switchboard.index!.cache.set(key, n)
+            })
+            setInitialize(false)
+            setPhraseMap(realMap)
           })
-          .catch((e) => note.app.error(e));
-      });
+          .catch((e) => note.app.error(e))
+      })
     } else {
-      setInitialize(false);
+      setInitialize(false)
     }
   }
   const showSomething =
-    hasWord && !!Object.keys(relations).length && !initialize;
+    hasWord && !!Object.keys(relations).length && !initialize
   return (
     <>
       {!showSomething && <Box mt={2} />}
@@ -1738,7 +1738,7 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
               </Grid>
               <Grid item xs={9}>
                 {keys.map((k) => {
-                  const key = enkey(k);
+                  const key = enkey(k)
                   return (
                     <Chip
                       key={key}
@@ -1751,8 +1751,8 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
                         note.app.setState({ tab: Section.sorters }, () => {
                           note.app.goto(
                             note.app.switchboard.index!.cache.get(key)!
-                          );
-                        });
+                          )
+                        })
                       }}
                       onDelete={() => {
                         note.app.switchboard
@@ -1768,17 +1768,17 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
                           )
                           .then(({ head }) => {
                             note.setState({ relations: head.relations }, () => {
-                              setInitialize(true);
-                              setPhraseMap(new Map());
-                              note.app.cleanSearch();
-                              note.app.cleanHistory(true);
-                            });
+                              setInitialize(true)
+                              setPhraseMap(new Map())
+                              note.app.cleanSearch()
+                              note.app.cleanHistory(true)
+                            })
                           })
-                          .catch((e) => note.app.error(e));
+                          .catch((e) => note.app.error(e))
                       }}
                       deleteIcon={<Cancel />}
                     />
-                  );
+                  )
                 })}
               </Grid>
             </Grid>
@@ -1786,7 +1786,7 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
         </Box>
       )}
     </>
-  );
+  )
 }
 
 export function nullState(): NoteState {
@@ -1801,7 +1801,7 @@ export function nullState(): NoteState {
     everSaved: false,
     unsavedCitation: false,
     citationIndex: 0,
-  };
+  }
 }
 
 // add a new citation to an existing record
@@ -1809,11 +1809,11 @@ function mergeCitation(
   note: NoteRecord,
   citation: CitationRecord
 ): number | undefined {
-  let match: CitationRecord | null = null;
-  let index: number | undefined;
-  const { source, selection } = citation;
+  let match: CitationRecord | null = null
+  let index: number | undefined
+  const { source, selection } = citation
   for (let i = 0; i < note.citations.length; i++) {
-    const c = note.citations[i];
+    const c = note.citations[i]
     if (
       citation.phrase === c.phrase &&
       citation.before === c.before &&
@@ -1824,15 +1824,15 @@ function mergeCitation(
       !anyDifference(selection.anchor, c.selection.anchor) &&
       !anyDifference(selection.focus, c.selection.focus)
     ) {
-      index = i;
-      match = c;
-      break;
+      index = i
+      match = c
+      break
     }
   }
   if (match) {
-    match.when.unshift(citation.when[0]);
+    match.when.unshift(citation.when[0])
   } else {
-    note.citations.unshift(citation);
+    note.citations.unshift(citation)
   }
-  return index;
+  return index
 }

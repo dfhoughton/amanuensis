@@ -1,6 +1,6 @@
-import { App } from "./App";
-import { any, nws, squish } from "./modules/util";
-import { AboutLink, Details, Mark, TT } from "./modules/components";
+import { App } from "./App"
+import { any, nws, squish } from "./modules/util"
+import { AboutLink, Details, Mark, TT } from "./modules/components"
 import {
   Button,
   Card,
@@ -16,15 +16,15 @@ import {
   makeStyles,
   TextField,
   Typography as T,
-} from "@material-ui/core";
-import { useState } from "react";
-import { Sorter } from "./modules/types";
-import { AddBoxRounded, Clear, Edit } from "@material-ui/icons";
-import { Autocomplete } from "@material-ui/lab";
-import { deepClone } from "./modules/clone";
+} from "@material-ui/core"
+import { useState } from "react"
+import { Sorter } from "./modules/types"
+import { AddBoxRounded, Clear, Edit } from "@material-ui/icons"
+import { Autocomplete } from "@material-ui/lab"
+import { deepClone } from "./modules/clone"
 
 interface SortingProps {
-  app: App;
+  app: App
 }
 
 const sortingStyles = makeStyles((theme) => ({
@@ -43,32 +43,32 @@ const sortingStyles = makeStyles((theme) => ({
     margin: "0 auto",
     fontStyle: "italic",
   },
-}));
+}))
 
 const nullSorter: Sorter = {
   pk: -1,
   name: "",
   description: "",
   metric: (a, b) => 0,
-};
+}
 
 function Sorting({ app }: SortingProps) {
-  const classes = sortingStyles();
+  const classes = sortingStyles()
   const knownSorters = deepClone(
     Array.from(app.switchboard.index!.sorters.values())
-  ).sort((a: Sorter, b: Sorter) => a.pk - b.pk);
-  const [sorts, setSorts] = useState<Sorter[]>(knownSorters);
-  const [editedSort, setEditedSort] = useState<Sorter | null>(null);
-  const [df, setDf] = useState(app.switchboard.index!.currentSorter);
+  ).sort((a: Sorter, b: Sorter) => a.pk - b.pk)
+  const [sorts, setSorts] = useState<Sorter[]>(knownSorters)
+  const [editedSort, setEditedSort] = useState<Sorter | null>(null)
+  const [df, setDf] = useState(app.switchboard.index!.currentSorter)
 
   const nameError: string = (function () {
-    if (editedSort === null) return "";
-    if (!nws(editedSort.name)) return "required";
-    const n = squish(editedSort.name);
+    if (editedSort === null) return ""
+    if (!nws(editedSort.name)) return "required"
+    const n = squish(editedSort.name)
     if (any(sorts, (s: Sorter) => s.pk !== editedSort.pk && s.name === n))
-      return "not unique";
-    return "";
-  })();
+      return "not unique"
+    return ""
+  })()
   return (
     <div className={classes.root}>
       <Details header="Sorting">
@@ -113,9 +113,9 @@ function Sorting({ app }: SortingProps) {
             error={!!nameError}
             helperText={nameError}
             onChange={(e) => {
-              const es: Sorter = deepClone(editedSort);
-              es.name = e.target.value;
-              setEditedSort(es);
+              const es: Sorter = deepClone(editedSort)
+              es.name = e.target.value
+              setEditedSort(es)
             }}
           />
           <TextField
@@ -124,9 +124,9 @@ function Sorting({ app }: SortingProps) {
             className={classes.text}
             value={editedSort?.description || undefined}
             onChange={(e) => {
-              const es: Sorter = deepClone(editedSort);
-              es.description = e.target.value;
-              setEditedSort(es);
+              const es: Sorter = deepClone(editedSort)
+              es.description = e.target.value
+              setEditedSort(es)
             }}
           />
           <Grid container spacing={2} className={classes.adfixes}>
@@ -138,12 +138,12 @@ function Sorting({ app }: SortingProps) {
                 InputProps={{ inputProps: { min: 0, step: 1 } }}
                 value={editedSort?.prefix || 0}
                 onChange={(e) => {
-                  const es: Sorter = deepClone(editedSort);
+                  const es: Sorter = deepClone(editedSort)
                   const prefix = e.target.value
                     ? Number.parseInt(e.target.value)
-                    : 0;
-                  es.prefix = prefix;
-                  setEditedSort(es);
+                    : 0
+                  es.prefix = prefix
+                  setEditedSort(es)
                 }}
               />
             </Grid>
@@ -155,12 +155,12 @@ function Sorting({ app }: SortingProps) {
                 InputProps={{ inputProps: { min: 0, step: 1 } }}
                 value={editedSort?.suffix || 0}
                 onChange={(e) => {
-                  const es: Sorter = deepClone(editedSort);
+                  const es: Sorter = deepClone(editedSort)
                   const suffix = e.target.value
                     ? Number.parseInt(e.target.value)
-                    : 0;
-                  es.suffix = suffix;
-                  setEditedSort(es);
+                    : 0
+                  es.suffix = suffix
+                  setEditedSort(es)
                 }}
               />
             </Grid>
@@ -170,18 +170,18 @@ function Sorting({ app }: SortingProps) {
             className={classes.text}
             value={editedSort?.insertables || ""}
             onChange={(e) => {
-              const es: Sorter = deepClone(editedSort);
-              es.insertables = e.target.value;
-              setEditedSort(es);
+              const es: Sorter = deepClone(editedSort)
+              es.insertables = e.target.value
+              setEditedSort(es)
             }}
           />
           <Autocomplete
             value={editedSort?.similars || []}
             options={editedSort?.similars || []}
             onChange={(_event, choices) => {
-              const es: Sorter = deepClone(editedSort);
-              es.similars = choices;
-              setEditedSort(es);
+              const es: Sorter = deepClone(editedSort)
+              es.similars = choices
+              setEditedSort(es)
             }}
             multiple
             freeSolo
@@ -216,26 +216,26 @@ function Sorting({ app }: SortingProps) {
                 app.switchboard
                   .index!.saveSorter(editedSort!)
                   .then((pk) => {
-                    editedSort!.pk = pk;
-                    const newSorts: Sorter[] = deepClone(sorts);
-                    newSorts.push(editedSort!);
-                    setSorts(newSorts);
-                    app.success(`Created sorter ${editedSort!.name}`);
-                    setEditedSort(null);
+                    editedSort!.pk = pk
+                    const newSorts: Sorter[] = deepClone(sorts)
+                    newSorts.push(editedSort!)
+                    setSorts(newSorts)
+                    app.success(`Created sorter ${editedSort!.name}`)
+                    setEditedSort(null)
                   })
-                  .catch((e) => app.error(e));
+                  .catch((e) => app.error(e))
               } else {
                 app.switchboard
                   .index!.saveSorter(editedSort!)
                   .then((pk) => {
-                    const newSorts: Sorter[] = deepClone(sorts);
-                    const i = newSorts.findIndex((s: Sorter) => s.pk === pk);
-                    newSorts[i] = editedSort!;
-                    setSorts(newSorts);
-                    app.success(`Edited sorter ${editedSort!.name}`);
-                    setEditedSort(null);
+                    const newSorts: Sorter[] = deepClone(sorts)
+                    const i = newSorts.findIndex((s: Sorter) => s.pk === pk)
+                    newSorts[i] = editedSort!
+                    setSorts(newSorts)
+                    app.success(`Edited sorter ${editedSort!.name}`)
+                    setEditedSort(null)
                   })
-                  .catch((e) => app.error(e));
+                  .catch((e) => app.error(e))
               }
             }}
           >
@@ -244,10 +244,10 @@ function Sorting({ app }: SortingProps) {
         </DialogActions>
       </Dialog>
     </div>
-  );
+  )
 }
 
-export default Sorting;
+export default Sorting
 
 const sorterStyles = makeStyles((theme) => ({
   root: {
@@ -269,17 +269,17 @@ const sorterStyles = makeStyles((theme) => ({
   insertables: {
     width: "100%",
   },
-}));
+}))
 
 type SorterCardProps = {
-  app: App;
-  sorter: Sorter;
-  defaultSorter: number;
-  setDefaultSorter: (pk: number) => void;
-  sorts: Sorter[];
-  setSorts: (props: Sorter[]) => void;
-  setEditedSorter: (s: Sorter) => void;
-};
+  app: App
+  sorter: Sorter
+  defaultSorter: number
+  setDefaultSorter: (pk: number) => void
+  sorts: Sorter[]
+  setSorts: (props: Sorter[]) => void
+  setEditedSorter: (s: Sorter) => void
+}
 function SorterCard({
   app,
   sorter,
@@ -289,15 +289,15 @@ function SorterCard({
   setSorts,
   setEditedSorter,
 }: SorterCardProps) {
-  const classes = sorterStyles();
-  const isDefaultSorter = sorter.pk === 0;
+  const classes = sorterStyles()
+  const isDefaultSorter = sorter.pk === 0
   const handleStarClick = () => {
     if (sorter.pk !== defaultSorter) {
       app.switchboard
         .index!.setDefaultSorter(sorter.pk)
-        .then(() => setDefaultSorter(sorter.pk));
+        .then(() => setDefaultSorter(sorter.pk))
     }
-  };
+  }
   return (
     <Grid item xs={12} key={sorter.pk} className={classes.root}>
       <Card variant="outlined">
@@ -400,33 +400,33 @@ function SorterCard({
                         app.switchboard
                           .index!.deleteSorter(sorter)
                           .then(() => {
-                            const newSorters: Sorter[] = deepClone(sorts);
+                            const newSorters: Sorter[] = deepClone(sorts)
                             const i = newSorters.findIndex(
                               (s: Sorter) => s.pk === sorter.pk
-                            );
-                            newSorters.splice(i, 1);
-                            setSorts(newSorters);
+                            )
+                            newSorters.splice(i, 1)
+                            setSorts(newSorters)
                             if (
                               app.state.search.type === "ad hoc" &&
                               app.state.search.sorter === sorter.pk
                             ) {
                               // fix saved search or we'll get explosions
-                              const search = deepClone(app.state.search);
+                              const search = deepClone(app.state.search)
                               search.sorter =
-                                app.switchboard.index!.currentSorter;
-                              app.setState({ search });
+                                app.switchboard.index!.currentSorter
+                              app.setState({ search })
                             }
                             if (sorter.pk === defaultSorter) {
                               setDefaultSorter(
                                 app.switchboard.index!.currentSorter
-                              );
+                              )
                             }
-                            resolve(`Sorter ${sorter.name} deleted`);
+                            resolve(`Sorter ${sorter.name} deleted`)
                           })
-                          .catch((e) => reject(e));
-                      });
+                          .catch((e) => reject(e))
+                      })
                     },
-                  });
+                  })
                 }}
               >
                 <Clear />
@@ -442,5 +442,5 @@ function SorterCard({
         </CardActions>
       </Card>
     </Grid>
-  );
+  )
 }
