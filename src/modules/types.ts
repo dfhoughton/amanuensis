@@ -194,6 +194,9 @@ export type Configuration = {
   cards: {
     first: FirstCardSideParam
   }
+  notes: {
+    similarCount: number
+  }
 }
 
 export type FirstCardSideParam = "gist" | "phrase"

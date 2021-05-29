@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 
-import { App } from "./App"
+import { App, Section } from "./App"
 import {
   AboutLink,
   Details,
@@ -19,9 +19,10 @@ import {
   LinearProgress,
   makeStyles,
   Switch,
+  TextField,
   Typography as T,
 } from "@material-ui/core"
-import { Delete, GetApp, Publish } from "@material-ui/icons"
+import { Delete, FilterList, GetApp, Publish } from "@material-ui/icons"
 import { formatNumber } from "./modules/util"
 
 interface ConfigProps {
@@ -100,11 +101,50 @@ const paramStyles = makeStyles((theme) => ({
 function Params({ config }: { config: Config }) {
   const conf = config.app.state.config
   const [firstInfo, setFirstInfo] = useState<boolean>(false)
+  const [secondInfo, setSecondInfo] = useState<boolean>(false)
   const classes = paramStyles()
   const configError = (e: any) =>
     config.app.error(`could not save configuration change: ${e}`)
   return (
     <TitleBox title="Parameters" mt={3}>
+      <strong>Notes</strong>
+      <Grid container alignItems="center" spacing={2}>
+        <Grid item xs={4} container justify="flex-end">
+          <span className={classes.label}>similars count</span>
+        </Grid>
+        <Grid item>
+          <TextField
+            value={conf.notes.similarCount}
+            inputProps={{ type: "number", min: 1, max: 10, step: 1, width: 5 }}
+            onChange={(e) => {
+              const newConf: Configuration = deepClone(conf)
+              const similarCount = Number.parseInt(e.target.value)
+              newConf.notes.similarCount = similarCount
+              config.app.switchboard
+                .index!.saveConfiguration(newConf)
+                .then(() => {
+                  config.app.setState({ config: newConf })
+                })
+                .catch(configError)
+            }}
+          />
+        </Grid>
+        <Grid item>
+          <InfoSpinner
+            flipped={secondInfo}
+            setFlipped={setSecondInfo}
+            fontSize="small"
+          />
+        </Grid>
+      </Grid>
+      <InfoBox shown={secondInfo}>
+        The similars count is the maximum number of similar phrases shown by the{" "}
+        <FilterList color="primary" fontSize="small" /> widget of a{" "}
+        <TabLink tab="note" app={config.app}>
+          note
+        </TabLink>
+        .
+      </InfoBox>
       <strong>Flashcards</strong>
       <Grid container alignItems="center" spacing={2}>
         <Grid item xs={4} container justify="flex-end">

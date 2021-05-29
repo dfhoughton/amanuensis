@@ -1155,7 +1155,7 @@ function Similar({ app, n }: { app: App; n: Note }) {
     app.switchboard.index
       ?.find({
         ...search,
-        limit: 5, // TODO make this configurable
+        limit: app.state.config.notes.similarCount + 1, // add one to account for term itself
       })
       .then((found) => {
         let matches: NoteRecord[] = []
@@ -1170,6 +1170,7 @@ function Similar({ app, n }: { app: App; n: Note }) {
         const similars = matches
           .map((m) => notePhrase(m))
           .filter((w) => w !== search.phrase)
+          .slice(0, app.state.config.notes.similarCount)
         setFallback(similars.length ? "" : "none")
         n.setState({ similars })
       })

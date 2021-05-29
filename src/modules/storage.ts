@@ -2055,9 +2055,14 @@ export function getIndex(chrome: Chrome): Promise<Index> {
 export function setConfigurationDefaults(obj: {
   [key: string]: any
 }): Configuration {
-  if (!obj.cards) obj.cards = {}
-  const cards = obj.cards
-  if (!cards.first) cards.first = "phrase"
+  if (obj?.cards?.first == null) {
+    obj.cards ??= {}
+    obj.cards.first = "phrase"
+  }
+  if (obj?.notes?.similarCount == null) {
+    obj.notes ??= {}
+    obj.notes.similarCount = 5
+  }
   return obj as Configuration
 }
 
