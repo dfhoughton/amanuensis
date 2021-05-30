@@ -47,7 +47,8 @@ import { flatten, notePhrase, sameKey, sameNote } from "./modules/util"
 import Sorting from "./Sorting"
 import FlashCards, { FlashCardState } from "./FlashCards"
 
-export const projectName = "Amanuensis"
+// TODO add some code to the build script to ensure this matches whatever is in public/manifest.json
+export const VERSION = "0.0.1"
 
 const theme = createMuiTheme({
   palette: {
@@ -183,7 +184,7 @@ export class App extends React.Component<AppProps, AppState> {
               value={this.state.tab}
               onChange={handleChange}
               variant="fullWidth"
-              aria-label={`${projectName} navigation`}
+              aria-label="Amanuensis navigation"
             >
               <Tab icon={<Edit />} {...a11yProps(0)} value={Section.note} />
               <Tab

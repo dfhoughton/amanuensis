@@ -23,7 +23,7 @@ import {
   Sort,
 } from "@material-ui/icons"
 import React, { ReactElement } from "react"
-import { App, Section, Sections } from "../App"
+import { App, Section, Sections, VERSION } from "../App"
 import { uniq, ymd } from "./util"
 
 // the sorts of things that are children in React components
@@ -75,7 +75,7 @@ const detailsStyles = makeStyles((theme) => ({
   },
   details: {
     fontSize: theme.typography.pxToRem(14),
-    width: '100%',
+    width: "100%",
   },
 }))
 
@@ -441,11 +441,31 @@ const aboutLinkStyles = makeStyles((theme) => ({
   link: {
     fontSize: "smaller",
   },
+  header: {
+    fontWeight: 600,
+  },
+  followup: {
+    textOverflow: "ellipsis",
+    overflow: "hidden",
+  },
 }))
 
 // generate the about link, which will pop up stuff like license information in a modal
 export function AboutLink({ app }: { app: App }) {
   const classes = aboutLinkStyles()
+  const licenseUrl =
+    "https://github.com/dfhoughton/amanuensis/blob/main/LICENSE"
+  const readmeUrl = "https://github.com/dfhoughton/amanuensis#readme"
+  const Row: React.FC<{ header: string }> = ({ header, children }) => (
+    <Grid container>
+      <Grid item alignContent="flex-end" xs={3} className={classes.header}>
+        {header}
+      </Grid>
+      <Grid item xs={9} className={classes.followup}>
+        {children}
+      </Grid>
+    </Grid>
+  )
   const onClick = (e: any) => {
     e.preventDefault()
     app.confirm({
@@ -454,15 +474,33 @@ export function AboutLink({ app }: { app: App }) {
       callback: () => new Promise((resolve, _reject) => resolve(undefined)),
       text: (
         <>
-          More to come.
-          <Link
-            href="bogus"
-            onClick={linkClick(
-              "https://github.com/dfhoughton/amanuensis#readme"
-            )}
-          >
-            Repository
-          </Link>
+          <p>
+            Amanuensis is a language learning assistant. It keeps notes for you
+            as you read. It is free. It does not spy on you. It does not send
+            information to anyone.
+          </p>
+          <Row header="Home page">
+            <Link href="bogus" onClick={linkClick(readmeUrl)}>
+              {readmeUrl}
+            </Link>
+          </Row>
+          <Row header="Version">{VERSION} (beta)</Row>
+          <Row header="License">
+            <Link href="bogus" onClick={linkClick(licenseUrl)}>
+              GPL v2.0
+            </Link>
+          </Row>
+          <p>
+            If you find Amanuensis useful and you want to show your
+            appreciation, you can{" "}
+            <Link
+              href="bogus"
+              onClick={linkClick("https://www.buymeacoffee.com/dfhoughton")}
+            >
+              buy me a coffee
+            </Link>
+            !
+          </p>
         </>
       ),
     })
