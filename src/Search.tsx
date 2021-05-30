@@ -368,15 +368,20 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
   const [searchName, setSearchName] = useState<string | undefined>(
     savedSearch?.name
   )
-  const [showSearchDetails, setShowSearchDetails] = useState<boolean>(
+  const detailToSee = (search: AdHocQuery) =>
     !!(
       search.after ||
       search.before ||
-      search.project ||
-      search.tags ||
+      search.project?.length ||
+      search.tags?.length ||
+      search.relativePeriod ||
       search.url
     )
+  const [showSearchDetails, setShowSearchDetails] = useState<boolean>(
+    detailToSee(search)
   )
+  const maybeShowDetails = (search: AdHocQuery) =>
+    setShowSearchDetails(showSearchDetails || detailToSee(search))
   const [searchDescription, setSearchDescription] = useState<string | null>(
     savedSearch?.description || null
   )
@@ -447,7 +452,10 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                   stack: e.target.value,
                   search: stack.query,
                 }
-                app.setState(newState, () => reset(stack.query, stack))
+                app.setState(newState, () => {
+                  reset(stack.query, stack)
+                  maybeShowDetails(stack.query)
+                })
               })
               .catch((e) => app.error(e))
           }}
