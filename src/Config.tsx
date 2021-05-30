@@ -115,7 +115,7 @@ function Params({ config }: { config: Config }) {
         <Grid item>
           <TextField
             value={conf.notes.similarCount}
-            inputProps={{ type: "number", min: 1, max: 10, step: 1, width: 5 }}
+            inputProps={{ type: "number", min: 1, max: 10, step: 1, width: 5, style: {textAlign: 'right'} }}
             onChange={(e) => {
               const newConf: Configuration = deepClone(conf)
               const similarCount = Number.parseInt(e.target.value)
