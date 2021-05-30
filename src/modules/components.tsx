@@ -5,9 +5,9 @@ import {
   Box,
   Collapse,
   Grid,
+  Link,
   makeStyles,
   Popover,
-  Typography,
 } from "@material-ui/core"
 import Tooltip from "@material-ui/core/Tooltip"
 import {
@@ -69,15 +69,13 @@ export function TT({ children, msg, placement, wrap }: TTProps): ReactElement {
 }
 
 const detailsStyles = makeStyles((theme) => ({
-  root: {
-    marginBottom: "1rem",
-  },
   header: {
     fontSize: theme.typography.pxToRem(16),
     fontWeight: theme.typography.fontWeightBold,
   },
   details: {
     fontSize: theme.typography.pxToRem(14),
+    width: '100%',
   },
 }))
 
@@ -95,24 +93,17 @@ export function Details({
   ...accordionProps
 }: DetailsProps): ReactElement {
   const classes = detailsStyles()
-  const headerElement = !header ? null : (
-    <Typography>
-      <div className={classes.header}>{header}</div>
-    </Typography>
-  )
   return (
-    <div className={classes.root}>
+    <Box mb={2}>
       <Accordion {...accordionProps}>
         <AccordionSummary expandIcon={<Help />}>
-          {headerElement}
+          {!!header && <div className={classes.header}>{header}</div>}
         </AccordionSummary>
         <AccordionDetails>
-          <Typography>
-            <div className={classes.details}>{children}</div>
-          </Typography>
+          <div className={classes.details}>{children}</div>
         </AccordionDetails>
       </Accordion>
-    </div>
+    </Box>
   )
 }
 
@@ -464,14 +455,14 @@ export function AboutLink({ app }: { app: App }) {
       text: (
         <>
           More to come.
-          <a
+          <Link
             href="bogus"
             onClick={linkClick(
               "https://github.com/dfhoughton/amanuensis#readme"
             )}
           >
             Repository
-          </a>
+          </Link>
         </>
       ),
     })
@@ -483,9 +474,9 @@ export function AboutLink({ app }: { app: App }) {
   return (
     <Grid container direction="row" justify="flex-end" className={classes.root}>
       <Grid item>
-        <a href="bogus" className={classes.link} onClick={onClick}>
+        <Link href="bogus" className={classes.link} onClick={onClick}>
           about
-        </a>
+        </Link>
       </Grid>
     </Grid>
   )
