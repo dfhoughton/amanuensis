@@ -89,7 +89,7 @@ export function ymd(date: Date | null | undefined): string | undefined {
     while (m.length < 2) {
       m = "0" + m
     }
-    let d = (date.getDate() + 1).toString()
+    let d = (date.getDate()).toString()
     while (d.length < 2) {
       d = "0" + d
     }

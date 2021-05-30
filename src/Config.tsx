@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 
-import { App, Section } from "./App"
+import { App } from "./App"
 import {
   AboutLink,
   Details,
