@@ -1576,7 +1576,7 @@ export class Index {
         }
         this.projectIndices.set(pk, new Map())
         this.reverseProjectIndex.set(pk, name)
-        storable[pk.toString()] = []
+        storable[pk.toString()] = new Map()
       }
       const project: ProjectInfo = {
         pk,
@@ -1838,7 +1838,6 @@ export class Index {
   // really this doesn't need to be exposed, because things will stay clean, but when I
   // implement changes to make things *cleaner* I can run this to tidy stuff up
   clean(): Promise<string> {
-    console.log("current state of compressor", this.compressor)
     return new Promise((resolve, reject) => {
       // remove things from the indices that are no longer stored
       const findables: string[] = []

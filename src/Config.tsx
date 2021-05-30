@@ -120,7 +120,7 @@ function Params({ config }: { config: Config }) {
               min: 1,
               max: 10,
               step: 1,
-              width: 5,
+              size: 2,
               style: { textAlign: "right" },
             }}
             onChange={(e) => {

@@ -112,7 +112,6 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
     const action = this.state.action
     if (action === "cloning" || action === "editing") {
       const proj = deepClone(this.state.modifying) || {}
-      console.log(proj)
       delete proj.pk
       this.props.app.switchboard
         .index!.saveProject(proj)
