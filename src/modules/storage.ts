@@ -2026,6 +2026,10 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                       deserialize(ridx, decompressor)
                     )
                   }
+                  // make sure the default project index is present
+                  if (projectIndices.get(0) == null) {
+                    projectIndices.set(0, new Map())
+                  }
                   resolve(
                     new Index({
                       chrome,
