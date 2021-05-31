@@ -1774,6 +1774,8 @@ export class Index {
           this.sorters.clear()
           const lev: Sorter = makeDefaultSorter()
           this.sorters.set(lev.pk, lev)
+          this.compressor = {}
+          this.decompressor = {}
           resolve()
         }
       })
