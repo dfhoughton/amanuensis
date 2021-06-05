@@ -14,6 +14,8 @@ import { deepClone } from "./modules/clone"
 
 import {
   Box,
+  Checkbox,
+  FormControlLabel,
   Grid,
   IconButton,
   LinearProgress,
@@ -200,13 +202,14 @@ function Params({ config }: { config: Config }) {
 function DownloadUpload({ config }: { config: Config }) {
   const [showDownloadInfo, setShowDownloadInfo] = useState<boolean>(false)
   const [showUploadInfo, setShowUploadInfo] = useState<boolean>(false)
+  const [compressedDownload, setCompressedDownload] = useState<boolean>(true)
   const classes = paramStyles()
   if (!config.state.initialized) return null
 
   const downloadHandler = () => {
     config.app.switchboard.then(() => {
       config.app.switchboard
-        .index!.dump()
+        .index!.dump(!compressedDownload)
         .then((json) => {
           const text = JSON.stringify(json)
           const e = document.createElement("a")
@@ -302,6 +305,17 @@ function DownloadUpload({ config }: { config: Config }) {
           </IconButton>
         </Grid>
         <Grid item>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={compressedDownload}
+                onChange={() => setCompressedDownload(!compressedDownload)}
+              />
+            }
+            label="Compressed"
+          />
+        </Grid>
+        <Grid item>
           <InfoSpinner
             flipped={showDownloadInfo}
             setFlipped={setShowDownloadInfo}
@@ -309,10 +323,17 @@ function DownloadUpload({ config }: { config: Config }) {
         </Grid>
       </Grid>
       <InfoBox shown={showDownloadInfo}>
-        Downloading Amanuensis state will give you a JSON file containing
-        everything Amanuensis has stored locally. This is is useful if you wish
-        to back Amanuensis up or transfer your notes to a different browser or
-        machine.
+        <Box mb={1}>
+          Downloading Amanuensis state will give you a JSON file containing
+          everything Amanuensis has stored locally. This is is useful if you
+          wish to back Amanuensis up or transfer your notes to a different
+          browser or machine.
+        </Box>
+        <Box>
+          The compressed version of the data represents the data is it is actually
+          stored on your computer. The decompressed version is easier to read and
+          make use of. Either can be uploaded to restore Amanuensis.
+        </Box>
       </InfoBox>
       <Grid container alignItems="center" spacing={2}>
         <Grid

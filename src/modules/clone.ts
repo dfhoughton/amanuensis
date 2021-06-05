@@ -253,3 +253,26 @@ export function decompress(
   }
   return rv
 }
+
+// apply decompress recursively
+export function deepDecompress<T>(
+  obj: T,
+  decompressor: { [key: string]: any }
+): T {
+  if (typeof obj === "object") {
+    if (obj == null) return obj
+    if (Array.isArray(obj)) {
+      for (let i = 0, l = obj.length; i < l; i++) {
+        obj[i] = deepDecompress(obj[i], decompressor)
+      }
+      return obj
+    }
+    const shallowlyDecompressed = decompress(obj, decompressor)
+    for (const [k, v] of Object.entries(shallowlyDecompressed)) {
+      shallowlyDecompressed[k] = deepDecompress(v, decompressor)
+    }
+    return shallowlyDecompressed as T
+  } else {
+    return obj
+  }
+}

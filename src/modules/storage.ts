@@ -1,4 +1,10 @@
-import { anyDifference, deepClone, deserialize, serialize } from "./clone"
+import {
+  anyDifference,
+  deepClone,
+  deepDecompress,
+  deserialize,
+  serialize,
+} from "./clone"
 import {
   Chrome,
   KeyPair,
@@ -1831,7 +1837,11 @@ export class Index {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError)
         } else {
-          resolve(readable ? deserialize(result, this.decompressor) : result)
+          if (readable) {
+            result = deepDecompress(result, this.decompressor)
+            delete result.compressor
+          }
+          resolve(result)
         }
       })
     })
