@@ -264,6 +264,7 @@ export class App extends React.Component<AppProps, AppState> {
     level: MessageLevels = "info",
     hideIn?: number
   ) {
+    text ??= "strangely, no error was received"
     switch (level) {
       case "error":
         console.error(text)

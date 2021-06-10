@@ -267,8 +267,8 @@ function DownloadUpload({ config }: { config: Config }) {
                           resolve("")
                         })
                       })
-                      .catch((e) =>
-                        reject(
+                      .then(config.app.switchboard.index!.clean.bind(config.app.switchboard.index!))
+                      .catch((e) => reject(
                           `could not store state in ${f.name} on disk: ${e}`
                         )
                       )

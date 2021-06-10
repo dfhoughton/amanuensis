@@ -803,28 +803,25 @@ export class Index {
       }
       // store the phrase itself
       storable[enkey(keyPair)] = data
-      this.chrome.storage.local.set(
-        serialize(
-          storable,
-          this.compressor,
-          true,
-          "unsavedContent",
-          "unsavedCitation",
-          "everSaved",
-          "citationIndex",
-          "similars"
-        ),
-        () => {
-          // FIXME
-          if (this.chrome.runtime.lastError) {
-            reject(this.chrome.runtime.lastError)
-          } else {
-            this.checkCompressor()
-              .then(() => resolve(pk))
-              .catch(reject)
-          }
-        }
+      const compressed = serialize(
+        storable,
+        this.compressor,
+        true,
+        "unsavedContent",
+        "unsavedCitation",
+        "everSaved",
+        "citationIndex",
+        "similars"
       )
+      this.chrome.storage.local.set(compressed, () => {
+        if (this.chrome.runtime.lastError) {
+          reject(this.chrome.runtime.lastError)
+        } else {
+          this.checkCompressor()
+            .then(() => resolve(pk))
+            .catch(reject)
+        }
+      })
     })
   }
 
@@ -1847,93 +1844,82 @@ export class Index {
     })
   }
 
-  // really this doesn't need to be exposed, because things will stay clean, but when I
-  // implement changes to make things *cleaner* I can run this to tidy stuff up
-  clean(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      // remove things from the indices that are no longer stored
-      const findables: string[] = []
-      for (const [pk, map] of this.projectIndices) {
-        for (const k of map.values()) {
-          findables.push(enkey([pk, k]))
-        }
-      }
-      let removedFromIndex = 0
-      this.chrome.storage.local.get(findables, (result) => {
-        if (this.chrome.runtime.lastError) {
-          reject(this.chrome.runtime.lastError)
-        } else {
-          const broken = new Set<number>()
-          for (const kp of findables) {
-            if (!result[kp]) {
-              const [n1, n2] = kp.split(":")[0]
-              const pk = Number.parseInt(n2)
-              const project = Number.parseInt(n1)
-              let key
-              for (const [k, v] of this.projectIndices.get(project)!) {
-                if (v === pk) {
-                  key = k
-                  break
-                }
-              }
-              if (key != null) {
-                this.projectIndices.get(project)!.delete(key)
-                broken.add(project)
-                removedFromIndex++
-              }
-            }
-          }
-          // what to do after cleaning the indices
-          // compress all notes
-          const continuation1 = () => {
-            this.checkCompressor()
-              .then(() => {
-                const memoranda: any = {}
-                this.scan((n) => {
-                  memoranda[enkey(n.key)] = n
-                })
-                  .then(() => {
-                    this.chrome.storage.local.set(
-                      serialize(memoranda, this.compressor, false),
-                      () => {
-                        if (this.chrome.runtime.lastError) {
-                          reject(this.chrome.runtime.lastError)
-                        } else {
-                          this.checkCompressor()
-                            .then(() =>
-                              resolve(
-                                `All notes have passed through the compressor. Bad entries removed from indices: ${removedFromIndex}.`
-                              )
-                            )
-                            .catch(reject)
-                        }
-                      }
-                    )
-                  })
-                  .catch(reject)
-              })
-              .catch(reject)
-          }
-          if (broken.size) {
-            const memoranda: any = {}
-            for (const pk of broken) {
-              memoranda[pk] = this.projectIndices.get(pk)
-            }
-            this.chrome.storage.local.set(
-              serialize(memoranda, this.compressor, true),
-              () => {
-                if (this.chrome.runtime.lastError) {
-                  reject(this.chrome.runtime.lastError)
-                } else {
-                  this.checkCompressor().then(continuation1).catch(reject)
-                }
-              }
-            )
-          } else {
-            continuation1()
-          }
+  // put everything back onto the disk, deleting spurious index entries and ensuring that everything is compressed
+  clean(): Promise<void> {
+    return this._clean_all_notes()
+      .then(this._save_all_notes.bind(this))
+      .then(this._save_non_notes.bind(this))
+      .then(this.checkCompressor.bind(this))
+  }
+
+  _clean_all_notes(): Promise<void> {
+    const queue: string[] = []
+    this.projectIndices.forEach((map, project, _indices) => {
+      map.forEach((pk, _norm, _index) => {
+        const key = enkey([project, pk])
+        const note = this.cache.get(key)
+        if (!note) {
+          queue.push(key)
         }
       })
+    })
+    return new Promise((resolve, reject) => {
+      const visitBatch = () => {
+        const batch = queue.splice(0, 100)
+        if (batch.length) {
+          this.chrome.storage.local.get(batch, (found) => {
+            if (this.chrome.runtime.lastError) {
+              reject(this.chrome.runtime.lastError)
+            } else {
+              for (const key of batch) {
+                if (!found[key]) {
+                  const [k1, k2] = key.split(":").map((n) => Number.parseInt(n))
+                  const pi = this.projectIndices.get(k1)!
+                  const [norm] = Array.from(pi.entries()).find(
+                    (pair) => pair[1] === k2
+                  )!
+                  pi.delete(norm)
+                }
+              }
+              visitBatch()
+            }
+          })
+        } else {
+          resolve()
+        }
+      }
+      visitBatch()
+    })
+  }
+
+  _save_all_notes(): Promise<void> {
+    return this.scan((n) => this.save(n))
+  }
+
+  _save_non_notes(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const storable: { [key: string]: any } = {
+        projects: this.projects,
+        currentProject: this.currentProject,
+        tags: this.tags,
+        sorters: this.sorters,
+        currentSorter: this.currentSorter,
+        stacks: this.stacks,
+        config: this.config,
+      }
+      for (const [pk, map] of this.projectIndices) {
+        storable[pk.toString()] = map
+      }
+      this.chrome.storage.local.set(
+        serialize(storable, this.compressor, true),
+        () => {
+          if (this.chrome.runtime.lastError) {
+            reject(this.chrome.runtime.lastError)
+          } else {
+            resolve()
+          }
+        }
+      )
     })
   }
 
