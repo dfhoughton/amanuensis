@@ -27,7 +27,6 @@ import {
   none,
   notePhrase,
   rng,
-  sameKey,
   sample,
 } from "./util"
 
@@ -838,6 +837,7 @@ export class Index {
     head: RelationPart,
     dependent: RelationPart
   ): Promise<{ head: NoteRecord; dependent: NoteRecord }> {
+    console.log({ head, dependent })
     return new Promise((resolve, reject) => {
       const [, project] = this.findProject(head.phrase[0])
       if (
@@ -867,6 +867,7 @@ export class Index {
                   dn,
                   this.decompressor
                 )
+                console.log({ headNote, dependentNote })
                 const headRelations = headNote.relations[head.role] || []
                 const dependentRelations =
                   dependentNote.relations[dependent.role] || []
@@ -887,6 +888,7 @@ export class Index {
                   const storable: any = {}
                   storable[headKey] = headNote
                   storable[dependentKey] = dependentNote
+                  console.log("storable", storable)
                   this.chrome.storage.local.set(
                     serialize(storable, this.compressor, true),
                     () => {
@@ -934,108 +936,81 @@ export class Index {
     dependent: RelationPart
   ): Promise<{ head: NoteRecord; dependent: NoteRecord }> {
     return new Promise((resolve, reject) => {
-      const [, project] = this.findProject(head.phrase[0])
-      if (sameKey(head.phrase, dependent.phrase)) {
-        reject("you cannot create a relation between a phrase and itself")
-      } else if (
-        project.relations.find(
-          ([h, d]) => h === head.role && d === dependent.role
-        )
-      ) {
-        if (
-          head.phrase[0] !== dependent.phrase[0] &&
-          head.role !== "see also"
-        ) {
-          reject(
-            `these phrases are in different projects; the only relation allowed between phrases in different projects is "see also"`
-          )
+      const headKey = enkey(head.phrase)
+      const dependentKey = enkey(dependent.phrase)
+      this.chrome.storage.local.get([headKey, dependentKey], (found) => {
+        if (this.chrome.runtime.lastError) {
+          reject(this.chrome.runtime.lastError)
         } else {
-          const headKey = enkey(head.phrase)
-          const dependentKey = enkey(dependent.phrase)
-          this.chrome.storage.local.get([headKey, dependentKey], (found) => {
-            if (this.chrome.runtime.lastError) {
-              reject(this.chrome.runtime.lastError)
+          const hn = found[headKey]
+          const dn = found[dependentKey]
+          if (hn && dn) {
+            const headNote: NoteRecord = deserialize(hn, this.decompressor)
+            const dependentNote: NoteRecord = deserialize(dn, this.decompressor)
+            const headRelations = headNote.relations[head.role] || []
+            const dependentRelations =
+              dependentNote.relations[dependent.role] || []
+            if (
+              !(
+                headRelations.find(
+                  (k) => !anyDifference(k, dependent.phrase)
+                ) &&
+                dependentRelations.find((k) => !anyDifference(k, head.phrase))
+              )
+            ) {
+              reject(
+                "this relation is not currently established between these two phrases"
+              )
             } else {
-              const hn = found[headKey]
-              const dn = found[dependentKey]
-              if (hn && dn) {
-                const headNote: NoteRecord = deserialize(hn, this.decompressor)
-                const dependentNote: NoteRecord = deserialize(
-                  dn,
-                  this.decompressor
-                )
-                const headRelations = headNote.relations[head.role] || []
-                const dependentRelations =
-                  dependentNote.relations[dependent.role] || []
-                if (
-                  !(
-                    headRelations.find(
-                      (k) => !anyDifference(k, dependent.phrase)
-                    ) &&
-                    dependentRelations.find(
-                      (k) => !anyDifference(k, head.phrase)
-                    )
-                  )
-                ) {
-                  reject(
-                    "this relation is not currently established between these two phrases"
-                  )
-                } else {
-                  headRelations.splice(headRelations.indexOf(head.phrase), 1)
-                  dependentRelations.splice(
-                    dependentRelations.indexOf(dependent.phrase),
-                    1
-                  )
-                  if (headRelations.length) {
-                    headNote.relations[head.role] = headRelations
-                  } else {
-                    delete headNote.relations[head.role]
-                  }
-                  if (dependentRelations.length) {
-                    dependentNote.relations[dependent.role] = dependentRelations
-                  } else {
-                    delete dependentNote.relations[dependent.role]
-                  }
-                  const storable: any = {}
-                  storable[headKey] = headNote
-                  storable[dependentKey] = dependentNote
-                  this.chrome.storage.local.set(
-                    serialize(storable, this.compressor, true),
-                    () => {
-                      if (this.chrome.runtime.lastError) {
-                        reject(
-                          `could not store phrases after disestablishing relation: ${this.chrome.runtime.lastError}`
-                        )
-                      } else {
-                        this.checkCompressor()
-                          .then(() => {
-                            this.cache.set(headKey, headNote)
-                            this.cache.set(dependentKey, dependentNote)
-                            resolve({
-                              head: headNote,
-                              dependent: dependentNote,
-                            })
-                          })
-                          .catch(reject)
-                      }
-                    }
-                  )
-                }
-              } else if (hn) {
-                reject("the dependent phrase has not been stored")
-              } else if (dn) {
-                reject("the head phrase has not been stored")
+              headRelations.splice(headRelations.indexOf(head.phrase), 1)
+              dependentRelations.splice(
+                dependentRelations.indexOf(dependent.phrase),
+                1
+              )
+              if (headRelations.length) {
+                headNote.relations[head.role] = headRelations
               } else {
-                reject("neither phrase has been stored")
+                delete headNote.relations[head.role]
               }
+              if (dependentRelations.length) {
+                dependentNote.relations[dependent.role] = dependentRelations
+              } else {
+                delete dependentNote.relations[dependent.role]
+              }
+              const storable: any = {}
+              storable[headKey] = headNote
+              storable[dependentKey] = dependentNote
+              this.chrome.storage.local.set(
+                serialize(storable, this.compressor, true),
+                () => {
+                  if (this.chrome.runtime.lastError) {
+                    reject(
+                      `could not store phrases after disestablishing relation: ${this.chrome.runtime.lastError}`
+                    )
+                  } else {
+                    this.checkCompressor()
+                      .then(() => {
+                        this.cache.set(headKey, headNote)
+                        this.cache.set(dependentKey, dependentNote)
+                        resolve({
+                          head: headNote,
+                          dependent: dependentNote,
+                        })
+                      })
+                      .catch(reject)
+                  }
+                }
+              )
             }
-          })
+          } else if (hn) {
+            reject("the dependent phrase has not been stored")
+          } else if (dn) {
+            reject("the head phrase has not been stored")
+          } else {
+            reject("neither phrase has been stored")
+          }
         }
-      } else {
-        reject(
-          `${project.name} does not contain the ${head.role}-${dependent.role} relation`
-        )
-      }
+      })
     })
   }
 

@@ -39,6 +39,11 @@ import {
   CardContent,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   Grid,
@@ -90,6 +95,7 @@ function Search({ app }: SearchProps) {
   const [page, setPage] = useState<number>(1)
   const [showSample, setShowSample] = useState<boolean>(false)
   const [relation, setRelation] = useState("see also")
+  const [currentNote, setCurrentNote] = useState<NoteRecord | null>(null)
   const offset = (page - 1) * 10
   let end = offset + 10
   if (end > results.length) end = results.length
@@ -115,12 +121,7 @@ function Search({ app }: SearchProps) {
           <div className={classes.message}>no notes found</div>
         )}
         {pagedResults.map((r) => (
-          <Result
-            note={r}
-            app={app}
-            relation={relation}
-            setRelation={setRelation}
-          />
+          <Result note={r} app={app} setCurrentNote={setCurrentNote} />
         ))}
         {paginate && (
           <div className={classes.pagination}>
@@ -134,6 +135,13 @@ function Search({ app }: SearchProps) {
           </div>
         )}
       </Box>
+      <RelationModal
+        app={app}
+        currentNote={currentNote}
+        setCurrentNote={setCurrentNote}
+        relation={relation}
+        setRelation={setRelation}
+      />
     </>
   )
 }
@@ -1000,10 +1008,9 @@ const resultStyles = makeStyles((theme) => ({
 type ResultOps = {
   note: NoteRecord
   app: App
-  relation: string
-  setRelation: (r: string) => void
+  setCurrentNote: (n: NoteRecord | null) => void
 }
-export function Result({ note, app, relation, setRelation }: ResultOps) {
+export function Result({ note, app, setCurrentNote }: ResultOps) {
   const classes = resultStyles()
   const project = app.switchboard.index!.projects.get(
     app.switchboard.index!.reverseProjectIndex.get(note.key[0]) || ""
@@ -1017,12 +1024,7 @@ export function Result({ note, app, relation, setRelation }: ResultOps) {
             {notePhrase(note)}
           </Grid>
           <Grid item xs={3} className={classes.navlinker}>
-            <NavLinker
-              note={note}
-              app={app}
-              relation={relation}
-              setRelation={setRelation}
-            />
+            <NavLinker note={note} app={app} setCurrentNote={setCurrentNote} />
           </Grid>
           <Grid item xs={4} className={classes.project}>
             {project!.name}
@@ -1062,121 +1064,25 @@ const linkerStyles = makeStyles((theme) => ({
 type NavLinkerOps = {
   note: NoteRecord
   app: App
-  relation: string
-  setRelation: (r: string) => void
+  setCurrentNote: (n: NoteRecord | null) => void
 }
 function NavLinker({
   note,
   app,
-  relation,
-  setRelation,
+  setCurrentNote,
 }: NavLinkerOps): React.ReactElement {
   const classes = linkerStyles()
   const cn = app.currentNote()
   let link
   if (cn && cn.citations.length && !sameNote(cn, note)) {
-    // maybe not the most efficient, but easy to conceptualize;
-    const parseRelation = (
-      r: string
-    ): {
-      headRole: string
-      dependentRole: string
-      reversed: boolean
-    } | null => {
-      const [left, right] = r.split("-")
-      const relations = app.switchboard.index!.findProject(note.key[0])![1]
-        .relations
-      for (const [headRole, dependentRole] of relations) {
-        if (headRole === left && dependentRole === (right || left)) {
-          return { headRole, dependentRole, reversed: false }
-        } else if (dependentRole === left) {
-          return { headRole, dependentRole, reversed: true }
-        }
-      }
-      return null
-    }
-    const parsedRelation = parseRelation(relation)!
     const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
-    const [r1, r2] = parsedRelation.reversed
-      ? [parsedRelation.dependentRole, parsedRelation.headRole]
-      : [parsedRelation.headRole, parsedRelation.dependentRole]
-    const relate = () => {
-      const relationMap = new Map<
-        string,
-        { headRole: string; dependentRole: string; reversed: boolean }
-      >()
-      app.switchboard
-        .index!.findProject(note.key[0])![1]
-        .relations.forEach(([headRole, dependentRole]) => {
-          relationMap.set(nameRelation(headRole, dependentRole), {
-            headRole,
-            dependentRole,
-            reversed: false,
-          })
-          if (headRole !== dependentRole) {
-            relationMap.set(nameRelation(dependentRole, headRole), {
-              headRole,
-              dependentRole,
-              reversed: true,
-            })
-          }
-        })
-      app.confirm({
-        title: message,
-        text: (
-          <>
-            <p>
-              What is the relation of "{notePhrase(note)}" to "{notePhrase(cn)}
-              "?
-            </p>
-            <TextField
-              select
-              label="Relation"
-              value={relation}
-              onChange={(e) => setRelation(e.target.value)}
-              fullWidth
-            >
-              {Array.from(relationMap.keys()).map((n) => (
-                <MenuItem dense value={n} key={n}>
-                  {n}
-                </MenuItem>
-              ))}
-            </TextField>
-          </>
-        ),
-        callback: () =>
-          new Promise((resolve, _reject) => {
-            const [n1, n2] = parsedRelation.reversed ? [cn, note] : [note, cn]
-            app.switchboard.index
-              ?.relate(
-                { phrase: n1.key, role: parsedRelation.headRole },
-                { phrase: n2.key, role: parsedRelation.dependentRole }
-              )
-              .then(({ head }) => {
-                const history: Visit[] = deepClone(app.state.history)
-                const { current } = history[app.state.historyIndex]!
-                current.relations = head.relations
-                app.setState({ history }, () => {
-                  app.cleanSearch()
-                  app.cleanHistory(true)
-                  resolve(
-                    `linked ${notePhrase(note)} to ${notePhrase(
-                      cn
-                    )} via relation ${nameRelation(r1, r2)}`
-                  )
-                })
-              })
-              .catch((e) => app.error(e))
-          }),
-      })
-    }
     link = (
       <TT msg={message}>
         <Link
           color="primary"
           fontSize="small"
           className={classes.link}
-          onClick={relate}
+          onClick={() => setCurrentNote(note)}
         />
       </TT>
     )
@@ -1287,6 +1193,132 @@ function SearchDetails({ app }: { app: App }) {
     <>
       More to come.
       <AboutLink app={app} />
+    </>
+  )
+}
+
+function RelationModal({
+  app,
+  currentNote,
+  setCurrentNote,
+  relation,
+  setRelation,
+}: {
+  app: App
+  currentNote: NoteRecord | null
+  setCurrentNote: (n: NoteRecord | null) => void
+  relation: string
+  setRelation: (r: string) => void
+}) {
+  if (!currentNote) return <></>
+  const cn = app.currentNote()!
+  const note = currentNote
+  // maybe not the most efficient, but easy to conceptualize;
+  const parseRelation = (
+    r: string
+  ): {
+    headRole: string
+    dependentRole: string
+    reversed: boolean
+  } | null => {
+    const [left, right] = r.split("-")
+    const relations = app.switchboard.index!.findProject(note.key[0])![1]
+      .relations
+    for (const [headRole, dependentRole] of relations) {
+      if (headRole === left && dependentRole === (right || left)) {
+        return { headRole, dependentRole, reversed: false }
+      } else if (dependentRole === left) {
+        return { headRole, dependentRole, reversed: true }
+      }
+    }
+    return null
+  }
+  const parsedRelation = parseRelation(relation)!
+  console.log(parsedRelation)
+  const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
+  const [r1, r2] = parsedRelation.reversed
+    ? [parsedRelation.dependentRole, parsedRelation.headRole]
+    : [parsedRelation.headRole, parsedRelation.dependentRole]
+  const relationMap = new Map<
+    string,
+    { headRole: string; dependentRole: string; reversed: boolean }
+  >()
+  app.switchboard
+    .index!.findProject(note.key[0])![1]
+    .relations.forEach(([headRole, dependentRole]) => {
+      relationMap.set(nameRelation(headRole, dependentRole), {
+        headRole,
+        dependentRole,
+        reversed: false,
+      })
+      if (headRole !== dependentRole) {
+        relationMap.set(nameRelation(dependentRole, headRole), {
+          headRole,
+          dependentRole,
+          reversed: true,
+        })
+      }
+    })
+  const relate = () => {
+    const [n1, n2] = parsedRelation.reversed ? [cn, note] : [note, cn]
+    app.switchboard.index
+      ?.relate(
+        { phrase: n1.key, role: parsedRelation.headRole },
+        { phrase: n2.key, role: parsedRelation.dependentRole }
+      )
+      .then(({ head }) => {
+        const history: Visit[] = deepClone(app.state.history)
+        const { current } = history[app.state.historyIndex]!
+        current.relations = head.relations
+        app.setState({ history }, () => {
+          app.cleanSearch()
+          app.cleanHistory(true)
+          app.success(
+            `linked ${notePhrase(note)} to ${notePhrase(
+              cn
+            )} via relation ${nameRelation(r1, r2)}`
+          )
+          setCurrentNote(null)
+        })
+      })
+      .catch((e) => app.error(e))
+  }
+  return (
+    <>
+      <Dialog
+        open={!!currentNote}
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-description"
+      >
+        <DialogTitle id="confirm-dialog-title">{message}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="confirm-dialog-description">
+            <p>
+              What is the relation of "{notePhrase(note)}" to "{notePhrase(cn)}
+              "?
+            </p>
+            <TextField
+              select
+              label="Relation"
+              value={relation}
+              onChange={(e) => setRelation(e.target.value)}
+              fullWidth
+            >
+              {Array.from(relationMap.keys()).map((n) => (
+                <MenuItem dense value={n} key={n}>
+                  {n}
+                </MenuItem>
+              ))}
+            </TextField>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCurrentNote(null)}>Cancel</Button>
+          <Button onClick={relate} color="primary" autoFocus>
+            Ok
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }
