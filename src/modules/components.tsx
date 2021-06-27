@@ -347,23 +347,37 @@ export function InfoBox(props: InfoBoxProps) {
   )
 }
 
+const linkDownStyles = makeStyles((theme) => ({
+  toc: {
+    display: "block",
+  },
+}))
+
 // creates a smooth-scrolling link to the element elsewhere in the document with the given id
 export function LinkDown({
   to,
   id,
   children,
   className,
+  toc,
 }: {
   to: string
   children: Children
   className?: string
   id?: string
+  toc?: boolean
 }) {
+  const classes = linkDownStyles()
+  const cn = toc
+    ? className
+      ? `${className} ${classes.toc}`
+      : classes.toc
+    : className
   return (
     <a
       href="bogus"
       id={id}
-      className={className}
+      className={cn}
       onClick={(e) => {
         e.preventDefault()
         document.getElementById(to)?.scrollIntoView({

@@ -1,9 +1,11 @@
+import { NoteState } from "../Note"
 import {
   CitationRecord,
   EditDistanceProperties,
   EssentialNoteBits,
   KeyPair,
   NoteRecord,
+  ProjectInfo,
 } from "./types"
 
 // create a debounced version of a function
@@ -89,7 +91,7 @@ export function ymd(date: Date | null | undefined): string | undefined {
     while (m.length < 2) {
       m = "0" + m
     }
-    let d = (date.getDate()).toString()
+    let d = date.getDate().toString()
     while (d.length < 2) {
       d = "0" + d
     }
@@ -334,3 +336,73 @@ export function notePhrase(n: NoteRecord): string {
 // canonical way to convert a head role and dependent role into a relation name
 export const nameRelation = (head: string, dependent: string): string =>
   head === dependent ? head : `${head}-${dependent}`
+
+// some things useful for documentation
+
+export const bogusNote = ({
+  gist,
+  citations,
+  tags,
+  key,
+  done,
+}: {
+  gist?: string
+  citations?: CitationRecord[]
+  tags?: string[]
+  key?: KeyPair
+  done?: boolean
+}): NoteState => ({
+  unsavedContent: false,
+  everSaved: true,
+  unsavedCitation: false,
+  gist: gist ?? "my take on this",
+  details: "",
+  tags: tags ?? [],
+  citationIndex: 0,
+  key: key ?? [-1, 0],
+  citations: citations ?? [bogusCitation({})],
+  relations: {},
+  done: done,
+})
+
+export const bogusCitation = ({
+  phrase,
+  url,
+  title,
+  when,
+  before,
+  after,
+}: {
+  phrase?: string
+  url?: string
+  title?: string
+  when?: Date[]
+  before?: string
+  after?: string
+}): CitationRecord => ({
+  before: before ?? "",
+  phrase: phrase ?? "phrase",
+  after: after ?? "",
+  note: "",
+  when: when ?? [new Date()],
+  selection: {
+    path: "",
+    anchor: { path: "", offset: 0 },
+    focus: { path: "", offset: 0 },
+  },
+  source: { url: url ?? "https://where.i.found.it.com", title: title ?? "Page Title" },
+})
+
+export const bogusProject = ({
+  name,
+  pk,
+}: {
+  name?: string
+  pk?: number
+}): ProjectInfo => ({
+  pk: pk ?? -1,
+  name: name ?? "Project",
+  description: "",
+  normalizer: "",
+  relations: [["see also", "see also"]],
+})

@@ -11,6 +11,8 @@ import {
   seed,
   notePhrase,
   nameRelation,
+  bogusNote,
+  bogusProject,
 } from "./modules/util"
 import {
   Details,
@@ -18,6 +20,9 @@ import {
   formatDates as fd,
   Expando,
   AboutLink,
+  LinkDown,
+  LinkUp,
+  TabLink,
 } from "./modules/components"
 import {
   AdHocQuery,
@@ -25,6 +30,7 @@ import {
   CardStack,
   CitationRecord,
   NoteRecord,
+  ProjectInfo,
   RelativePeriod,
   SampleType,
   Sorter,
@@ -54,6 +60,7 @@ import {
   RadioGroup,
   Switch,
   TextField,
+  Typography as T,
 } from "@material-ui/core"
 import { Autocomplete, Pagination } from "@material-ui/lab"
 import {
@@ -70,6 +77,7 @@ import {
   ExpandMore,
   ChevronRight,
 } from "@material-ui/icons"
+import { NoteState } from "./Note"
 
 interface SearchProps {
   app: App
@@ -760,38 +768,40 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
               />
             </Grid>
           )}
-          <Grid container spacing={1} alignContent="space-between">
-            <Grid item xs={search.url ? 11 : 12}>
-              <TextField
-                id="url"
-                label="URL"
-                fullWidth
-                value={url || ""}
-                onChange={(event) => {
-                  search = deepClone(search)
-                  if (nws(event.target.value)) {
-                    search.url = event.target.value
-                  } else {
-                    delete search.url
-                  }
-                  app.setState({ search })
-                }}
-              />
-            </Grid>
-            {!!search.url && (
-              <Grid item container xs={1} alignContent="center">
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    delete search.url
+          <Box mt={relativeTime ? 0 : 2}>
+            <Grid container spacing={1} alignContent="space-between">
+              <Grid item xs={search.url ? 11 : 12}>
+                <TextField
+                  id="url"
+                  label="URL"
+                  fullWidth
+                  value={url || ""}
+                  onChange={(event) => {
+                    search = deepClone(search)
+                    if (nws(event.target.value)) {
+                      search.url = event.target.value
+                    } else {
+                      delete search.url
+                    }
                     app.setState({ search })
                   }}
-                >
-                  <Clear />
-                </IconButton>
+                />
               </Grid>
-            )}
-          </Grid>
+              {!!search.url && (
+                <Grid item container xs={1} alignContent="center">
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      delete search.url
+                      app.setState({ search })
+                    }}
+                  >
+                    <Clear />
+                  </IconButton>
+                </Grid>
+              )}
+            </Grid>
+          </Box>
         </>
       )}
       <Box mt={1}>
@@ -1009,12 +1019,28 @@ type ResultOps = {
   note: NoteRecord
   app: App
   setCurrentNote: (n: NoteRecord | null) => void
+  // some options to facilitate documentation
+  cn?: NoteState | undefined
+  linkHandler?: () => void
+  visHandler?: () => void
+  doneHandler?: () => void
+  getProject?: () => ProjectInfo | undefined
 }
-export function Result({ note, app, setCurrentNote }: ResultOps) {
+
+// draw a single result card (and wire it up with callbacks)
+export function Result({
+  note,
+  app,
+  setCurrentNote,
+  getProject,
+  ...docOpts
+}: ResultOps) {
   const classes = resultStyles()
-  const project = app.switchboard.index!.projects.get(
-    app.switchboard.index!.reverseProjectIndex.get(note.key[0]) || ""
-  )
+  getProject ??= () =>
+    app.switchboard.index!.projects.get(
+      app.switchboard.index!.reverseProjectIndex.get(note.key[0]) || ""
+    )
+  const project = getProject()
   const key = enkey(note.key)
   return (
     <Card className={classes.root} key={key}>
@@ -1024,7 +1050,12 @@ export function Result({ note, app, setCurrentNote }: ResultOps) {
             {notePhrase(note)}
           </Grid>
           <Grid item xs={3} className={classes.navlinker}>
-            <NavLinker note={note} app={app} setCurrentNote={setCurrentNote} />
+            <NavLinker
+              note={note}
+              app={app}
+              setCurrentNote={setCurrentNote}
+              {...docOpts}
+            />
           </Grid>
           <Grid item xs={4} className={classes.project}>
             {project!.name}
@@ -1047,6 +1078,52 @@ export function Result({ note, app, setCurrentNote }: ResultOps) {
   )
 }
 
+// facilitates creating a mock note in the documentation
+function DocResult({
+  project,
+  ...opts
+}: {
+  note: NoteState
+  cn?: NoteState
+  app: App
+  project: ProjectInfo
+}) {
+  const { app } = opts
+  return (
+    <Result
+      {...opts}
+      setCurrentNote={(_n) => {}}
+      getProject={() => project}
+      linkHandler={() =>
+        app.success(
+          <>
+            Create a link between this note and the current note, whatever is
+            currently shown in the{" "}
+            <TabLink app={app} tab="note">
+              note tab
+            </TabLink>
+            .
+          </>
+        )
+      }
+      visHandler={() =>
+        app.success(
+          <>
+            Show this note in the{" "}
+            <TabLink app={app} tab="note">
+              note tab
+            </TabLink>
+            .
+          </>
+        )
+      }
+      doneHandler={() =>
+        app.success(<>Remove the &ldquo;done&rdquo; status from this note.</>)
+      }
+    />
+  )
+}
+
 const linkerStyles = makeStyles((theme) => ({
   link: {
     marginLeft: theme.spacing(1),
@@ -1065,14 +1142,37 @@ type NavLinkerOps = {
   note: NoteRecord
   app: App
   setCurrentNote: (n: NoteRecord | null) => void
+  // some options to facilitate documentation
+  cn?: NoteState | undefined
+  linkHandler?: () => void
+  visHandler?: () => void
+  doneHandler?: () => void
 }
 function NavLinker({
   note,
   app,
   setCurrentNote,
+  // documentation opts
+  cn,
+  linkHandler,
+  visHandler,
+  doneHandler,
 }: NavLinkerOps): React.ReactElement {
   const classes = linkerStyles()
-  const cn = app.currentNote()
+  cn ??= app.currentNote()
+  linkHandler ??= () => setCurrentNote(note)
+  visHandler ??= () => app.goto(note)
+  doneHandler ??= () => {
+    const r: NoteRecord[] = deepClone(app.state.searchResults)
+    const n = r.find((n) => sameNote(n, note))!
+    delete n.done
+    app.switchboard
+      .index!.save(n)
+      .then(() => {
+        app.setState({ searchResults: r })
+      })
+      .catch((e) => app.error(e))
+  }
   let link
   if (cn && cn.citations.length && !sameNote(cn, note)) {
     const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
@@ -1082,7 +1182,7 @@ function NavLinker({
           color="primary"
           fontSize="small"
           className={classes.link}
-          onClick={() => setCurrentNote(note)}
+          onClick={linkHandler}
         />
       </TT>
     )
@@ -1094,26 +1194,13 @@ function NavLinker({
           color="secondary"
           fontSize="small"
           className={classes.goto}
-          onClick={() => app.goto(note)}
+          onClick={visHandler}
         />
       </TT>
       {link}
       {!!note.done && (
         <TT msg="Note has been removed from flashcards stacks. Click to restore.">
-          <Done
-            className={classes.done}
-            onClick={() => {
-              const r: NoteRecord[] = deepClone(app.state.searchResults)
-              const n = r.find((n) => sameNote(n, note))!
-              delete n.done
-              app.switchboard
-                .index!.save(n)
-                .then(() => {
-                  app.setState({ searchResults: r })
-                })
-                .catch((e) => app.error(e))
-            }}
-          />
+          <Done className={classes.done} onClick={doneHandler} />
         </TT>
       )}
     </div>
@@ -1188,10 +1275,183 @@ function SorterOption({
   )
 }
 
+const noteDetailsStyles = makeStyles((theme) => ({}))
+
 function SearchDetails({ app }: { app: App }) {
+  const classes = noteDetailsStyles()
+  const formClasses = formStyles()
   return (
     <>
-      More to come.
+      <T variant="h6" id="toc">
+        Table of Contents
+      </T>
+      <Box m={2} ml={4}>
+        <LinkDown to="overview" toc>
+          Search Overview
+        </LinkDown>
+        <LinkDown to="saved" toc>
+          Saved Searches
+        </LinkDown>
+        <LinkDown to="form" toc>
+          The Search Form
+        </LinkDown>
+        <Box ml={2}>
+          <LinkDown to="phrase" toc>
+            Phrase
+          </LinkDown>
+          <Box ml={2}>
+            <LinkDown to="details" toc>
+              Details
+            </LinkDown>
+          </Box>
+          <LinkDown to="projects" toc>
+            Projects
+          </LinkDown>
+          <LinkDown to="tags" toc>
+            Tags
+          </LinkDown>
+          <LinkDown to="time" toc>
+            Time
+          </LinkDown>
+          <Box ml={2}>
+            <LinkDown to="relative" toc>
+              Relative
+            </LinkDown>
+            <LinkDown to="absolute" toc>
+              Absolute
+            </LinkDown>
+          </Box>
+          <LinkDown to="url" toc>
+            URL
+          </LinkDown>
+        </Box>
+        <LinkDown to="results" toc>
+          Search Results
+        </LinkDown>
+        <Box ml={2}>
+          <LinkDown to="linking" toc>
+            Linking
+          </LinkDown>
+          <LinkDown to="done" toc>
+            Done
+          </LinkDown>
+        </Box>
+      </Box>
+      {/* END TOC */}
+      <T id="overview" variant="h6">
+        Search Overview <LinkUp />
+      </T>
+      <p>Overview of the various parts of the search tab.</p>
+      <T id="saved" variant="h6">
+        Saved Searches <LinkUp />
+      </T>
+      <Box m={2}>
+        <TextField label="Saved Searches" select fullWidth>
+          {["Welsh", "yesterday", "last week"].map((n) => (
+            <MenuItem dense key={n} value={n}>
+              {n}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Box>
+      <p>
+        The first widget you see on the search tab,{" "}
+        <em>if you have any saved searches</em>, is the saved search dropdown.
+        If you select a saved search this search will run and you will see the
+        results below. The chief intended use of saved searches is to facilitate
+        creating{" "}
+        <TabLink tab="cards" app={app}>
+          flashcard stacks
+        </TabLink>{" "}
+        with which you can quiz yourself.
+      </p>
+      <p>
+        If you run a search <em>and you find something</em> two new icons will
+        appear beside the search and clear buttons:
+      </p>
+      <Box mt={1} mb={1}>
+        <Grid container justify="center">
+          <IconButton className={formClasses.inCentered}>
+            <TT msg="save search">
+              <Save color="primary" />
+            </TT>
+          </IconButton>
+          <Button
+            color="primary"
+            className={formClasses.inCentered}
+            variant="contained"
+            endIcon={<SearchIcon />}
+          >
+            Search
+          </Button>
+          <Button
+            color="secondary"
+            className={formClasses.inCentered}
+            variant="contained"
+          >
+            Clear
+          </Button>
+          <IconButton className={formClasses.inCentered}>
+            <TT msg="make search results into flash card stack">
+              <School color="primary" />
+            </TT>
+          </IconButton>
+        </Grid>
+      </Box>
+      <p>
+        The first of these, <Save color="primary" fontSize="small" />, allows
+        you to save the search. The second,{" "}
+        <School color="primary" fontSize="small" />, takes you to the flashcard
+        stack built from this search.
+      </p>
+      <T id="form" variant="h6">
+        The Search Form <LinkUp />
+      </T>
+      <p>etc.</p>
+      <strong id="phrase">
+        Phrase <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="details">
+        Details <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="projects">
+        Projects <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="tags">
+        Tags <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="time">
+        Time <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="relative">
+        relative time <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="absolute">
+        absolute time <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="url">
+        URL <LinkUp />
+      </strong>
+      <p></p>
+      <T id="results" variant="h6">
+        Search Results <LinkUp />
+      </T>
+      <DocResult note={bogusNote({})} project={bogusProject({})} app={app}/>
+      <strong id="linking">
+        Linking <LinkUp />
+      </strong>
+      <p></p>
+      <strong id="done">
+        Done <LinkUp />
+      </strong>
+      <p></p>
       <AboutLink app={app} />
     </>
   )

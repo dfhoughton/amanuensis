@@ -22,6 +22,7 @@ import {
   AppBar,
   Box,
   Button,
+  CssBaseline,
   Dialog,
   DialogActions,
   DialogContent,
@@ -55,6 +56,15 @@ const theme = createMuiTheme({
     primary: indigo,
     secondary: amber,
   },
+  overrides: {
+    MuiCssBaseline: {
+      '@global': {
+        a: {
+          color: '#3f51b5', // the main indigo
+        }
+      }
+    }
+  }
 })
 
 interface AppProps {
@@ -178,6 +188,7 @@ export class App extends React.Component<AppProps, AppState> {
     }
     return (
       <ThemeProvider theme={theme}>
+        <CssBaseline/>
         <div className={classes.root}>
           <AppBar position="sticky">
             <Tabs

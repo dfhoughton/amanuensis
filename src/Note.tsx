@@ -577,9 +577,6 @@ function NoteHeaderExample() {
 }
 
 const noteDetailsStyles = makeStyles((theme) => ({
-  tocLink: {
-    display: "block",
-  },
   save: {
     color: theme.palette.warning.dark,
   },
@@ -611,56 +608,56 @@ function NoteDetails({
           Table of Contents
         </T>
         <Box m={2} ml={4}>
-          <LinkDown to="citation" className={classes.tocLink}>
+          <LinkDown to="citation" toc>
             Citation
           </LinkDown>
-          <LinkDown to="header" className={classes.tocLink}>
+          <LinkDown to="header" toc>
             Header
           </LinkDown>
-          <LinkDown to="gist" className={classes.tocLink}>
+          <LinkDown to="gist" toc>
             Gist
           </LinkDown>
           <Box ml={2}>
-            <LinkDown to="citation-note" className={classes.tocLink}>
+            <LinkDown to="citation-note" toc>
               Citation Note
             </LinkDown>
-            <LinkDown to="elaboration" className={classes.tocLink}>
+            <LinkDown to="elaboration" toc>
               Elaboration
             </LinkDown>
-            <LinkDown to="hotkey" className={classes.tocLink}>
+            <LinkDown to="hotkey" toc>
               Ctrl-S
             </LinkDown>
-            <LinkDown to="hotkey2" className={classes.tocLink}>
+            <LinkDown to="hotkey2" toc>
               Ctrl-Shift-S
             </LinkDown>
           </Box>
-          <LinkDown to="widgets" className={classes.tocLink}>
+          <LinkDown to="widgets" toc>
             Widgets
           </LinkDown>
           <Box ml={2}>
-            <LinkDown to="save" className={classes.tocLink}>
+            <LinkDown to="save" toc>
               <Save fontSize="small" className={classes.save} /> Save
             </LinkDown>
-            <LinkDown to="delete" className={classes.tocLink}>
+            <LinkDown to="delete" toc>
               <Delete fontSize="small" className={classes.delete} /> Delete
             </LinkDown>
-            <LinkDown to="navigate" className={classes.tocLink}>
+            <LinkDown to="navigate" toc>
               <Navigation fontSize="small" color="primary" /> Navigate
             </LinkDown>
-            <LinkDown to="similar" className={classes.tocLink}>
+            <LinkDown to="similar" toc>
               <FilterList fontSize="small" color="primary" /> Similar Phrases
             </LinkDown>
           </Box>
-          <LinkDown to="tags" className={classes.tocLink}>
+          <LinkDown to="tags" toc>
             Tags
           </LinkDown>
-          <LinkDown to="relations" className={classes.tocLink}>
+          <LinkDown to="relations" toc>
             Relations
           </LinkDown>
-          <LinkDown to="citation-list" className={classes.tocLink}>
+          <LinkDown to="citation-list" toc>
             Citation List
           </LinkDown>
-          <LinkDown to="internals" className={classes.tocLink}>
+          <LinkDown to="internals" toc>
             Internals
           </LinkDown>
         </Box>
