@@ -330,7 +330,7 @@ function DownloadUpload({ config }: { config: Config }) {
           browser or machine.
         </Box>
         <Box>
-          The compressed version of the data represents the data is it is actually
+          The compressed version of the data represents the data as it is actually
           stored on your computer. The decompressed version is easier to read and
           make use of. Either can be uploaded to restore Amanuensis.
         </Box>
