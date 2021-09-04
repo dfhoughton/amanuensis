@@ -6,6 +6,7 @@ import {
   Details,
   InfoBox,
   InfoSpinner,
+  LinkAway,
   TabLink,
   TitleBox,
 } from "./modules/components"
@@ -267,8 +268,13 @@ function DownloadUpload({ config }: { config: Config }) {
                           resolve("")
                         })
                       })
-                      .then(config.app.switchboard.index!.clean.bind(config.app.switchboard.index!))
-                      .catch((e) => reject(
+                      .then(
+                        config.app.switchboard.index!.clean.bind(
+                          config.app.switchboard.index!
+                        )
+                      )
+                      .catch((e) =>
+                        reject(
                           `could not store state in ${f.name} on disk: ${e}`
                         )
                       )
@@ -324,15 +330,18 @@ function DownloadUpload({ config }: { config: Config }) {
       </Grid>
       <InfoBox shown={showDownloadInfo}>
         <Box mb={1}>
-          Downloading Amanuensis state will give you a JSON file containing
-          everything Amanuensis has stored locally. This is is useful if you
-          wish to back Amanuensis up or transfer your notes to a different
-          browser or machine.
+          Downloading Amanuensis state will give you a{" "}
+          <LinkAway app={config.app} url="https://en.wikipedia.org/wiki/JSON">
+            JSON
+          </LinkAway>{" "}
+          file containing everything Amanuensis has stored locally. This is is
+          useful if you wish to back Amanuensis up or transfer your notes to a
+          different browser or machine.
         </Box>
         <Box>
-          The compressed version of the data represents the data as it is actually
-          stored on your computer. The decompressed version is easier to read and
-          make use of. Either can be uploaded to restore Amanuensis.
+          The compressed version of the data represents the data as it is
+          actually stored on your computer. The decompressed version is easier
+          to read and make use of. Either can be uploaded to restore Amanuensis.
         </Box>
       </InfoBox>
       <Grid container alignItems="center" spacing={2}>

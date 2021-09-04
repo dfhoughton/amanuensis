@@ -530,13 +530,15 @@ export const LinkAway: React.FC<{
   url: string
   children: React.ReactNode
 }> = ({ app, url, children }) => (
-  <Link
-    href="bogus"
-    onClick={(e) => {
-      e.preventDefault()
-      app.load(url)
-    }}
-  >
-    {children}
-  </Link>
+  <TT msg={url}>
+    <Link
+      href="bogus"
+      onClick={(e) => {
+        e.preventDefault()
+        app.load(url)
+      }}
+    >
+      {children}
+    </Link>
+  </TT>
 )
