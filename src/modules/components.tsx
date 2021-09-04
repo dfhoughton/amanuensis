@@ -26,10 +26,6 @@ import React, { ReactElement } from "react"
 import { App, Section, Sections, VERSION } from "../App"
 import { uniq, ymd } from "./util"
 
-// the sorts of things that are children in React components
-// probably there's some standard way to do this
-export type Children = React.ReactNode
-
 interface TTProps {
   children: ReactElement
   msg: string
@@ -79,7 +75,7 @@ const detailsStyles = makeStyles((theme) => ({
 }))
 
 type DetailsProps = {
-  children: Children
+  children: React.ReactNode
   header?: string
   expanded?: boolean
   onChange?: (event: object, expanded: boolean) => void
@@ -166,7 +162,7 @@ const expandoStyles = makeStyles((theme) => ({
 }))
 
 type ExpandoOpts = {
-  text: Children
+  text: React.ReactNode
   id: string
   className?: string
 }
@@ -243,7 +239,7 @@ const titleboxStyles = makeStyles((theme) => ({
 
 type TitleBoxProps = {
   title: string
-  children: Children
+  children: React.ReactNode
   m?: number
   mt?: number
   mb?: number
@@ -325,7 +321,7 @@ const infoBoxStyles = makeStyles((theme) => ({
 }))
 
 type InfoBoxProps = {
-  children: Children
+  children: React.ReactNode
   shown: boolean
   m?: number
   mt?: number
@@ -361,7 +357,7 @@ export function LinkDown({
   toc,
 }: {
   to: string
-  children: Children
+  children: React.ReactNode
   className?: string
   id?: string
   toc?: boolean
@@ -392,7 +388,15 @@ export function LinkDown({
 }
 
 // a LinkDown that looks for the table of contents
-export function LinkUp({ to = "toc", children, noArrow }: { to?: string, children?: Children, noArrow?: boolean }) {
+export function LinkUp({
+  to = "toc",
+  children,
+  noArrow,
+}: {
+  to?: string
+  children?: React.ReactNode
+  noArrow?: boolean
+}) {
   return (
     <LinkDown to={to}>
       {children}
@@ -409,7 +413,7 @@ export function TabLink({
 }: {
   tab: Sections
   app: App
-  children?: Children
+  children?: React.ReactNode
 }) {
   let icon
   switch (tab) {
