@@ -1,6 +1,15 @@
 import { App } from "./App"
 import { any, nws, squish } from "./modules/util"
-import { AboutLink, Details, Mark, TT } from "./modules/components"
+import {
+  AboutLink,
+  Details,
+  LinkAway,
+  LinkDown,
+  LinkUp,
+  Mark,
+  TabLink,
+  TT,
+} from "./modules/components"
 import {
   Button,
   Card,
@@ -19,7 +28,7 @@ import {
 } from "@material-ui/core"
 import { useState } from "react"
 import { Sorter } from "./modules/types"
-import { AddBoxRounded, Clear, Edit } from "@material-ui/icons"
+import { AddBoxRounded, Clear, Edit, FilterList } from "@material-ui/icons"
 import { Autocomplete } from "@material-ui/lab"
 import { deepClone } from "./modules/clone"
 
@@ -71,10 +80,7 @@ function Sorting({ app }: SortingProps) {
   })()
   return (
     <div className={classes.root}>
-      <Details header="Sorting">
-        <p></p>
-        <AboutLink app={app} />
-      </Details>
+      <SortingDetails app={app} />
       {sorts.map((s) => (
         <SorterCard
           app={app}
@@ -442,5 +448,149 @@ function SorterCard({
         </CardActions>
       </Card>
     </Grid>
+  )
+}
+
+function SortingDetails({ app }: { app: App }) {
+  return (
+    <Details header="Sorting">
+      <p>
+        The Sorting tab is for defining &ldquo;sorters&rdquo;. Sorters allow one
+        to sort phrases by their linguistic similarity so that, ideally, one can
+        find notes about phrases related linguistically to the phrase one is
+        interested in. For example, if one is looking at <i>sing</i> one would
+        like to find a note on <i>sang</i> more than a note on <i>sink</i>. If
+        one is looking at <i>cat</i> one is more interested in finding a note on{" "}
+        <i>cats</i> than a note on <i>can</i>. Having found similar notes, one
+        can link them together via a{" "}
+        <TabLink app={app} tab="projects">
+          relation
+        </TabLink>
+        . You will chiefly use sorters via the{" "}
+        <FilterList fontSize="small" color="primary" /> widget in the{" "}
+        <TabLink tab="note" app={app}>
+          notes
+        </TabLink>{" "}
+        tab.
+      </p>
+      <p>
+        Sorters work by measuring the{" "}
+        <LinkAway app={app} url="https://en.wikipedia.org/wiki/Edit_distance">
+          edit distance
+        </LinkAway>{" "}
+        between two phrases: basically, how many changes one needs to make to
+        turn one phrase into the other. To turn <i>cat</i> into <i>cats</i>, for
+        instance, one simply needs to add an <i>s</i>. That might be an edit
+        distance of one, so these two words should sort next to each other. In
+        fact, the default sorter works exactly this way. It uses the{" "}
+        <LinkAway
+          app={app}
+          url="https://en.wikipedia.org/wiki/Levenshtein_distance"
+        >
+          Levenshtein distance
+        </LinkAway>{" "}
+        to sort words, where adding one letter gives us an edit distance of one.
+        Ideally, though, one would like to weight these edits by their{" "}
+        <em>linguistic significance</em>. In English, <i>cat</i> and <i>cats</i>{" "}
+        are more linguistically similar than <i>cat</i> and <i>scat</i>. The
+        first two are different forms of the same word. The last two are
+        different words altogether. This is because in English we add an{" "}
+        <i>s</i> to the end of words to make plurals <em>of the same word</em>,
+        but adding things to the beginnings of words makes different words. It
+        isn't something the grammar of English &ldquo;expects&rdquo;.
+      </p>
+      <p>
+        To define a sorter, then, one needs to know what sorts of things a
+        language can do to a word to make another variant of the same word. In
+        English you can add <i>s</i> or <i>ed</i> and so forth to the end. In
+        some languages these{" "}
+        <LinkAway app={app} url="https://en.wikipedia.org/wiki/Inflection">
+          inflectional
+        </LinkAway>{" "}
+        changes can be considerably more complex. Amanuensis lets you define
+        sorters that can handle the simplest sorts of changes. In particular, it
+        lets you set a sorter's
+      </p>
+      <ul id="toc">
+        <li>
+          <LinkDown to="prefix">prefix length</LinkDown>
+        </li>
+        <li>
+          <LinkDown to="suffix">suffix length</LinkDown>
+        </li>
+        <li>
+          <LinkDown to="insertables">insertable letters</LinkDown>
+        </li>
+        <li>
+          <LinkDown to="convertibles">convertible letters</LinkDown>
+        </li>
+      </ul>
+      <h2>Note</h2>
+      <p>
+        If you find the discussion up to this point and below confusing, you
+        should be aware that tinkering with sorters doesn't tend to make a huge
+        difference unless you have thousands of notes, and even then the
+        difference may be hard to perceive. Just using the Levenshtein sorter
+        for everything is probably fine.
+      </p>
+      <h3 id="prefix">
+        Prefix <LinkUp />
+      </h3>
+      <p>
+        A sorter's &ldquo;prefix&rdquo; is the number of characters at the
+        beginning of a word that might just be inflectional. A sorter for
+        English wants no prefix, because English words don't do anything
+        grammatically at the front. In Swahili, though, <i>mtu</i> and{" "}
+        <i>watu</i> are different forms of the same word, so a Swahili sorter
+        might do well to have a defined prefix.
+      </p>
+      <p>
+        When defining a prefix, aim for the number of characters words in your
+        language <em>typically</em> have at their beginning which are purely
+        inflectional. This number is used to downweight changes at the front of
+        a word when measuring similarity. If it's too long, it will downweight
+        changes that are likely to be making a different word altogether.
+      </p>
+      <h3 id="suffix">
+        Suffix <LinkUp />
+      </h3>
+      <p>
+        The <i>s</i> at the end of <i>cats</i> is an inflectional suffix. It
+        turns singular <i>cat</i> into its plural form. Inflectional suffixes
+        are much more common than inflectional prefixes. English has several
+        inflectional suffixes &mdash; <i>s</i>, <i>ed</i>, <i>ing</i> &mdash; so
+        an English sorter might want a suffix length of 2, say.
+      </p>
+      <h3 id="insertables">
+        Insertables <LinkUp />
+      </h3>
+      <p>
+        In some languages inflectional processes can pop letters into the middle
+        of words or take them away. For instance, the Welsh verbal noun{" "}
+        <i>cyrraedd</i> has the forms <i>chyrraedd</i> and <i>cyrhaeddodd</i>,
+        where <i>h</i> pops into the middle. The verbal noun <i>ateb</i> has the
+        form <i>hateb</i>, where <i>h</i> pops in at the beginning. A Welsh
+        sorter might want to list <i>h</i> as an insertable character. Two words
+        that differ by the insertion or deletion of an insertable character are
+        considered more similar than words that differ by the insertion or
+        deletion of a non-insertable character.
+      </p>
+      <h3 id="convertibles">
+        Convertibles <LinkUp />
+      </h3>
+      <p>
+        In some languages inflectional processes can change one letter into
+        another. For instance, in Welsh <i>brawd</i>, <i>mrawd</i>, and{" "}
+        <i>frawd</i> are all forms of the same word. For a Welsh sorter you
+        might want to list <i>b</i>, <i>m</i>, and <i>f</i> as a convertible
+        set. Changes which involve conversion of one of these letters to another
+        would then count for little.
+      </p>
+      <p>
+        When editing a sorter one adds convertible letters as pairs. The order
+        of the letters in the pair doesn't matter.
+      </p>
+      <AboutLink app={app} />
+    </Details>
   )
 }

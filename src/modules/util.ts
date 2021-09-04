@@ -310,18 +310,8 @@ export function cachedSorter(
 }
 
 // converts 1000 into 1,000 and -2000.5 into -2,001
-export function formatNumber(n: number): string {
-  const signum = n < 0 ? "-" : ""
-  n = Math.round(Math.abs(n))
-  const chars = n.toString().split("").reverse()
-  let i = chars.length - (chars.length % 3)
-  if (i === chars.length) i -= 3
-  while (i > 0) {
-    chars.splice(i, 0, ",")
-    i -= 3
-  }
-  return signum + chars.reverse().join("")
-}
+export const formatNumber = (n: number) =>
+  ((n < 0 ? -1 : 1) * Math.round(Math.abs(n))).toLocaleString()
 
 // if NoteRecords were objects, this would be one of their methods: returns canonical citation for note
 export function canonicalCitation(n: NoteRecord): CitationRecord {
@@ -390,7 +380,10 @@ export const bogusCitation = ({
     anchor: { path: "", offset: 0 },
     focus: { path: "", offset: 0 },
   },
-  source: { url: url ?? "https://where.i.found.it.com", title: title ?? "Page Title" },
+  source: {
+    url: url ?? "https://where.i.found.it.com",
+    title: title ?? "Page Title",
+  },
 })
 
 export const bogusProject = ({

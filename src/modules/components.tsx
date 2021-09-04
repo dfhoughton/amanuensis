@@ -48,19 +48,11 @@ interface TTProps {
 // decorate an element with a tooltip
 export function TT({ children, msg, placement, wrap }: TTProps): ReactElement {
   const child = wrap ? <span>{children}</span> : children
-  if (placement) {
-    return (
-      <Tooltip title={msg} placement={placement} arrow>
-        {child}
-      </Tooltip>
-    )
-  } else {
-    return (
-      <Tooltip title={msg} arrow>
-        {child}
-      </Tooltip>
-    )
-  }
+  return (
+    <Tooltip title={msg} placement={placement} arrow>
+      {child}
+    </Tooltip>
+  )
 }
 
 const detailsStyles = makeStyles((theme) => ({
@@ -498,34 +490,27 @@ export function AboutLink({ app }: { app: App }) {
             information to anyone.
           </p>
           <Row header="Home page">
-            <Link href="bogus" onClick={linkClick(readmeUrl)}>
+            <LinkAway app={app} url={readmeUrl}>
               {readmeUrl}
-            </Link>
+            </LinkAway>
           </Row>
           <Row header="Version">{VERSION} (beta)</Row>
           <Row header="License">
-            <Link href="bogus" onClick={linkClick(licenseUrl)}>
+            <LinkAway app={app} url={licenseUrl}>
               GPL v2.0
-            </Link>
+            </LinkAway>
           </Row>
           <p>
             If you find Amanuensis useful and you want to show your
             appreciation, you can{" "}
-            <Link
-              href="bogus"
-              onClick={linkClick("https://www.buymeacoffee.com/dfhoughton")}
-            >
+            <LinkAway app={app} url="https://www.buymeacoffee.com/dfhoughton">
               buy me a coffee
-            </Link>
+            </LinkAway>
             !
           </p>
         </>
       ),
     })
-  }
-  const linkClick = (url: string) => (e: any) => {
-    e.preventDefault()
-    app.load(url)
   }
   return (
     <Grid container direction="row" justify="flex-end" className={classes.root}>
@@ -537,3 +522,21 @@ export function AboutLink({ app }: { app: App }) {
     </Grid>
   )
 }
+
+// create a link that loads in the current page
+// TODO add an external link icon to this
+export const LinkAway: React.FC<{
+  app: App
+  url: string
+  children: React.ReactNode
+}> = ({ app, url, children }) => (
+  <Link
+    href="bogus"
+    onClick={(e) => {
+      e.preventDefault()
+      app.load(url)
+    }}
+  >
+    {children}
+  </Link>
+)
