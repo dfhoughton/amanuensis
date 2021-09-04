@@ -1,6 +1,14 @@
 import React from "react"
 import { nws } from "./modules/util"
-import { AboutLink, Details, Mark, TT } from "./modules/components"
+import {
+  AboutLink,
+  Details,
+  LinkDown,
+  LinkUp,
+  Mark,
+  TabLink,
+  TT,
+} from "./modules/components"
 import { App } from "./App"
 import {
   Button,
@@ -23,7 +31,7 @@ import {
   TextField,
   Typography as T,
 } from "@material-ui/core"
-import { Clear, Edit, FileCopy } from "@material-ui/icons"
+import { Clear, Edit, FileCopy, FilterList } from "@material-ui/icons"
 import { ProjectInfo } from "./modules/types"
 import { deepClone } from "./modules/clone"
 import { Autocomplete, createFilterOptions } from "@material-ui/lab"
@@ -576,11 +584,18 @@ function ProjectDetails({ app }: { app: App }) {
           and only one project.
         </p>
         <p>One project can differ from another in</p>
-        <ul>
+        <ul id="toc">
           <li>name</li>
           <li>description</li>
-          <li>normalizer</li>
-          <li>relations</li>
+          <li>
+            <LinkDown to="normalizer">normalizer</LinkDown>
+          </li>
+          <li>
+            <LinkDown to="relations">relations</LinkDown>
+          </li>
+          <li>
+            <LinkDown to="sorter">sorter</LinkDown>
+          </li>
         </ul>
         <p>
           A project's name must be a unique identifier. The other properties can
@@ -588,11 +603,25 @@ function ProjectDetails({ app }: { app: App }) {
         </p>
         <p>
           To start a new project you must clone an existing one. This will
-          create a new project with the same description, normalizer, and
-          relations. You will be required to provide a new name. The cloned
+          create a new project with the same description, normalizer, relations,
+          and sorter. You will be required to provide a new name. The cloned
           project will begin with no notes.
         </p>
-        <h3>Normalizer</h3>
+        <p>
+          Amanuensis always has a default project. This is the project that
+          a new note will be created in unless you say otherwise. If you do
+          say otherwise the default project will be whatever you choose. You
+          may also set the default project by click a project's star in this
+          tab. The project with a golden start is the current default.
+        </p>
+        <p>
+          There is one project, the nameless project, that cannot be modified
+          or deleted. This is the only project that Amanuensis starts with
+          and may be the only project you need.
+        </p>
+        <h3 id="normalizer">
+          Normalizer <LinkUp />
+        </h3>
         <p>
           The normalizer is a way of recognizing two different strings, like{" "}
           <i>cat</i> and <i>Cat</i>, and maybe even <i>cats</i>, as the same. If
@@ -629,9 +658,11 @@ function ProjectDetails({ app }: { app: App }) {
             ))}
           </tbody>
         </table>
-        <h3>Relations</h3>
+        <h3 id="relations">
+          Relations <LinkUp />
+        </h3>
         <p>
-          Relations are a way to tie one note to another. The default relation
+          Relations are a way to link one note to another. The default relation
           every project has is "see also". Other relations might be "antonym",
           "synonym", "subspecies", or simply "related". Every relation is
           double-ended: if note A is related to note B, note B will necessarily
@@ -643,6 +674,33 @@ function ProjectDetails({ app }: { app: App }) {
         <p>
           Aside from the "see also" relation every relation concerns only notes
           in the same project.
+        </p>
+        <h3 id="sorter">
+          Sorter <LinkUp />
+        </h3>
+        <p>
+          Sorters are similar to normalizers. Normalizers help Amanuensis
+          recognize two orthographically different words as the same. Sorters
+          help Amanuensis to recognize words as similar. For instance, a sorter
+          might allow Amanuensis to recognize <i>sing</i> as more similar to{" "}
+          <i>sang</i> than it is to <i>sink</i>, so the{" "}
+          <FilterList fontSize="small" color="primary" /> widget in the{" "}
+          <TabLink tab="note" app={app}>
+            notes
+          </TabLink>{" "}
+          tab can suggest <i>sang</i> as something you might want to{" "}
+          <LinkUp to="relations" noArrow>
+            link
+          </LinkUp>{" "}
+          to <i>sing</i>.
+        </p>
+        <p>
+          Sorters are a fairly complicated topic on their own. They can be
+          defined in the{" "}
+          <TabLink tab="sorters" app={app}>
+            sorters
+          </TabLink>{" "}
+          tab.
         </p>
         <AboutLink app={app} />
       </>

@@ -28,8 +28,7 @@ import { uniq, ymd } from "./util"
 
 // the sorts of things that are children in React components
 // probably there's some standard way to do this
-type Child = string | React.ReactElement
-export type Children = Child | Child[]
+export type Children = React.ReactNode
 
 interface TTProps {
   children: ReactElement
@@ -393,10 +392,11 @@ export function LinkDown({
 }
 
 // a LinkDown that looks for the table of contents
-export function LinkUp() {
+export function LinkUp({ to = "toc", children, noArrow }: { to?: string, children?: Children, noArrow?: boolean }) {
   return (
-    <LinkDown to="toc">
-      <ArrowUpward fontSize="small" />
+    <LinkDown to={to}>
+      {children}
+      {!noArrow && <ArrowUpward fontSize="small" />}
     </LinkDown>
   )
 }

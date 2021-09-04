@@ -276,7 +276,7 @@ function DownloadUpload({ config }: { config: Config }) {
               })
             } catch (e) {
               config.app.error(
-                `the text in ${f.name} is not parsable as JSON: ${e.message}`
+                `the text in ${f.name} is not parsable as JSON: ${e}`
               )
             }
           }
