@@ -604,6 +604,11 @@ function NoteDetails({
         expanded={showDetails}
         onChange={(_e, expanded) => setShowDetails(expanded)}
       >
+        <p>
+          This tab lets you take notes about something you found somewhere on
+          the web. This is the central purpose of Amanuensis. Further details
+          are below.
+        </p>
         <T variant="h6" id="toc">
           Table of Contents
         </T>
@@ -662,11 +667,6 @@ function NoteDetails({
           </LinkDown>
         </Box>
       </Details>
-      <p>
-        The purpose of Amanuensis is to allow you to take notes on a web page.
-        You are now looking at Amanuensis's note tab. The parts of this tab,
-        aside from this help section, are described below.
-      </p>
       <T id="citation" variant="h6">
         Citation <LinkUp />
       </T>
@@ -1053,7 +1053,7 @@ function NoteDetails({
         the selection, this process has failed. However, you may still be able
         to find the relevant selection on the page. Amanuensis is conservative
         when it tries to identify the original selection. You may have more luck
-        with your eyes and human intelligence. Generally, though, Amanuensis
+        with your own eyes and wits. Generally, though, Amanuensis
         will be able to retrieve the original selection.
       </p>
       <AboutLink app={app} />
