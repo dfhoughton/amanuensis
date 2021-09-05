@@ -70,8 +70,9 @@ Amanuensis is free. There are no usage tiers or plans to introduce them. Though 
 
 ## Acknowledgements and Confessions
 
-I have written this by myself. I've gotten and patient toleration from my my family and co-workers. My son Jude has worked
-on making this extension function in Firefox.
+I have written this by myself. I've gotten and patient toleration from my family and co-workers. Also
+- My son Jude has worked on making this extension function in Firefox.
+- My daughter Ada created the writing quill icon and approved my color choices.
 
 This is the first significant piece of work I've done in React and Typescript. Undoubtedly some of it could
-be done better. If time allows it will be done better at some point.
+be done better. If time allows it will eventually be done better.
