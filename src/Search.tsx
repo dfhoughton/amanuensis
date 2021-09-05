@@ -1293,9 +1293,7 @@ function SearchDetails({ app }: { app: App }) {
   const formClasses = formStyles()
   return (
     <>
-      <p>
-        The Search tab allows one to find and link together notes.
-      </p>
+      <p>The search tab allows one to find and link together notes.</p>
       <T variant="h6" id="toc">
         Table of Contents
       </T>
@@ -1355,7 +1353,37 @@ function SearchDetails({ app }: { app: App }) {
       <T id="overview" variant="h6">
         Search Overview <LinkUp />
       </T>
-      <p>Overview of the various parts of the search tab.</p>
+      <p>
+        At its simplest, searching is just for finding notes: you find notes so
+        you can review them. From this starting point, though, searching gets
+        very complicated.
+      </p>
+      <ul>
+        <li>
+          You can <LinkDown to="saved">save searches</LinkDown> that you use
+          frequently.
+        </li>
+        <li>
+          You can use search results as a{" "}
+          <TabLink app={app} tab="cards">
+            flashcard stack
+          </TabLink>
+          .
+        </li>
+        <li>
+          If you are already looking at a{" "}
+          <TabLink app={app} tab="note">
+            note
+          </TabLink>
+          , you can link results to this note.
+        </li>
+      </ul>
+      <p>
+        The principle parts of the search tab are the{" "}
+        <LinkDown to="saved">saved search</LinkDown> selector, the{" "}
+        <LinkDown to="form">search form</LinkDown>, and the{" "}
+        <LinkDown to="results">search results</LinkDown>.
+      </p>
       <T id="saved" variant="h6">
         Saved Searches <LinkUp />
       </T>
@@ -1371,9 +1399,9 @@ function SearchDetails({ app }: { app: App }) {
       <p>
         The first widget you see on the search tab,{" "}
         <em>if you have any saved searches</em>, is the saved search dropdown.
-        If you select a saved search this search will run and you will see the
-        results below. The chief intended use of saved searches is to facilitate
-        creating{" "}
+        If you select a saved search this search will run and you will see the{" "}
+        <LinkDown to="results">results</LinkDown> below. The chief intended use
+        of saved searches is to facilitate creating{" "}
         <TabLink tab="cards" app={app}>
           flashcard stacks
         </TabLink>{" "}
@@ -1457,7 +1485,7 @@ function SearchDetails({ app }: { app: App }) {
       <T id="results" variant="h6">
         Search Results <LinkUp />
       </T>
-      <DocResult note={bogusNote({})} project={bogusProject({})} app={app}/>
+      <DocResult note={bogusNote({})} project={bogusProject({})} app={app} />
       <strong id="linking">
         Linking <LinkUp />
       </strong>
