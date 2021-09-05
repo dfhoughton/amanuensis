@@ -14,6 +14,11 @@ text highlighted and embedded in its context. The time, URL, and page title are 
 
 ![a note](docs/images/note.png)
 
+I use Amanuensis together with the
+[Google translate extension](https://chrome.google.com/webstore/detail/google-translate/aapbdbdomjkkjkaonfhkkikfgjllcleb).
+There are undoubtedly other worthy extensions and websites that can server a similar function. If you are less lazy, a paper
+dictionary works quite well.
+
 ### Finding a note
 
 The second tab allows you to search for saved notes.
