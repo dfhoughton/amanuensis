@@ -128,6 +128,17 @@ function Search({ app }: SearchProps) {
         {!results.length && (
           <div className={classes.message}>no notes found</div>
         )}
+        {paginate && (
+          <div className={classes.pagination}>
+            <Pagination
+              count={Math.ceil(results.length / 10)}
+              size="small"
+              page={page}
+              siblingCount={0}
+              onChange={(_e, p) => setPage(p)}
+            />
+          </div>
+        )}
         {pagedResults.map((r) => (
           <Result note={r} app={app} setCurrentNote={setCurrentNote} />
         ))}
@@ -136,7 +147,7 @@ function Search({ app }: SearchProps) {
             <Pagination
               count={Math.ceil(results.length / 10)}
               size="small"
-              defaultPage={page}
+              page={page}
               siblingCount={0}
               onChange={(_e, p) => setPage(p)}
             />
@@ -1282,6 +1293,9 @@ function SearchDetails({ app }: { app: App }) {
   const formClasses = formStyles()
   return (
     <>
+      <p>
+        The Search tab allows one to find and link together notes.
+      </p>
       <T variant="h6" id="toc">
         Table of Contents
       </T>
