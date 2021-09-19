@@ -494,327 +494,262 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
           ))}
         </TextField>
       )}
-      <Grid
-        container
-        spacing={1}
-        alignContent="space-between"
-        className={classes.item}
+      <PhraseWidget
+        defaultSorter={
+          app.switchboard.index!.sorters.get(
+            search.sorter ?? app.switchboard.index!.currentSorter
+          )!
+        }
+        currentSorter={app.switchboard.index!.currentSorter}
+        showSearchDetails={showSearchDetails}
+        onStrictnessChange={(v) => {
+          switch (v.target.value) {
+            case "exact":
+            case "fuzzy":
+              search.strictness = v.target.value
+              delete search.sorter
+              app.setState({ search })
+              break
+            case "similar":
+              search.strictness = v.target.value
+              search.sorter = app.switchboard.index!.currentSorter
+              app.setState({ search })
+              break
+          }
+        }}
+        setShowSearchDetails={setShowSearchDetails}
+        onPhraseChange={(event) => {
+          if (nws(event.target.value)) {
+            search.phrase = event.target.value
+          } else {
+            delete search.phrase
+          }
+          app.setState({ search })
+        }}
+        onSorterClick={(s) => {
+          search.sorter = s.pk
+          app.setState({ search })
+        }}
+        sorters={Array.from(app.switchboard.index!.sorters.values())}
+        search={search}
+        showSorter={showSorter}
       >
-        <Grid item xs={11}>
-          <TextField
-            id="phrase"
-            label="Phrase"
-            // className={classes.item}
-            fullWidth
-            value={phrase || ""}
-            onChange={(event) => {
-              if (nws(event.target.value)) {
-                search.phrase = event.target.value
+        {projects.length > 1 && (
+          <Autocomplete
+            id="project"
+            className={classes.item}
+            options={projects}
+            value={project}
+            multiple
+            autoComplete
+            getOptionLabel={(option) =>
+              app.switchboard.index!.reverseProjectIndex.get(option) ||
+              "default"
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Projects"
+                placeholder="project name"
+              />
+            )}
+            onChange={(_event, project) => {
+              search = deepClone(search)
+              search.project = project as number[]
+              app.setState({ search })
+            }}
+            renderTags={(value, getTagProps) => {
+              // not sure why this needs flattening; maybe some day I will be wiser...
+              const chips = value.map((obj, i) => (
+                <Chip
+                  variant="outlined"
+                  size="small"
+                  label={
+                    app.switchboard.index!.reverseProjectIndex.get(obj) ||
+                    "default"
+                  }
+                  {...getTagProps({ index: i })}
+                />
+              ))
+              return chips
+            }}
+          />
+        )}
+        {!!tags.length && (
+          <Autocomplete
+            id="tags-required"
+            className={classes.item}
+            options={tags}
+            value={tagRequired || []}
+            multiple
+            autoComplete
+            renderInput={(params) => (
+              <TextField {...params} label="Tags" placeholder="tag" />
+            )}
+            onChange={(_event, newTags) => {
+              search = deepClone(search)
+              if (newTags.length) {
+                search.tags = newTags
               } else {
-                delete search.phrase
+                delete search.tags
               }
               app.setState({ search })
             }}
-          />
-        </Grid>
-        <Grid item container xs={1} alignContent="center">
-          <IconButton
-            size="small"
-            onClick={() => setShowSearchDetails(!showSearchDetails)}
-          >
-            {showSearchDetails ? <ExpandMore /> : <ChevronRight />}
-          </IconButton>
-        </Grid>
-      </Grid>
-      {phrase && nws(phrase) && (
-        <div className={classes.centered}>
-          <Grid container justify="space-between">
-            <Grid item>
-              <FormControl component="fieldset">
-                <RadioGroup
-                  row
-                  value={strictness}
-                  onChange={(v) => {
-                    switch (v.target.value) {
-                      case "exact":
-                      case "fuzzy":
-                        search.strictness = v.target.value
-                        delete search.sorter
-                        app.setState({ search })
-                        break
-                      case "similar":
-                        search.strictness = v.target.value
-                        search.sorter = app.switchboard.index!.currentSorter
-                        app.setState({ search })
-                        break
-                    }
-                  }}
-                >
-                  <FormControlLabel
-                    value="exact"
-                    disabled={!phrase}
-                    control={<Radio />}
-                    label="exact"
-                  />
-                  <FormControlLabel
-                    value="fuzzy"
-                    disabled={!phrase}
-                    control={<Radio />}
-                    label="fuzzy"
-                  />
-                  <FormControlLabel
-                    label={`similar (${
-                      app.switchboard.index!.sorters.get(
-                        search.sorter ?? app.switchboard.index!.currentSorter
-                      )!.name
-                    })`}
-                    value="similar"
-                    disabled={!phrase}
-                    control={<Radio />}
-                  />
-                </RadioGroup>
-              </FormControl>
-              {showSorter && (
-                <TextField
-                  label="Sorter"
-                  select
-                  className={classes.sorter}
+            renderTags={(value, getTagProps) =>
+              value.map((obj, i) => (
+                <Chip
+                  variant="outlined"
                   size="small"
-                >
-                  {Array.from(app.switchboard.index!.sorters.values())
-                    .sort((a, b) => (a.name < b.name ? -1 : 1))
-                    .map((s) => (
-                      <SorterOption app={app} search={search} sorter={s} />
-                    ))}
-                </TextField>
-              )}
+                  label={obj}
+                  {...getTagProps({ index: i })}
+                />
+              ))
+            }
+          />
+        )}
+        <Grid container justify="center" className={classes.time}>
+          <Grid item>
+            <Grid component="label" container alignItems="center" spacing={1}>
+              <Grid item>Relative Time</Grid>
+              <Grid item>
+                <Switch
+                  checked={!relativeTime}
+                  onChange={() => {
+                    search.relativeTime = !relativeTime
+                    app.setState({ search })
+                  }}
+                />
+              </Grid>
+              <Grid item>Absolute Time</Grid>
             </Grid>
           </Grid>
-        </div>
-      )}
-      {showSearchDetails && (
-        <>
-          {projects.length > 1 && (
-            <Autocomplete
-              id="project"
-              className={classes.item}
-              options={projects}
-              value={project}
-              multiple
-              autoComplete
-              getOptionLabel={(option) =>
-                app.switchboard.index!.reverseProjectIndex.get(option) ||
-                "default"
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Projects"
-                  placeholder="project name"
-                />
-              )}
-              onChange={(_event, project) => {
-                search = deepClone(search)
-                search.project = project as number[]
-                app.setState({ search })
-              }}
-              renderTags={(value, getTagProps) => {
-                // not sure why this needs flattening; maybe some day I will be wiser...
-                const chips = value.map((obj, i) => (
-                  <Chip
-                    variant="outlined"
-                    size="small"
-                    label={
-                      app.switchboard.index!.reverseProjectIndex.get(obj) ||
-                      "default"
+        </Grid>
+        {relativeTime && (
+          <Grid
+            container
+            alignItems="center"
+            justify="space-evenly"
+            className={classes.item}
+          >
+            <Grid item>
+              <Grid component="label" container alignItems="center" spacing={1}>
+                <Grid item>Since</Grid>
+                <Grid item>
+                  <Switch
+                    checked={relativeInterpretation === "on"}
+                    disabled={
+                      relativeInterpretation === "since" &&
+                      relativePeriod === "ever"
                     }
-                    {...getTagProps({ index: i })}
+                    onChange={() => {
+                      search.relativeInterpretation =
+                        relativeInterpretation === "on" ? "since" : "on"
+                      app.setState({ search })
+                    }}
                   />
-                ))
-                return chips
-              }}
-            />
-          )}
-          {!!tags.length && (
-            <Autocomplete
-              id="tags-required"
-              className={classes.item}
-              options={tags}
-              value={tagRequired || []}
-              multiple
-              autoComplete
-              renderInput={(params) => (
-                <TextField {...params} label="Tags" placeholder="tag" />
-              )}
-              onChange={(_event, newTags) => {
+                </Grid>
+                <Grid item>On</Grid>
+              </Grid>
+            </Grid>
+            <Grid item>
+              <TextField
+                onChange={(event) => {
+                  search.relativePeriod = event.target.value as RelativePeriod
+                  app.setState({ search })
+                }}
+                value={relativePeriod}
+                select
+              >
+                {allPeriods.map((p) => (
+                  <MenuItem
+                    key={p}
+                    value={p}
+                    dense
+                    disabled={p === "ever" && relativeInterpretation === "on"}
+                  >
+                    {p}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+        )}
+        {!relativeTime && (
+          <Grid container justify="space-between" className={classes.item}>
+            <TextField
+              id="after"
+              label="After"
+              type="date"
+              value={ymd(after)}
+              onChange={(e) => {
                 search = deepClone(search)
-                if (newTags.length) {
-                  search.tags = newTags
+                if (e.target.value) {
+                  search.after = new Date(e.target.value)
                 } else {
-                  delete search.tags
+                  delete search.after
                 }
                 app.setState({ search })
               }}
-              renderTags={(value, getTagProps) =>
-                value.map((obj, i) => (
-                  <Chip
-                    variant="outlined"
-                    size="small"
-                    label={obj}
-                    {...getTagProps({ index: i })}
-                  />
-                ))
-              }
+              InputLabelProps={{
+                shrink: true,
+              }}
             />
-          )}
-          <Grid container justify="center" className={classes.time}>
-            <Grid item>
-              <Grid component="label" container alignItems="center" spacing={1}>
-                <Grid item>Relative Time</Grid>
-                <Grid item>
-                  <Switch
-                    checked={!relativeTime}
-                    onChange={() => {
-                      search.relativeTime = !relativeTime
-                      app.setState({ search })
-                    }}
-                  />
-                </Grid>
-                <Grid item>Absolute Time</Grid>
-              </Grid>
-            </Grid>
+            <TextField
+              id="before"
+              label="Before"
+              type="date"
+              value={ymd(before)}
+              onChange={(e) => {
+                search = deepClone(search)
+                if (e.target.value) {
+                  search.before = new Date(e.target.value)
+                } else {
+                  delete search.before
+                }
+                app.setState({ search })
+              }}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
           </Grid>
-          {relativeTime && (
-            <Grid
-              container
-              alignItems="center"
-              justify="space-evenly"
-              className={classes.item}
-            >
-              <Grid item>
-                <Grid
-                  component="label"
-                  container
-                  alignItems="center"
-                  spacing={1}
-                >
-                  <Grid item>Since</Grid>
-                  <Grid item>
-                    <Switch
-                      checked={relativeInterpretation === "on"}
-                      disabled={
-                        relativeInterpretation === "since" &&
-                        relativePeriod === "ever"
-                      }
-                      onChange={() => {
-                        search.relativeInterpretation =
-                          relativeInterpretation === "on" ? "since" : "on"
-                        app.setState({ search })
-                      }}
-                    />
-                  </Grid>
-                  <Grid item>On</Grid>
-                </Grid>
-              </Grid>
-              <Grid item>
-                <TextField
-                  onChange={(event) => {
-                    search.relativePeriod = event.target.value as RelativePeriod
-                    app.setState({ search })
-                  }}
-                  value={relativePeriod}
-                  select
-                >
-                  {allPeriods.map((p) => (
-                    <MenuItem
-                      key={p}
-                      value={p}
-                      dense
-                      disabled={p === "ever" && relativeInterpretation === "on"}
-                    >
-                      {p}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-            </Grid>
-          )}
-          {!relativeTime && (
-            <Grid container justify="space-between" className={classes.item}>
+        )}
+        <Box mt={relativeTime ? 0 : 2}>
+          <Grid container spacing={1} alignContent="space-between">
+            <Grid item xs={search.url ? 11 : 12}>
               <TextField
-                id="after"
-                label="After"
-                type="date"
-                value={ymd(after)}
-                onChange={(e) => {
+                id="url"
+                label="URL"
+                fullWidth
+                value={url || ""}
+                onChange={(event) => {
                   search = deepClone(search)
-                  if (e.target.value) {
-                    search.after = new Date(e.target.value)
+                  if (nws(event.target.value)) {
+                    search.url = event.target.value
                   } else {
-                    delete search.after
+                    delete search.url
                   }
                   app.setState({ search })
                 }}
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
-              <TextField
-                id="before"
-                label="Before"
-                type="date"
-                value={ymd(before)}
-                onChange={(e) => {
-                  search = deepClone(search)
-                  if (e.target.value) {
-                    search.before = new Date(e.target.value)
-                  } else {
-                    delete search.before
-                  }
-                  app.setState({ search })
-                }}
-                InputLabelProps={{
-                  shrink: true,
-                }}
               />
             </Grid>
-          )}
-          <Box mt={relativeTime ? 0 : 2}>
-            <Grid container spacing={1} alignContent="space-between">
-              <Grid item xs={search.url ? 11 : 12}>
-                <TextField
-                  id="url"
-                  label="URL"
-                  fullWidth
-                  value={url || ""}
-                  onChange={(event) => {
-                    search = deepClone(search)
-                    if (nws(event.target.value)) {
-                      search.url = event.target.value
-                    } else {
-                      delete search.url
-                    }
+            {!!search.url && (
+              <Grid item container xs={1} alignContent="center">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    delete search.url
                     app.setState({ search })
                   }}
-                />
+                >
+                  <Clear />
+                </IconButton>
               </Grid>
-              {!!search.url && (
-                <Grid item container xs={1} alignContent="center">
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      delete search.url
-                      app.setState({ search })
-                    }}
-                  >
-                    <Clear />
-                  </IconButton>
-                </Grid>
-              )}
-            </Grid>
-          </Box>
-        </>
-      )}
+            )}
+          </Grid>
+        </Box>
+      </PhraseWidget>
+
       <Box mt={1}>
         <div className={classes.centered}>
           <Grid container justify="space-evenly" className={classes.item}>
@@ -986,6 +921,126 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
         </div>
       </Collapse>
     </div>
+  )
+}
+
+// the bit of the search form showing the phrase, strictness radios, sorters, and further details
+// factored out of the form so that it can be included in both the form and the help text
+const PhraseWidget: React.FC<{
+  showSearchDetails: boolean
+  setShowSearchDetails: (v: boolean) => void
+  onPhraseChange: (
+    event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
+  ) => void
+  onStrictnessChange: (v: React.ChangeEvent<HTMLInputElement>) => void
+  onSorterClick: (s: Sorter) => void
+  search: AdHocQuery
+  defaultSorter: Sorter
+  currentSorter: number
+  sorters: Sorter[]
+  showSorter: boolean
+  children: React.ReactNode
+}> = ({
+  defaultSorter,
+  currentSorter,
+  showSearchDetails,
+  onStrictnessChange,
+  setShowSearchDetails,
+  onPhraseChange,
+  onSorterClick,
+  sorters,
+  search,
+  showSorter,
+  children,
+}) => {
+  const classes = formStyles()
+  const { phrase, strictness = "exact" } = search
+  return (
+    <>
+      <Grid
+        container
+        spacing={1}
+        alignContent="space-between"
+        className={classes.item}
+      >
+        <Grid item xs={11}>
+          <TextField
+            id="phrase"
+            label="Phrase"
+            fullWidth
+            value={phrase || ""}
+            onChange={onPhraseChange}
+          />
+        </Grid>
+        <Grid item container xs={1} alignContent="center">
+          <IconButton
+            size="small"
+            onClick={() => setShowSearchDetails(!showSearchDetails)}
+          >
+            {showSearchDetails ? <ExpandMore /> : <ChevronRight />}
+          </IconButton>
+        </Grid>
+      </Grid>
+      {phrase && nws(phrase) && (
+        <div className={classes.centered}>
+          <Grid container justify="space-between">
+            <Grid item>
+              <FormControl component="fieldset">
+                <RadioGroup
+                  row
+                  value={strictness}
+                  onChange={onStrictnessChange}
+                >
+                  <FormControlLabel
+                    value="exact"
+                    disabled={!phrase}
+                    control={<Radio />}
+                    label="exact"
+                  />
+                  <FormControlLabel
+                    value="fuzzy"
+                    disabled={!phrase}
+                    control={<Radio />}
+                    label="fuzzy"
+                  />
+                  <FormControlLabel
+                    label={`similar (${defaultSorter.name})`}
+                    value="similar"
+                    disabled={!phrase}
+                    control={<Radio />}
+                  />
+                </RadioGroup>
+              </FormControl>
+              {showSorter && (
+                <TextField
+                  label="Sorter"
+                  select
+                  className={classes.sorter}
+                  size="small"
+                >
+                  {sorters
+                    .sort((a, b) => (a.name < b.name ? -1 : 1))
+                    .map((s) => (
+                      <MenuItem
+                        key={s.pk}
+                        selected={
+                          search.sorter === s.pk ||
+                          (search.sorter == null && currentSorter === s.pk)
+                        }
+                        dense
+                        onClick={() => onSorterClick(s)}
+                      >
+                        {s.name}
+                      </MenuItem>
+                    ))}
+                </TextField>
+              )}
+            </Grid>
+          </Grid>
+        </div>
+      )}
+      {showSearchDetails && children}
+    </>
   )
 }
 
@@ -1258,35 +1313,13 @@ function Url({ c, i, key }: { c: CitationRecord; i: number; key: string }) {
   )
 }
 
-function SorterOption({
-  app,
-  sorter,
-  search,
-}: {
-  app: App
-  sorter: Sorter
-  search: AdHocQuery
-}) {
-  const selected =
-    search.sorter === sorter.pk ||
-    (search.sorter == null &&
-      app.switchboard.index!.currentSorter === sorter.pk)
-  return (
-    <MenuItem
-      key={sorter.pk}
-      selected={selected}
-      dense
-      onClick={() => {
-        search.sorter = sorter.pk
-        app.setState({ search })
-      }}
-    >
-      {sorter.name}
-    </MenuItem>
-  )
-}
-
-const noteDetailsStyles = makeStyles((theme) => ({}))
+const noteDetailsStyles = makeStyles((theme) => ({
+  dl: {
+    "& dt": {
+      fontWeight: theme.typography.fontWeightBold,
+    },
+  },
+}))
 
 function SearchDetails({ app }: { app: App }) {
   const classes = noteDetailsStyles()
@@ -1449,11 +1482,48 @@ function SearchDetails({ app }: { app: App }) {
       <T id="form" variant="h6">
         The Search Form <LinkUp />
       </T>
-      <p>etc.</p>
+      <p>
+        Because notes are complicated, having gists and URLs and tags and
+        projects and so forth, the search form is necessarily complicated.
+        However, to better manager limited space and reduce confusion only those
+        parts of the farm which are possible to use are ever shown. If you have
+        only one project, the projects section is not shown. If you have used no
+        tags, you will not be allowed to search by tag. These portions of the
+        form are not disabled but hidden altogether. This means that initially
+        the search form will appear quite simple.
+      </p>
       <strong id="phrase">
         Phrase <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        The phrase field allows you to search for the citations notes are based
+        around. If you enter text into this field you will see that there are
+        three varieties of phrase search.
+      </p>
+      <dl className={classes.dl}>
+        <dt>exact</dt>
+        <dd>
+          An exact search looks for an exact match to a{" "}
+          <em>minimally normalized</em> version of the phrase sought: case and
+          whitespace differences are ignored. If you search for <i>absicht</i>{" "}
+          you may find a note on <i>Absicht</i>.
+        </dd>
+        <dt>fuzzy</dt>
+        <dd>
+          A fuzzy search looks for the letters you have typed in the order you
+          have typed them in (after minimial normalization). If you do a fuzzy
+          phrase search for <i>cat</i> you may get back <i>Caniatáu</i>.
+        </dd>
+        <dt>similar</dt>
+        <dd>
+          A similar search returns the notes found sorted by their similarity to
+          the search phrase based on the{" "}
+          <TabLink app={app} tab="sorters">
+            sorter
+          </TabLink>{" "}
+          chosen.
+        </dd>
+      </dl>
       <strong id="details">
         Details <LinkUp />
       </strong>
