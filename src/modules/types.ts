@@ -149,10 +149,11 @@ export type RelativePeriod =
   | "a year ago"
   | "ever"
 
+export type SearchStrictness = "exact" | "fuzzy" | "similar"
 export interface AdHocQuery {
   type: "ad hoc"
   phrase?: string
-  strictness?: "exact" | "fuzzy" | "similar"
+  strictness?: SearchStrictness
   sorter?: number
   project?: number[]
   tags?: string[]

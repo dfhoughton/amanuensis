@@ -33,6 +33,7 @@ import {
   ProjectInfo,
   RelativePeriod,
   SampleType,
+  SearchStrictness,
   Sorter,
 } from "./modules/types"
 import { enkey } from "./modules/storage"
@@ -1324,6 +1325,32 @@ const noteDetailsStyles = makeStyles((theme) => ({
 function SearchDetails({ app }: { app: App }) {
   const classes = noteDetailsStyles()
   const formClasses = formStyles()
+  // some bogus stuff needed to show a demo phrase widget
+  const [showSearchDetails, setShowSearchDetails] = useState(false)
+  const [search, setSearch] = useState<AdHocQuery>({
+    type: "ad hoc",
+    phrase: "",
+  })
+  const demoSorters: Sorter[] = [
+    {
+      pk: -1,
+      name: "foo",
+      description: "",
+      metric: (a: string, b: string) => 0,
+    },
+    {
+      pk: -2,
+      name: "bar",
+      description: "",
+      metric: (a: string, b: string) => 0,
+    },
+    {
+      pk: -4,
+      name: "baz",
+      description: "",
+      metric: (a: string, b: string) => 0,
+    },
+  ]
   return (
     <>
       <p>The search tab allows one to find and link together notes.</p>
@@ -1495,6 +1522,34 @@ function SearchDetails({ app }: { app: App }) {
       <strong id="phrase">
         Phrase <LinkUp />
       </strong>
+      <Box m={2}>
+        <PhraseWidget
+          sorters={demoSorters}
+          currentSorter={search.sorter ?? demoSorters[0].pk}
+          defaultSorter={
+            demoSorters.find((s) => s.pk === search.sorter) ?? demoSorters[0]
+          }
+          search={search}
+          showSearchDetails={showSearchDetails}
+          setShowSearchDetails={setShowSearchDetails}
+          showSorter={true}
+          onSorterClick={(s) => {
+            setSearch({ ...search, sorter: s.pk })
+          }}
+          onStrictnessChange={(e) => {
+            const strictness = e.target.value as SearchStrictness
+            setSearch({ ...search, strictness })
+          }}
+          onPhraseChange={(e) => {
+            setSearch({ ...search, phrase: e.target.value })
+          }}
+        >
+          <Box mt={2}>
+            Now you can tinker with further search{" "}
+            <LinkDown to="details">details</LinkDown>
+          </Box>
+        </PhraseWidget>
+      </Box>
       <p>
         The phrase field allows you to search for the citations notes are based
         around. If you enter text into this field you will see that there are
