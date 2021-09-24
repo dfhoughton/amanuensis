@@ -13,6 +13,7 @@ import {
   nameRelation,
   bogusNote,
   bogusProject,
+  bogusCitation,
 } from "./modules/util"
 import {
   Details,
@@ -188,47 +189,116 @@ function ResultsInfo({
   const [sample, setSample] = useState<number>(1)
   const [sampleType, setSampleType] = useState<SampleType>("random")
   return (
+    <ResultsInfoWidget
+      offset={offset}
+      end={end}
+      total={results.length}
+      showSample={showSample}
+      setShowSample={setShowSample}
+      sample={sample}
+      setSample={setSample}
+      sampleType={sampleType}
+      setSampleType={setSampleType}
+      sampling={!!search.sample}
+      doSample={() => {
+        const s: AdHocQuery = deepClone(search)
+        s.sample = sample
+        s.sampleType = sampleType
+        s.seed = seed()
+        app.switchboard
+          .index!.find(s)
+          .then((results) => {
+            let searchResults: NoteRecord[]
+            switch (results.type) {
+              case "ambiguous":
+                searchResults = results.matches
+                break
+              case "none":
+                searchResults = []
+                break
+              case "found":
+                searchResults = [results.match]
+                break
+            }
+            setShowSample(false)
+            app.setState({ search: s, searchResults })
+          })
+          .catch((e) => app.error(e))
+      }}
+      doShowAll={() => {
+        const s: AdHocQuery = deepClone(search)
+        s.sample = sample
+        s.sampleType = sampleType
+        s.seed = seed()
+        app.switchboard
+          .index!.find(s)
+          .then((results) => {
+            let searchResults: NoteRecord[]
+            switch (results.type) {
+              case "ambiguous":
+                searchResults = results.matches
+                break
+              case "none":
+                searchResults = []
+                break
+              case "found":
+                searchResults = [results.match]
+                break
+            }
+            setShowSample(false)
+            app.setState({ search: s, searchResults })
+          })
+          .catch((e) => app.error(e))
+      }}
+    />
+  )
+}
+
+// factored out of ResultsInfo to facilitate discussing this in help text
+const ResultsInfoWidget: React.FC<{
+  offset: number
+  end: number
+  total: number
+  doSample: () => void
+  showSample: boolean
+  setShowSample: (b: boolean) => void
+  sampling: boolean
+  doShowAll: () => void
+  sample: number
+  setSample: (n: number) => void
+  sampleType: SampleType
+  setSampleType: (t: SampleType) => void
+}> = ({
+  offset,
+  end,
+  total,
+  doSample,
+  showSample,
+  setShowSample,
+  sampling,
+  doShowAll,
+  sample,
+  setSample,
+  sampleType,
+  setSampleType,
+}) => {
+  return (
     <>
       <Grid container justify="center" alignItems="center" spacing={2}>
         <Grid item>
           Notes {(offset + 1).toLocaleString()} <>&ndash;</>{" "}
-          {end.toLocaleString()} of {results.length.toLocaleString()}
+          {end.toLocaleString()} of {total.toLocaleString()}
         </Grid>
-        {!!search.sample && (
+        {sampling && (
           <Grid item>
-            <IconButton
-              size="small"
-              onClick={() => {
-                const s: AdHocQuery = deepClone(search)
-                delete s.sample
-                app.switchboard
-                  .index!.find(s)
-                  .then((results) => {
-                    let searchResults: NoteRecord[]
-                    switch (results.type) {
-                      case "ambiguous":
-                        searchResults = results.matches
-                        break
-                      case "none":
-                        searchResults = []
-                        break
-                      case "found":
-                        searchResults = [results.match]
-                        break
-                    }
-                    setShowSample(false)
-                    app.setState({ search: s, searchResults })
-                  })
-                  .catch((e) => app.error(e))
-              }}
-            >
+            <IconButton size="small" onClick={doShowAll}>
               <TT msg="show all">
                 <AllInclusive color="primary" fontSize="small" />
               </TT>
             </IconButton>
           </Grid>
         )}
-        {!search.sample && results.length > 10 && (
+        {!sampling && total > 10 && (
           <Grid item>
             <IconButton size="small" onClick={() => setShowSample(!showSample)}>
               <TT msg="choose a random sample">
@@ -271,35 +341,7 @@ function ResultsInfo({
             </TextField>
           </Grid>
           <Grid item>
-            <Button
-              color="primary"
-              variant="outlined"
-              onClick={() => {
-                const s: AdHocQuery = deepClone(search)
-                s.sample = sample
-                s.sampleType = sampleType
-                s.seed = seed()
-                app.switchboard
-                  .index!.find(s)
-                  .then((results) => {
-                    let searchResults: NoteRecord[]
-                    switch (results.type) {
-                      case "ambiguous":
-                        searchResults = results.matches
-                        break
-                      case "none":
-                        searchResults = []
-                        break
-                      case "found":
-                        searchResults = [results.match]
-                        break
-                    }
-                    setShowSample(false)
-                    app.setState({ search: s, searchResults })
-                  })
-                  .catch((e) => app.error(e))
-              }}
-            >
+            <Button color="primary" variant="outlined" onClick={doSample}>
               Sample
             </Button>
           </Grid>
@@ -1363,6 +1405,9 @@ const noteDetailsStyles = makeStyles((theme) => ({
       fontWeight: theme.typography.fontWeightBold,
     },
   },
+  done: {
+    color: theme.palette.success.dark,
+  },
 }))
 
 function SearchDetails({ app }: { app: App }) {
@@ -1455,12 +1500,20 @@ function SearchDetails({ app }: { app: App }) {
           Search Results
         </LinkDown>
         <Box ml={2}>
-          <LinkDown to="linking" toc>
-            Linking
+          <LinkDown to="sampling" toc>
+            Sampling
           </LinkDown>
-          <LinkDown to="done" toc>
-            Done
+          <LinkDown to="card" toc>
+            Result Card
           </LinkDown>
+          <Box ml={2}>
+            <LinkDown to="linking" toc>
+              Linking
+            </LinkDown>
+            <LinkDown to="done" toc>
+              Done
+            </LinkDown>
+          </Box>
         </Box>
       </Box>
       {/* END TOC */}
@@ -1766,17 +1819,176 @@ function SearchDetails({ app }: { app: App }) {
       <T id="results" variant="h6">
         Search Results <LinkUp />
       </T>
-      <DocResult note={bogusNote({})} project={bogusProject({})} app={app} />
+      <Box m={2}>
+        <DemoResultsInfoWidgett />
+        <Grid container item justify="center" alignItems="center">
+          <i>pagination omitted</i>
+        </Grid>
+        <DocResult note={bogusNote({})} project={bogusProject({})} app={app} />
+      </Box>
+      <p>
+        The search results are displayed below the search form as a list of
+        <LinkDown to="card">&ldquo;cards&rdquo;</LinkDown> surrounded by some{" "}
+        <LinkDown to="sampling">pagination information</LinkDown>.
+      </p>
+      <strong id="sampling">
+        Sampling <LinkUp />
+      </strong>
+      <Box m={2}>
+        <DemoResultsInfoWidgett />
+      </Box>
+      <p>
+        For the most part the pagination of the results should be familiar.
+        Because there can be many results, they are displayed in pages. There
+        are widgets above and below the list of results that you can use to go
+        from page to page. At the top there is some summary information: which
+        notes the current page is showing and how many notes there are
+        altogether. What will be unfamiliar is the sampling form you can find if
+        you click the <CardGiftcard color="primary" fontSize="small" /> to the
+        right of the summary information.
+      </p>
+      <p>
+        The purpose of sampling is to facilitate turning search results into a{" "}
+        <TabLink app={app} tab="cards">
+          flash card stack
+        </TabLink>
+        . If there are many results, you can extract a sample of them to quiz
+        yourself on. The sample can be random, &ldquo;hard&rdquo;, or
+        &ldquo;novel&rdquo;. A random sample is just that: a random selection of
+        the search results. A hard sample is made by sorting the cards by how
+        frequently you successfully quizzed yourself on them and showing the
+        ones you had least success with. A novel sample is a random sample of
+        those cards you have never quizzed yourself on at all.
+      </p>
+      <p>
+        The sampling form only appears when the search returns more results than
+        will fit on a single page. Samples are always based on the original
+        search results. If you take a random sample and then a hard sample, the
+        second sample will not necessarily be a subset of the first. To return
+        to the full search results you can click the{" "}
+        <AllInclusive color="primary" fontSize="small" /> icon that appears
+        beside the summary information when one is looking at a sample.
+      </p>
+      <strong id="card">
+        Result Card <LinkUp />
+      </strong>
+      <Box m={2}>
+        <DocResult note={bogusNote({})} project={bogusProject({})} app={app} />
+      </Box>
+      <p>
+        A result card is meant to provide a summary of a note. The pieces are
+        for the most part self-explanatory: phrase, gist, project, citation
+        dates, citations, the citations being listed by title and URL. In order
+        to keep the cards small these pieces may be truncated, but you will find
+        if you click them that a popup appears containing the full text.
+      </p>
+      <p>
+        The <Visibility color="secondary" fontSize="small" /> icon will take you
+        to the{" "}
+        <TabLink app={app} tab="note">
+          note tab
+        </TabLink>{" "}
+        where the full note will be displayed.
+      </p>
       <strong id="linking">
         Linking <LinkUp />
       </strong>
-      <p></p>
+      <Box m={2}>
+        <DocResult
+          note={bogusNote({
+            key: [0, 0],
+            citations: [bogusCitation({ phrase: "cat" })],
+          })}
+          cn={bogusNote({
+            key: [1, 1],
+            citations: [bogusCitation({ phrase: "dog" })],
+          })}
+          project={bogusProject({})}
+          app={app}
+        />
+      </Box>
+      <p>
+        The only place where you can create links between notes is in the search
+        results. The links are alwys between whatever note is currently
+        displayed in the{" "}
+        <TabLink app={app} tab="note">
+          note tab
+        </TabLink>{" "}
+        and other notes. To create a link you click the{" "}
+        <Link color="primary" fontSize="small" /> icon. See the{" "}
+        <TabLink app={app} tab="projects">
+          project tab
+        </TabLink>{" "}
+        for how to create different relations with which to label these links.
+      </p>
       <strong id="done">
         Done <LinkUp />
       </strong>
+      <Box m={2}>
+        <DocResult
+          note={bogusNote({ done: true })}
+          project={bogusProject({})}
+          app={app}
+        />
+      </Box>
+      <p>
+        When using a{" "}
+        <TabLink app={app} tab="cards">
+          flashcard stack
+        </TabLink>{" "}
+        one has the opportunity to mark a card as &ldquo;done&rdquo;. This means
+        the card should be excluded from future flashcard stacks because you
+        have learned it by heart (or you simply don't want it to be included in
+        flashcard stacks). The{" "}
+        <Done fontSize="small" className={classes.done} /> icon marks notes that
+        are done. If you click it you can reset their status, removing the mark.
+      </p>
       <p></p>
       <AboutLink app={app} />
     </>
+  )
+}
+
+function DemoResultsInfoWidgett() {
+  const originalOffset = 100
+  const originalEnd = 110
+  const originalTotal = 3000
+  const [offset, setOffset] = useState(originalOffset)
+  const [end, setEnd] = useState(originalEnd)
+  const [total, setTotal] = useState(originalTotal)
+  const [sample, setSample] = useState(1)
+  const [sampleType, setSampleType] = useState<SampleType>("random")
+  const [showSample, setShowSample] = useState(false)
+  const [sampling, setSampling] = useState(false)
+  const doSample = () => {
+    setOffset(0)
+    setEnd(sample < 10 ? sample : 10)
+    setTotal(sample)
+    setSampling(true)
+    setShowSample(false)
+  }
+  const doShowAll = () => {
+    setOffset(originalOffset)
+    setEnd(originalEnd)
+    setTotal(originalTotal)
+    setSampling(false)
+    setShowSample(false)
+  }
+  return (
+    <ResultsInfoWidget
+      offset={offset}
+      end={end}
+      total={total}
+      sample={sample}
+      setSample={setSample}
+      sampleType={sampleType}
+      setSampleType={setSampleType}
+      showSample={showSample}
+      setShowSample={setShowSample}
+      sampling={sampling}
+      doSample={doSample}
+      doShowAll={doShowAll}
+    />
   )
 }
 

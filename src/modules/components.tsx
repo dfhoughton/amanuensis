@@ -195,7 +195,7 @@ export function Expando({ text, id, className }: ExpandoOpts) {
 export function formatDates(dates: Date[]): string | React.ReactElement {
   let ar = uniq(dates.map((d) => ymd(d) || "")).sort()
   const joined = ar.join(", ")
-  if (ar.length > 3) {
+  if (ar.length > 2) {
     ar = [ar[0], "...", ar[ar.length - 1]]
     return (
       <TT msg={joined}>

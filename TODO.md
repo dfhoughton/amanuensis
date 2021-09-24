@@ -11,4 +11,5 @@
 - make expand elaboration configurable
 - links are sometimes broken
 - perhaps add substring test to similarity measures
-- 
+- fix labels with the before and after time search fields -- the should always be displaced
+- make expandos scroll with their context
