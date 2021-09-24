@@ -11,3 +11,4 @@
 - make expand elaboration configurable
 - links are sometimes broken
 - perhaps add substring test to similarity measures
+- 

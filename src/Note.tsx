@@ -1451,6 +1451,7 @@ function Tags(props: { note: Note }) {
         note.setState({ tags }, () => note.checkSavedState())
       }
       multiple
+      size="small"
       freeSolo
       autoComplete
       renderInput={(params) => (

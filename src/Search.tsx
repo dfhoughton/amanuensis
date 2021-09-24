@@ -1331,6 +1331,7 @@ function SearchDetails({ app }: { app: App }) {
     type: "ad hoc",
     phrase: "",
   })
+  const [showSorter, setShowSorter] = useState(false)
   const demoSorters: Sorter[] = [
     {
       pk: -1,
@@ -1375,27 +1376,29 @@ function SearchDetails({ app }: { app: App }) {
             <LinkDown to="details" toc>
               Details
             </LinkDown>
+            <Box ml={2}>
+              <LinkDown to="projects" toc>
+                Projects
+              </LinkDown>
+              <LinkDown to="tags" toc>
+                Tags
+              </LinkDown>
+              <LinkDown to="time" toc>
+                Time
+              </LinkDown>
+              <Box ml={2}>
+                <LinkDown to="relative" toc>
+                  Relative
+                </LinkDown>
+                <LinkDown to="absolute" toc>
+                  Absolute
+                </LinkDown>
+              </Box>
+              <LinkDown to="url" toc>
+                URL
+              </LinkDown>
+            </Box>
           </Box>
-          <LinkDown to="projects" toc>
-            Projects
-          </LinkDown>
-          <LinkDown to="tags" toc>
-            Tags
-          </LinkDown>
-          <LinkDown to="time" toc>
-            Time
-          </LinkDown>
-          <Box ml={2}>
-            <LinkDown to="relative" toc>
-              Relative
-            </LinkDown>
-            <LinkDown to="absolute" toc>
-              Absolute
-            </LinkDown>
-          </Box>
-          <LinkDown to="url" toc>
-            URL
-          </LinkDown>
         </Box>
         <LinkDown to="results" toc>
           Search Results
@@ -1532,12 +1535,13 @@ function SearchDetails({ app }: { app: App }) {
           search={search}
           showSearchDetails={showSearchDetails}
           setShowSearchDetails={setShowSearchDetails}
-          showSorter={true}
+          showSorter={showSorter}
           onSorterClick={(s) => {
             setSearch({ ...search, sorter: s.pk })
           }}
           onStrictnessChange={(e) => {
             const strictness = e.target.value as SearchStrictness
+            setShowSorter(strictness === 'similar')
             setSearch({ ...search, strictness })
           }}
           onPhraseChange={(e) => {
@@ -1582,15 +1586,33 @@ function SearchDetails({ app }: { app: App }) {
       <strong id="details">
         Details <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        The &ldquo;details&rdquo; are just further things one might search for
+        besides the <LinkDown to="phrase">phrase</LinkDown>. They can be hidden
+        to reduce the clutter and complexity of the search form. The details are
+        just the <LinkDown to="projects">projects</LinkDown>,{" "}
+        <LinkDown to="tags">tags</LinkDown>, <LinkDown to="time">time</LinkDown>
+        , and <LinkDown to="url">URL</LinkDown>.
+      </p>
       <strong id="projects">
         Projects <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        If you have more than one{" "}
+        <TabLink app={app} tab="projects">
+          project
+        </TabLink>
+        , the search form <LinkDown to="details">details</LinkDown> will allow
+        you to filter results by project. Otherwise, this section is hidden.
+      </p>
       <strong id="tags">
         Tags <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        If you have tagged any notes, the search form{" "}
+        <LinkDown to="details">details</LinkDown> will allow you to filter
+        results by tag. Otherwise, this section is hidden.
+      </p>
       <strong id="time">
         Time <LinkUp />
       </strong>
