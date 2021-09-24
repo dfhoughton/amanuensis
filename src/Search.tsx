@@ -191,7 +191,8 @@ function ResultsInfo({
     <>
       <Grid container justify="center" alignItems="center" spacing={2}>
         <Grid item>
-          Notes {offset + 1} <>&ndash;</> {end} of {results.length}
+          Notes {(offset + 1).toLocaleString()} <>&ndash;</>{" "}
+          {end.toLocaleString()} of {results.length.toLocaleString()}
         </Grid>
         {!!search.sample && (
           <Grid item>
@@ -608,113 +609,44 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             }
           />
         )}
-        <Grid container justify="center" className={classes.time}>
-          <Grid item>
-            <Grid component="label" container alignItems="center" spacing={1}>
-              <Grid item>Relative Time</Grid>
-              <Grid item>
-                <Switch
-                  checked={!relativeTime}
-                  onChange={() => {
-                    search.relativeTime = !relativeTime
-                    app.setState({ search })
-                  }}
-                />
-              </Grid>
-              <Grid item>Absolute Time</Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-        {relativeTime && (
-          <Grid
-            container
-            alignItems="center"
-            justify="space-evenly"
-            className={classes.item}
-          >
-            <Grid item>
-              <Grid component="label" container alignItems="center" spacing={1}>
-                <Grid item>Since</Grid>
-                <Grid item>
-                  <Switch
-                    checked={relativeInterpretation === "on"}
-                    disabled={
-                      relativeInterpretation === "since" &&
-                      relativePeriod === "ever"
-                    }
-                    onChange={() => {
-                      search.relativeInterpretation =
-                        relativeInterpretation === "on" ? "since" : "on"
-                      app.setState({ search })
-                    }}
-                  />
-                </Grid>
-                <Grid item>On</Grid>
-              </Grid>
-            </Grid>
-            <Grid item>
-              <TextField
-                onChange={(event) => {
-                  search.relativePeriod = event.target.value as RelativePeriod
-                  app.setState({ search })
-                }}
-                value={relativePeriod}
-                select
-              >
-                {allPeriods.map((p) => (
-                  <MenuItem
-                    key={p}
-                    value={p}
-                    dense
-                    disabled={p === "ever" && relativeInterpretation === "on"}
-                  >
-                    {p}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-          </Grid>
-        )}
-        {!relativeTime && (
-          <Grid container justify="space-between" className={classes.item}>
-            <TextField
-              id="after"
-              label="After"
-              type="date"
-              value={ymd(after)}
-              onChange={(e) => {
-                search = deepClone(search)
-                if (e.target.value) {
-                  search.after = new Date(e.target.value)
-                } else {
-                  delete search.after
-                }
-                app.setState({ search })
-              }}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-            <TextField
-              id="before"
-              label="Before"
-              type="date"
-              value={ymd(before)}
-              onChange={(e) => {
-                search = deepClone(search)
-                if (e.target.value) {
-                  search.before = new Date(e.target.value)
-                } else {
-                  delete search.before
-                }
-                app.setState({ search })
-              }}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-          </Grid>
-        )}
+        <TimeWidget
+          relativeTime={relativeTime}
+          relativePeriod={relativePeriod}
+          relativeInterpretation={relativeInterpretation}
+          after={after}
+          before={before}
+          onChangeRelativeTime={() => {
+            search.relativeTime = !relativeTime
+            app.setState({ search })
+          }}
+          onChangeRelativeInterpretation={() => {
+            search.relativeInterpretation =
+              relativeInterpretation === "on" ? "since" : "on"
+            app.setState({ search })
+          }}
+          onChangeRelativePeriod={(event) => {
+            search.relativePeriod = event.target.value as RelativePeriod
+            app.setState({ search })
+          }}
+          onChangeAfter={(e) => {
+            search = deepClone(search)
+            if (e.target.value) {
+              search.after = new Date(e.target.value)
+            } else {
+              delete search.after
+            }
+            app.setState({ search })
+          }}
+          onChangeBefore={(e) => {
+            search = deepClone(search)
+            if (e.target.value) {
+              search.before = new Date(e.target.value)
+            } else {
+              delete search.before
+            }
+            app.setState({ search })
+          }}
+        />
         <Box mt={relativeTime ? 0 : 2}>
           <Grid container spacing={1} alignContent="space-between">
             <Grid item xs={search.url ? 11 : 12}>
@@ -922,6 +854,117 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
         </div>
       </Collapse>
     </div>
+  )
+}
+
+// the bit of the search form showing time searching widgets
+// factored out of the form so that it can be included in both the form and the help text
+const TimeWidget: React.FC<{
+  relativeTime: boolean
+  onChangeRelativeTime: () => void
+  relativeInterpretation: "on" | "since"
+  relativePeriod: RelativePeriod
+  onChangeRelativeInterpretation: () => void
+  onChangeRelativePeriod: (
+    e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
+  ) => void
+  after: Date | undefined
+  before: Date | undefined
+  onChangeAfter: (
+    e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
+  ) => void
+  onChangeBefore: (
+    e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
+  ) => void
+}> = ({
+  relativeTime,
+  onChangeRelativeTime,
+  relativeInterpretation,
+  relativePeriod,
+  onChangeRelativeInterpretation,
+  onChangeRelativePeriod,
+  after,
+  before,
+  onChangeAfter,
+  onChangeBefore,
+}) => {
+  const classes = formStyles()
+  return (
+    <>
+      {" "}
+      <Grid container justify="center" className={classes.time}>
+        <Grid item>
+          <Grid component="label" container alignItems="center" spacing={1}>
+            <Grid item>Relative Time</Grid>
+            <Grid item>
+              <Switch checked={!relativeTime} onChange={onChangeRelativeTime} />
+            </Grid>
+            <Grid item>Absolute Time</Grid>
+          </Grid>
+        </Grid>
+      </Grid>
+      {relativeTime && (
+        <Grid
+          container
+          alignItems="center"
+          justify="space-evenly"
+          className={classes.item}
+        >
+          <Grid item>
+            <Grid component="label" container alignItems="center" spacing={1}>
+              <Grid item>Since</Grid>
+              <Grid item>
+                <Switch
+                  checked={relativeInterpretation === "on"}
+                  disabled={
+                    relativeInterpretation === "since" &&
+                    relativePeriod === "ever"
+                  }
+                  onChange={onChangeRelativeInterpretation}
+                />
+              </Grid>
+              <Grid item>On</Grid>
+            </Grid>
+          </Grid>
+          <Grid item>
+            <TextField
+              onChange={onChangeRelativePeriod}
+              value={relativePeriod}
+              select
+            >
+              {allPeriods.map((p) => (
+                <MenuItem
+                  key={p}
+                  value={p}
+                  dense
+                  disabled={p === "ever" && relativeInterpretation === "on"}
+                >
+                  {p}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        </Grid>
+      )}
+      {!relativeTime && (
+        <Grid container justify="space-between" className={classes.item}>
+          <TextField
+            id="after"
+            label="After"
+            type="date"
+            value={ymd(after)}
+            onChange={onChangeAfter}
+          />
+          <TextField
+            id="before"
+            label="Before"
+            type="date"
+            value={ymd(before)}
+            onChange={onChangeBefore}
+          />
+        </Grid>
+      )}
+    </>
   )
 }
 
@@ -1352,6 +1395,14 @@ function SearchDetails({ app }: { app: App }) {
       metric: (a: string, b: string) => 0,
     },
   ]
+  // some bogus stuff needed to show the time widget
+  const [after, setAfter] = useState<Date | undefined>(undefined)
+  const [before, setBefore] = useState<Date | undefined>(undefined)
+  const [relativeTime, setRelativeTime] = useState(true)
+  const [relativeInterpretation, setRelativeInterpretation] = useState<
+    "on" | "since"
+  >("since")
+  const [relativePeriod, setRelativePeriod] = useState<RelativePeriod>("ever")
   return (
     <>
       <p>The search tab allows one to find and link together notes.</p>
@@ -1541,7 +1592,7 @@ function SearchDetails({ app }: { app: App }) {
           }}
           onStrictnessChange={(e) => {
             const strictness = e.target.value as SearchStrictness
-            setShowSorter(strictness === 'similar')
+            setShowSorter(strictness === "similar")
             setSearch({ ...search, strictness })
           }}
           onPhraseChange={(e) => {
@@ -1616,19 +1667,102 @@ function SearchDetails({ app }: { app: App }) {
       <strong id="time">
         Time <LinkUp />
       </strong>
-      <p></p>
+      <Box m={2}>
+        <TimeWidget
+          after={after}
+          before={before}
+          relativeTime={relativeTime}
+          relativePeriod={relativePeriod}
+          relativeInterpretation={relativeInterpretation}
+          onChangeRelativeTime={() => setRelativeTime(!relativeTime)}
+          onChangeAfter={(e) => {
+            if (e.target.value) {
+              setAfter(new Date(e.target.value))
+            } else {
+              setAfter(undefined)
+            }
+          }}
+          onChangeRelativeInterpretation={() =>
+            setRelativeInterpretation(
+              relativeInterpretation === "on" ? "since" : "on"
+            )
+          }
+          onChangeBefore={(e) => {
+            if (e.target.value) {
+              setBefore(new Date(e.target.value))
+            } else {
+              setBefore(undefined)
+            }
+          }}
+          onChangeRelativePeriod={(e) =>
+            setRelativePeriod(e.target.value as RelativePeriod)
+          }
+        />
+      </Box>
+      <p>
+        You can search for notes based on the time you added a citation. You can
+        search either based on how recently the notes were taken relative to
+        now&mdash;&ldquo;relative time&rdquo;&mdash;or based on the precise
+        moment they were taken&mdash;&ldquo;absolute time&rdquo;.
+      </p>
       <strong id="relative">
         relative time <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        Relative time is the time relative to the moment of searching. If you
+        are searching by relative time you must search within a fixed set of
+        periods: yesterday, two days ago, within the last week, within the last
+        month, etc. If you can't find the period you want in the list you will
+        have to use an <LinkDown to="absolute">absolute time search</LinkDown>.
+      </p>
+      <p>
+        With relative time searches you also have the choice of whether you are
+        searching for something &ldquo;on&rdquo; the relative period or
+        &ldquo;since&rdquo; the period. &ldquo;Since&rdquo; is straightforward.
+        Searching for notes since yesterday is searching for notes with
+        citations added since the first second of yesterday up to now.
+        &ldquo;On&rdquo; requires some explanation. A note taken &ldquo;on
+        yesterday&rdquo; is a note with a citation added sometime between the
+        first second of yesterday and the last second of yesterday. Notes taken
+        today are not included. So an &ldquo;on&rdquo; search has an implicit
+        period in addition to the relative period you choose from the list. For
+        most relative periods this is just a day. A search for notes taken a on
+        a week ago is asking for notes taken in a period of a day where the
+        first moment of that day is a week before the first moment of today. If
+        the relative period is a month ago, though, the implicit period is a
+        week. If it's longer than a month ago, if it's a year ago, the implicit
+        period is a month.
+      </p>
+      <p>
+        The default time search is a relative search since &ldquo;ever&rdquo;.
+        This doesn't filter notes at all. Because you can't search &ldquo;on
+        ever&rdquo;, because this doesn't make sense, you can't change the
+        on&ndash;ever toggle to &ldquo;on&rdquo; as long as the period is
+        &ldquo;ever&rdquo;. Likewise, if the toggle is on &ldquo;on&rdquo; you
+        can't choose the period &ldquo;ever&rdquo;.
+      </p>
       <strong id="absolute">
         absolute time <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        Absolute time searches are searches for notes with citations added after
+        a particular date, before a particular date, or between two dates.
+      </p>
       <strong id="url">
         URL <LinkUp />
       </strong>
-      <p></p>
+      <p>
+        A URL search finds notes taken on a particular page. If you open up
+        Amanuensis with no text highlighted, instead of opening up a note to
+        edit Amanuensis will do a URL search for notes taken on the current
+        page.
+      </p>
+      <p>
+        For a URL search to match you only need the search term to be a
+        substring of a page. For instance, if you are searching for notes taken
+        on some BBC page it may suffice to put "bbc" in the URL field, since all
+        BBC pages will have "bbc" in their URL.
+      </p>
       <T id="results" variant="h6">
         Search Results <LinkUp />
       </T>
