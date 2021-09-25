@@ -99,8 +99,9 @@ function prepareCelebration(
 ) {
   const banner = pick(successStrings, Math.random)
   const colors: string[] = []
+  const theme = pick(confettiColors, Math.random)
   for (let i = 0, l = rando(20, Math.random); i < l; i++) {
-    colors.push(pick(confettiColors, Math.random))
+    colors.push(pick(theme, Math.random))
   }
   const s: FlashCardState = set ? deepClone(state) : state
   s.banner = banner
@@ -123,17 +124,34 @@ const throwConfetti = (state: FlashCardState) => {
   confettiCannon({ colors: state.colors })
 }
 
-const confettiColors: string[] = []
+// TODO add some other color palettes in here
+const confettiColors: string[][] = [
+  // 1
+  ["#2FF3E0", "#F8D210", "#F8D210", "#F8D210"],
+  ["#3D550C", "#81B622", "#ECF87F", "#59981A"],
+  ["#B7AC44", "#DF362D", "#FF8300", "#FF4500"],
+  // 2
+  ["#0A7029", "#FEDE00", "#C8DF52", "#DBE8D8"],
+  ["#F9D030", "#F62AA0", "#B8EE30", "#26DFD0"],
+  ["#26DFD0", "#43B0F1", "#057DCD", "#1E3D58"],
+]
 
 const currentCardStyles = makeStyles((theme) => {
-  confettiColors.push(theme.palette.primary.dark)
-  confettiColors.push(theme.palette.primary.dark)
-  confettiColors.push(theme.palette.primary.dark)
-  confettiColors.push(theme.palette.secondary.dark)
-  confettiColors.push(theme.palette.secondary.dark)
-  confettiColors.push(theme.palette.secondary.dark)
-  confettiColors.push(theme.palette.error.dark)
-  confettiColors.push(theme.palette.success.dark)
+  // stealing access to the theme
+  const ownColors = [
+    theme.palette.primary.dark,
+    theme.palette.primary.dark,
+    theme.palette.primary.dark,
+    theme.palette.secondary.dark,
+    theme.palette.secondary.dark,
+    theme.palette.secondary.dark,
+    theme.palette.error.dark,
+    theme.palette.success.dark,
+  ]
+  // increase the odds we get our own colosr when making confetti
+  confettiColors.push(ownColors)
+  confettiColors.push(ownColors)
+  confettiColors.push(ownColors)
   return {
     exhausted: {
       padding: theme.spacing(2),
@@ -356,9 +374,6 @@ const successStrings = [
   "Well done",
   "Congratulations",
   "Far out",
-  "Tubular",
-  "Boss",
-  "Rad",
   "Awesome",
   "Cool",
   "Ausgezeichnet",
