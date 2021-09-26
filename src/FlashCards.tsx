@@ -34,7 +34,7 @@ export type FlashCardState = {
   done: Set<string> // those cards in the stack that we are done with, either temporarily or permanently
   revealed: boolean // whether we've flipped the current card yet
   initialize: boolean // whether to init on render
-  judgement: boolean | null // the result of the last self-assessment on the current flashcard
+  judgment: boolean | null // the result of the last self-assessment on the current flashcard
   total: number // the total number of cards to flip
   which: number // the index displayed
   conceal: boolean // whether the gist and phrase are momentarily concealed
@@ -52,7 +52,7 @@ export default function FlashCards({ app }: { app: App }) {
     done: new Set(),
     revealed: false,
     initialize: true,
-    judgement: null,
+    judgment: null,
     total: 0,
     which: 0,
     conceal: false,
@@ -124,7 +124,6 @@ const throwConfetti = (state: FlashCardState) => {
   confettiCannon({ colors: state.colors })
 }
 
-// TODO add some other color palettes in here
 const confettiColors: string[][] = [
   // 1
   ["#2FF3E0", "#F8D210", "#F8D210", "#F8D210"],
@@ -160,6 +159,7 @@ const confettiColors: string[][] = [
 ]
 
 const currentCardStyles = makeStyles((theme) => {
+  console.log("adding own colors")
   // stealing access to the theme
   const ownColors = [
     theme.palette.primary.dark,
@@ -315,44 +315,108 @@ function CurrentCard({
   }
 
   return (
+    <CardWidget
+      name={s.stack?.name}
+      description={s.stack?.description}
+      project={app.switchboard.index!.reverseProjectIndex.get(note.key[0])}
+      banner={() => done(s) && <T className={classes.success}>{s.banner}!</T>}
+      which={state.which}
+      total={state.total}
+      gist={note.gist}
+      showingGist={s.showingGist}
+      phrase={canonicalCitation(note)}
+      conceal={s.conceal}
+      judgment={s.judgment} //typo
+      revealed={s.revealed}
+      doFlip={flip}
+      flipperId="flipper"
+      doBad={() => addTrial(false, note, app, s, setState)}
+      doDone={removeMe}
+      doEdit={() => app.goto(note)}
+      doNext={() => next(s, setState)}
+      doGood={good}
+      isDone={() => done(s)}
+    />
+  )
+}
+
+// factored out of above to facilitate writing the documentation
+const CardWidget: React.FC<{
+  name: string | undefined
+  description: string | null | undefined
+  project: string | undefined
+  banner: () => React.ReactNode
+  which: number
+  total: number
+  judgment: boolean | null
+  gist: string
+  showingGist: boolean
+  phrase: PhraseInContext
+  conceal: boolean
+  revealed: boolean
+  flipperId: string
+  doEdit: () => void
+  doDone: () => void
+  doBad: () => void
+  doGood: () => void
+  doFlip: () => void
+  doNext: () => void
+  isDone: () => boolean
+}> = ({
+  name,
+  description,
+  project,
+  banner,
+  which,
+  total,
+  judgment,
+  gist,
+  showingGist,
+  phrase,
+  conceal,
+  revealed,
+  flipperId,
+  doEdit,
+  doDone,
+  doBad,
+  doGood,
+  doFlip,
+  doNext,
+  isDone,
+}) => {
+  const classes = currentCardStyles()
+  return (
     <>
-      {!!s.stack?.name && (
+      {!!name && (
         <Grid container justify="center" className={classes.name}>
-          <T variant="h4">{s.stack?.name}</T>
+          <T variant="h4">{name}</T>
         </Grid>
       )}
-      {!!s.stack?.description && (
+      {!!description && (
         <Grid container justify="center" className={classes.description}>
-          <p>{s.stack.description}</p>
+          <p>{description}</p>
         </Grid>
       )}
       <Grid container className={classes.stats} justify="space-between">
+        <Grid item>{project}</Grid>
+        <Grid item>{banner()}</Grid>
         <Grid item>
-          {app.switchboard.index!.reverseProjectIndex.get(note.key[0])}
-        </Grid>
-        <Grid item>
-          {done(s) && <T className={classes.success}>{s.banner}!</T>}
-        </Grid>
-        <Grid item>
-          {state.which} of {state.total}
+          {which} of {total}
         </Grid>
       </Grid>
       <FlashCard
-        gist={note.gist}
-        showingGist={s.showingGist}
-        phrase={canonicalCitation(note)}
-        conceal={s.conceal}
-        judgment={s.judgement}
-        onClick={flip}
-        id="flipper"
+        gist={gist}
+        showingGist={showingGist}
+        phrase={phrase}
+        conceal={conceal}
+        judgment={judgment}
+        onClick={doFlip}
+        id={flipperId}
       />
       <Grid container justify="space-evenly" className={classes.icons}>
         <Grid item>
-          <Collapse in={s.revealed && !done(s)}>
-            <IconButton
-              disabled={s.judgement === false}
-              onClick={() => addTrial(false, note, app, s, setState)}
-            >
+          <Collapse in={revealed && !isDone()}>
+            <IconButton disabled={judgment === false} onClick={doBad}>
               <SentimentVeryDissatisfied
                 fontSize="large"
                 className={classes.bad}
@@ -361,23 +425,23 @@ function CurrentCard({
           </Collapse>
         </Grid>
         <Grid item>
-          <IconButton onClick={removeMe}>
+          <IconButton onClick={doDone}>
             <Done fontSize="large" className={classes.done} />
           </IconButton>
         </Grid>
         <Grid item>
-          <IconButton onClick={() => app.goto(note)}>
+          <IconButton onClick={doEdit}>
             <Edit fontSize="large" />
           </IconButton>
         </Grid>
         <Grid item>
-          <IconButton onClick={() => next(s, setState)}>
+          <IconButton onClick={doNext}>
             <ArrowForward fontSize="large" className={classes.next} />
           </IconButton>
         </Grid>
         <Grid item>
-          <Collapse in={s.revealed && !done(s)}>
-            <IconButton disabled={s.judgement === true} onClick={good}>
+          <Collapse in={revealed && !isDone()}>
+            <IconButton disabled={judgment === true} onClick={doGood}>
               <SentimentVerySatisfied
                 fontSize="large"
                 className={classes.good}
@@ -620,7 +684,7 @@ function init(
 function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
   const { done, notes } = s
   s.revealed = false
-  s.judgement = null
+  s.judgment = null
   if (done.size === notes.length) {
     s.index = -1
     setState(s)
@@ -663,19 +727,19 @@ function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
 }
 
 function addTrial(
-  judgement: boolean,
+  judgment: boolean,
   note: NoteRecord,
   app: App,
   state: FlashCardState,
   setState: (s: FlashCardState) => void
 ) {
   if (!note.trials) note.trials = []
-  if (state.judgement !== null) {
+  if (state.judgment !== null) {
     note.trials.pop()
   }
-  state.judgement = judgement
+  state.judgment = judgment
   note.trials.unshift({
-    result: judgement,
+    result: judgment,
     when: new Date(),
     type: state.showingGist ? "g" : "p",
   })
@@ -686,7 +750,7 @@ function addTrial(
     const prev = note.trials.find((t) => t.type === shownFirst)
     if (prev?.result) {
       const key = enkey(note.key)
-      if (judgement) {
+      if (judgment) {
         state.done.add(key)
       } else {
         state.done.delete(key)
