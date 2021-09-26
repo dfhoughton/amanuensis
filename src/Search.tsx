@@ -227,9 +227,9 @@ function ResultsInfo({
       }}
       doShowAll={() => {
         const s: AdHocQuery = deepClone(search)
-        s.sample = sample
-        s.sampleType = sampleType
-        s.seed = seed()
+        delete s.sample
+        delete s.sampleType
+        delete s.seed
         app.switchboard
           .index!.find(s)
           .then((results) => {
