@@ -97,7 +97,6 @@ function prepareCelebration(
   setState: (s: FlashCardState) => void,
   set: boolean = true
 ) {
-  console.log("preparing confetti cannon")
   const banner = pick(successStrings, Math.random)
   const colors: string[] = []
   const theme = pick(confettiColors, Math.random)
@@ -116,7 +115,6 @@ let confettiCannon: any
 
 const throwConfetti = (state: FlashCardState) => {
   const e = document.getElementById("confetti")
-  console.log("attaching confetti cannon to", e)
   confettiCannon = confetti.create(e, {
     resize: true,
     useWorker: true,
@@ -157,23 +155,27 @@ const confettiColors: string[][] = [
   ["#FD7924", "#57A5B8", "#E21B32", "#ECEF5B"],
   ["#FAD02C", "#E12A2A", "#469A49", "#192A29"],
 ]
+let colorsInitialized = false
 
 const currentCardStyles = makeStyles((theme) => {
-  console.log("adding own colors")
-  // stealing access to the theme
-  const ownColors = [
-    theme.palette.primary.dark,
-    theme.palette.primary.dark,
-    theme.palette.primary.dark,
-    theme.palette.secondary.dark,
-    theme.palette.secondary.dark,
-    theme.palette.secondary.dark,
-    theme.palette.error.dark,
-    theme.palette.success.dark,
-  ]
-  // we get our own colors 50% of the time
-  for (let i = 0, l = confettiColors.length; i < l; i++)
-    confettiColors.push(ownColors)
+  if (!colorsInitialized) {
+    console.log("adding own colors", confettiColors.length)
+    // stealing access to the theme
+    const ownColors = [
+      theme.palette.primary.dark,
+      theme.palette.primary.dark,
+      theme.palette.primary.dark,
+      theme.palette.secondary.dark,
+      theme.palette.secondary.dark,
+      theme.palette.secondary.dark,
+      theme.palette.error.dark,
+      theme.palette.success.dark,
+    ]
+    // we get our own colors 50% of the time
+    for (let i = 0, l = confettiColors.length; i < l; i++)
+      confettiColors.push(ownColors)
+    colorsInitialized = true
+  }
 
   return {
     exhausted: {
