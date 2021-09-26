@@ -97,6 +97,7 @@ function prepareCelebration(
   setState: (s: FlashCardState) => void,
   set: boolean = true
 ) {
+  console.log("preparing confetti cannon")
   const banner = pick(successStrings, Math.random)
   const colors: string[] = []
   const theme = pick(confettiColors, Math.random)
@@ -114,13 +115,12 @@ function prepareCelebration(
 let confettiCannon: any
 
 const throwConfetti = (state: FlashCardState) => {
-  if (!confettiCannon) {
-    const e = document.getElementById("confetti")
-    confettiCannon = confetti.create(e, {
-      resize: true,
-      useWorker: true,
-    })
-  }
+  const e = document.getElementById("confetti")
+  console.log("attaching confetti cannon to", e)
+  confettiCannon = confetti.create(e, {
+    resize: true,
+    useWorker: true,
+  })
   confettiCannon({ colors: state.colors })
 }
 
@@ -148,10 +148,10 @@ const currentCardStyles = makeStyles((theme) => {
     theme.palette.error.dark,
     theme.palette.success.dark,
   ]
-  // increase the odds we get our own colosr when making confetti
-  confettiColors.push(ownColors)
-  confettiColors.push(ownColors)
-  confettiColors.push(ownColors)
+  // we get our own colors 50% of the time
+  for (let i = 0, l = confettiColors.length; i < l; i++)
+    confettiColors.push(ownColors)
+
   return {
     exhausted: {
       padding: theme.spacing(2),
