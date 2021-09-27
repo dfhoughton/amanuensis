@@ -15,10 +15,11 @@ import {
   SentimentVeryDissatisfied,
   SentimentVerySatisfied,
 } from "@material-ui/icons"
+import { useState } from "react"
 import { useHotkeys } from "react-hotkeys-hook"
 import { App, Section } from "./App"
 import { deepClone } from "./modules/clone"
-import { AboutLink, Details } from "./modules/components"
+import { AboutLink, Details, TabLink } from "./modules/components"
 import { enkey } from "./modules/storage"
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types"
 import { canonicalCitation, notePhrase, pick, rando } from "./modules/util"
@@ -159,7 +160,6 @@ let colorsInitialized = false
 
 const currentCardStyles = makeStyles((theme) => {
   if (!colorsInitialized) {
-    console.log("adding own colors", confettiColors.length)
     // stealing access to the theme
     const ownColors = [
       theme.palette.primary.dark,
@@ -328,7 +328,7 @@ function CurrentCard({
       showingGist={s.showingGist}
       phrase={canonicalCitation(note)}
       conceal={s.conceal}
-      judgment={s.judgment} //typo
+      judgment={s.judgment}
       revealed={s.revealed}
       doFlip={flip}
       flipperId="flipper"
@@ -507,30 +507,115 @@ function NoResults({ state, app }: { state: FlashCardState; app: App }) {
   )
 }
 
+function DemoCard({ app }: { app: App }) {
+  const [judgment, setJudgment] = useState<null | boolean>(null)
+  const [revealed, setRevealed] = useState(false)
+  const hideIn = 2000
+  return (
+    <CardWidget
+      name="mammal stack"
+      description={"a stack about mammals"}
+      project="Animalia"
+      banner={() => null}
+      which={5}
+      total={15}
+      gist="a small, carnivorous mammal that likes laser pointers"
+      showingGist={true}
+      phrase={{ before: "Behold the fuzzy ", phrase: "cat", after: "." }}
+      conceal={false}
+      judgment={judgment}
+      revealed={revealed}
+      doFlip={() => {
+        const e = document.getElementById("demo-flipper")
+        if (e) {
+          e.classList.toggle("flipper")
+        }
+        setRevealed(true)
+      }}
+      flipperId="demo-flipper"
+      doBad={() => {
+        setJudgment(false)
+        app.error(
+          "If this were a real stack you would have marked this trial a failure!",
+          hideIn
+        )
+      }}
+      doDone={() => {
+        app.warn(
+          "If this were a real stack you would have removed this card from this stack and all future stacks!",
+          hideIn
+        )
+      }}
+      doEdit={() => {
+        app.success(
+          "If this were a real stack you would now be looking at the note this card is based on.",
+          hideIn
+        )
+      }}
+      doNext={() => {
+        app.success(
+          "If this were a real stack you would now be looking at the next card.",
+          hideIn
+        )
+      }}
+      doGood={() => {
+        setJudgment(true)
+        app.success(
+          "If this were a real stack you would have marked this trial a success!",
+          hideIn
+        )
+      }}
+      isDone={() => false}
+    />
+  )
+}
+
+const detailsStyles = makeStyles((theme) => ({
+  good: {
+    color: theme.palette.success.dark,
+  },
+  bad: {
+    color: theme.palette.error.dark,
+  },
+  next: {
+    color: theme.palette.primary.main,
+  },
+  done: {
+    color: theme.palette.secondary.dark,
+  },
+}))
+
 // explanation of how flashcard stacks work
 function DetailsContent({ app }: { app: App }) {
+  const classes = detailsStyles()
   return (
     <>
       <p>
-        With flashcards you can transform a search into a quiz to test your
-        knowledge. Each note found by the query is transformed into a flashcard
-        with the gist on one side and the canonical citation on the other. If
-        you move your mouse over the flash card it will flip, revealing the
-        other side.
+        With flashcards you can transform a{" "}
+        <TabLink app={app} tab="search">
+          search
+        </TabLink>{" "}
+        into a quiz to test your knowledge. Each{" "}
+        <TabLink app={app} tab="note">
+          note
+        </TabLink>{" "}
+        found by the query is transformed into a flashcard with the gist on one
+        side and the canonical citation on the other. Above the flashcard there
+        is some information about the stack. If the stack was built from a named
+        search the search name and description will be provided. For all stacks
+        the stack size and your current location in the stack will be provided.
       </p>
-      <FlashCard
-        showingGist={true}
-        phrase={{ before: "Behold the fuzzy ", phrase: "cat", after: "." }}
-        gist="a small, carnivorous mammal that likes laser pointers"
-        id="demo-flipper"
-        onClick={() => {
-          const e = document.getElementById("demo-flipper")
-          if (e) {
-            e.classList.toggle("flipper")
-          }
-        }}
-      />
-      <p>Below each flashcard are two</p>
+      <DemoCard app={app} />
+      <p>
+        To use a flashcard, look at the side shown and try to remember what the
+        other side will show. Once you've made your guess, you can click the
+        card or press &ldquo;f&rdquo; to flip it. Now two additional icon
+        buttons will appear below the card, a{" "}
+        <SentimentVerySatisfied fontSize="small" className={classes.good} /> and
+        a <SentimentVeryDissatisfied fontSize="small" className={classes.bad} />
+        . You can click these, or type &ldquo;g&rdquo; or &ldquo;b&rdquo;, to
+        rate your guess.
+      </p>
       <AboutLink app={app} />
     </>
   )
