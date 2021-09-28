@@ -471,7 +471,7 @@ const successStrings = [
   "Outstanding",
   "Llongyfarchiadau",
   "Bien fait",
-  "Kiitos",
+  "Onnea",
   "Excelente",
   "Отлично",
   "ยอดเยี่ยม",

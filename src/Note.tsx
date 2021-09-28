@@ -324,12 +324,33 @@ class Note extends React.Component<NoteProps, NoteState> {
         const key = deepClone(this.state.key)
         key[1] = pk
         this.savedState.key = key
-        this.setState({
-          key,
-          unsavedContent: false,
-          everSaved: true,
-          unsavedCitation: false,
-        })
+        this.setState(
+          {
+            key,
+            unsavedContent: false,
+            everSaved: true,
+            unsavedCitation: false,
+          },
+          () => this.reportTodaysCount()
+        )
+      })
+  }
+
+  // report how many notes have been made today
+  reportTodaysCount() {
+    this.app.switchboard.index
+      ?.find({ type: "ad hoc", relativePeriod: "today" })
+      .then((r) => {
+        let count = 0
+        switch (r.type) {
+          case "found":
+            count = 1
+            break
+          case "ambiguous":
+            count = r.matches.length
+            break
+        }
+        this.app.notify(`Notes taken today: ${count}`, "info", 1500)
       })
   }
 
@@ -1053,8 +1074,8 @@ function NoteDetails({
         the selection, this process has failed. However, you may still be able
         to find the relevant selection on the page. Amanuensis is conservative
         when it tries to identify the original selection. You may have more luck
-        with your own eyes and wits. Generally, though, Amanuensis
-        will be able to retrieve the original selection.
+        with your own eyes and wits. Generally, though, Amanuensis will be able
+        to retrieve the original selection.
       </p>
       <AboutLink app={app} />
     </>
