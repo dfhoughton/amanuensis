@@ -994,6 +994,7 @@ const TimeWidget: React.FC<{
             id="after"
             label="After"
             type="date"
+            InputLabelProps={{ shrink: true }} 
             value={ymd(after)}
             onChange={onChangeAfter}
           />
@@ -1001,6 +1002,7 @@ const TimeWidget: React.FC<{
             id="before"
             label="Before"
             type="date"
+            InputLabelProps={{ shrink: true }} 
             value={ymd(before)}
             onChange={onChangeBefore}
           />
