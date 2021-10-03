@@ -1,4 +1,4 @@
-import React, { ReactElement, SyntheticEvent } from "react"
+import React, { ReactElement } from "react"
 import Note, { NoteState } from "./Note"
 import Config from "./Config"
 import Switchboard from "./modules/switchboard"

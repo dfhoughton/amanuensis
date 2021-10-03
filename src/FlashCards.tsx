@@ -620,6 +620,7 @@ function DetailsContent({ app }: { app: App }) {
         all stacks the stack size and your current location in the stack will be
         provided.
       </p>
+      <T variant="h6">Example</T>
       <DemoCard app={app} />
       <p>
         To use a flashcard, look at the side shown and try to remember what the
@@ -628,8 +629,34 @@ function DetailsContent({ app }: { app: App }) {
         buttons will appear below the card, a{" "}
         <SentimentVerySatisfied fontSize="small" className={classes.good} /> and
         a <SentimentVeryDissatisfied fontSize="small" className={classes.bad} />
-        . You can click these, or type &ldquo;g&rdquo; or &ldquo;b&rdquo;, to
-        rate your guess.
+        . You can click these, or type &ldquo;g&rdquo; (good) or &ldquo;b&rdquo;
+        (bad), to grade your guess. If you wish to skip the card for the moment,
+        or you have made your guess and graded it, you can click{" "}
+        <ArrowForward fontSize="small" className={classes.next} />, or type
+        &ldquo;n&rdquo; (next), to go to the next card.
+      </p>
+      <p>
+        Once you've had a go at the one side of every card in the stack,
+        Amanuensis flips it and tests you on the other side. Any cards that you
+        guess successfully on both sides will be removed from the stack. You
+        continue this way, shrinking the stack with each pass. When you have had
+        success with all cards Amanuensis congratulates you.
+      </p>
+      <p>
+        The <Done fontSize="small" className={classes.done} /> icon, or pressing
+        &ldquo;d&rdquo;, allows you to mark a card as &ldquo;done&rdquo;. Mark
+        cards as done if they have nothing left to teach you or they are
+        inappropriate for a flashcard stack. Card which are done will be marked
+        with this icon in{" "}
+        <TabLink app={app} tab="search">
+          search results
+        </TabLink>
+        . You can click this icon there to remove the mark.
+      </p>
+      <p>
+        Finally, if you wish to see the note on which a card is based, you can
+        click the <Edit fontSize="small" /> icon or press &ldquo;e&rdquo;
+        (edit).
       </p>
       <AboutLink app={app} />
     </>
