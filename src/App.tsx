@@ -5,7 +5,7 @@ import Switchboard from "./modules/switchboard"
 import Projects from "./Projects"
 import Search from "./Search"
 
-import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles"
+import { createTheme, ThemeProvider } from "@material-ui/core/styles"
 import { withStyles } from "@material-ui/core/styles"
 
 import {
@@ -51,20 +51,20 @@ import FlashCards, { FlashCardState } from "./FlashCards"
 // TODO add some code to the build script to ensure this matches whatever is in public/manifest.json
 export const VERSION = "0.0.1"
 
-const theme = createMuiTheme({
+const theme = createTheme({
   palette: {
     primary: indigo,
     secondary: amber,
   },
   overrides: {
     MuiCssBaseline: {
-      '@global': {
+      "@global": {
         a: {
-          color: '#3f51b5', // the main indigo
-        }
-      }
-    }
-  }
+          color: "#3f51b5", // the main indigo
+        },
+      },
+    },
+  },
 })
 
 interface AppProps {
@@ -85,7 +85,7 @@ interface ConfirmationState {
 interface AppState {
   tab: number
   url: string | null
-  message: Message | null
+  message: Message
   history: Visit[]
   historyIndex: number
   defaultProject: number
@@ -98,6 +98,7 @@ interface AppState {
 }
 
 interface Message {
+  open: boolean
   text: string | ReactElement
   level: MessageLevels
   hideIn?: number
@@ -142,7 +143,7 @@ const styles = (theme: any) => ({
 const nullState: AppState = {
   tab: Section.note,
   url: null,
-  message: null,
+  message: { open: false, level: "info", text: "" },
   history: [],
   historyIndex: -1,
   defaultProject: 0,
@@ -188,7 +189,7 @@ export class App extends React.Component<AppProps, AppState> {
     }
     return (
       <ThemeProvider theme={theme}>
-        <CssBaseline/>
+        <CssBaseline />
         <div className={classes.root}>
           <AppBar position="sticky">
             <Tabs
@@ -232,15 +233,12 @@ export class App extends React.Component<AppProps, AppState> {
             <FlashCards app={this} />
           </TabPanel>
           <Snackbar
-            open={!!this.state.message}
-            autoHideDuration={this.state.message?.hideIn || 6000}
+            open={this.state.message.open}
+            autoHideDuration={this.state.message.hideIn || 6000}
             onClose={closeBar}
           >
-            <Alert
-              onClose={closeBar}
-              severity={this.state.message?.level || "info"}
-            >
-              {this.state.message?.text}
+            <Alert onClose={closeBar} severity={this.state.message.level}>
+              {this.state.message.text}
             </Alert>
           </Snackbar>
           <ConfirmationModal
@@ -290,7 +288,7 @@ export class App extends React.Component<AppProps, AppState> {
         console.log(level, text)
         break
     }
-    this.setState({ message: { text, level, hideIn } })
+    this.setState({ message: { text, level, hideIn, open: true } })
   }
   success(message: string | ReactElement, hideIn?: number) {
     this.notify(message, "success", hideIn)
@@ -302,7 +300,7 @@ export class App extends React.Component<AppProps, AppState> {
     this.notify(message, "warning", hideIn)
   }
   clearMessage() {
-    this.setState({ message: null })
+    this.setState({ message: { ...this.state.message, open: false } })
   }
 
   // pop open the confirmation modal

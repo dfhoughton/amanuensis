@@ -508,8 +508,11 @@ function NoResults({ state, app }: { state: FlashCardState; app: App }) {
 }
 
 function DemoCard({ app }: { app: App }) {
+  const showingGistStart = app.state.config.cards.first === "gist"
+  const [showingGist, setShowingGist] = useState(showingGistStart)
   const [judgment, setJudgment] = useState<null | boolean>(null)
   const [revealed, setRevealed] = useState(false)
+  const [conceal, setConceal] = useState(false)
   const hideIn = 2000
   return (
     <CardWidget
@@ -520,9 +523,9 @@ function DemoCard({ app }: { app: App }) {
       which={5}
       total={15}
       gist="a small, carnivorous mammal that likes laser pointers"
-      showingGist={true}
+      showingGist={showingGist}
       phrase={{ before: "Behold the fuzzy ", phrase: "cat", after: "." }}
-      conceal={false}
+      conceal={conceal}
       judgment={judgment}
       revealed={revealed}
       doFlip={() => {
@@ -553,6 +556,17 @@ function DemoCard({ app }: { app: App }) {
         )
       }}
       doNext={() => {
+        const e = document.getElementById("demo-flipper")
+        if (e && e.classList.contains("flipper")) {
+          setConceal(true)
+          setTimeout(() => {
+            setConceal(false)
+          }, 250)
+          e.classList.remove("flipper")
+        }
+        setShowingGist(showingGistStart)
+        setRevealed(false)
+        setJudgment(null)
         app.success(
           "If this were a real stack you would now be looking at the next card.",
           hideIn
@@ -602,8 +616,9 @@ function DetailsContent({ app }: { app: App }) {
         found by the query is transformed into a flashcard with the gist on one
         side and the canonical citation on the other. Above the flashcard there
         is some information about the stack. If the stack was built from a named
-        search the search name and description will be provided. For all stacks
-        the stack size and your current location in the stack will be provided.
+        search the search name and description, if any, will be provided. For
+        all stacks the stack size and your current location in the stack will be
+        provided.
       </p>
       <DemoCard app={app} />
       <p>

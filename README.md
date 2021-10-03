@@ -73,6 +73,15 @@ you must download them as JSON file and then upload that file to the other brows
 Amanuensis is free. There are no usage tiers or plans to introduce them. Though if you feel inclined to
 [give me a tip](https://www.buymeacoffee.com/dfhoughton) I won't take it amiss.
 
+## Known Problems
+
+Amanuensis consists of three pieces of code that communicate with each other:
+- code running on the page that listens for highlighting events to allow the taking of notes
+- code producing the extension itself
+- code running in the background to pass messages between the first two so the extension code can create notes on whatever's highlighted when Amanuensis is invoked
+
+For reasons I have not tracked down, the first bit, the code running on the page, sometimes stops or becomes unresponsive. This does not seem to involve an error that is logged anywhere. If you find that you open Amanuensis but Amanuensis hasn't prepared a note for you on whatever you've highlighted, you have encountered this issue. You can fix this by reloading the page.
+
 ## Acknowledgements and Confessions
 
 I have written this by myself. I've gotten and patient toleration from my family and co-workers. Also
