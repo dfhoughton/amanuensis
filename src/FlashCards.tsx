@@ -513,7 +513,7 @@ function DemoCard({ app }: { app: App }) {
   const [judgment, setJudgment] = useState<null | boolean>(null)
   const [revealed, setRevealed] = useState(false)
   const [conceal, setConceal] = useState(false)
-  const hideIn = 2000
+  const hideIn = 3000
   return (
     <CardWidget
       name="mammal stack"

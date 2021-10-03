@@ -102,6 +102,7 @@ interface Message {
   text: string | ReactElement
   level: MessageLevels
   hideIn?: number
+  interval: null | number
 }
 
 export interface Visit {
@@ -143,7 +144,7 @@ const styles = (theme: any) => ({
 const nullState: AppState = {
   tab: Section.note,
   url: null,
-  message: { open: false, level: "info", text: "" },
+  message: { open: false, level: "info", text: "", interval: null },
   history: [],
   historyIndex: -1,
   defaultProject: 0,
@@ -181,11 +182,11 @@ export class App extends React.Component<AppProps, AppState> {
   render() {
     const { classes } = this.props
 
-    const handleChange = (_event: any, newValue: number) => {
-      this.setState({ tab: newValue })
-    }
-    const closeBar = (event: SyntheticEvent<Element, Event>) => {
-      this.clearMessage()
+    const closeBar = (event: any) => {
+      //SyntheticEvent<Element, Event>
+      // hack to keep new messages running into old in an event of mutual destruction
+      // todo mui 5 apparently provides a reason argument which could be used
+      if (event === null || event._reactName) this.clearMessage()
     }
     return (
       <ThemeProvider theme={theme}>
@@ -194,7 +195,7 @@ export class App extends React.Component<AppProps, AppState> {
           <AppBar position="sticky">
             <Tabs
               value={this.state.tab}
-              onChange={handleChange}
+              onChange={(_e, tabIndex) => this.setState({ tab: tabIndex })}
               variant="fullWidth"
               aria-label="Amanuensis navigation"
             >
@@ -232,11 +233,7 @@ export class App extends React.Component<AppProps, AppState> {
           <TabPanel value={this.state.tab} index={Section.cards}>
             <FlashCards app={this} />
           </TabPanel>
-          <Snackbar
-            open={this.state.message.open}
-            autoHideDuration={this.state.message.hideIn || 6000}
-            onClose={closeBar}
-          >
+          <Snackbar open={this.state.message.open} onClose={closeBar}>
             <Alert onClose={closeBar} severity={this.state.message.level}>
               {this.state.message.text}
             </Alert>
@@ -271,7 +268,7 @@ export class App extends React.Component<AppProps, AppState> {
   notify(
     text: string | ReactElement,
     level: MessageLevels = "info",
-    hideIn?: number
+    hideIn?: number // 0 will prevent any timeout
   ) {
     text ??= "strangely, no error was received"
     switch (level) {
@@ -288,7 +285,15 @@ export class App extends React.Component<AppProps, AppState> {
         console.log(level, text)
         break
     }
-    this.setState({ message: { text, level, hideIn, open: true } })
+    if (hideIn === undefined) hideIn = 6000
+    let interval = null
+    if (this.state.message.interval) {
+      clearInterval(this.state.message.interval)
+    }
+    if (hideIn) {
+      interval = window.setTimeout(() => this.clearMessage(), hideIn)
+    }
+    this.setState({ message: { text, level, hideIn, interval, open: true } })
   }
   success(message: string | ReactElement, hideIn?: number) {
     this.notify(message, "success", hideIn)
