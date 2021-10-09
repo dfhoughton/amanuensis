@@ -59,7 +59,7 @@ I'll update this when I've uploaded this to the Chrome extension store.
 ## Technology
 
 Amanuensis is written in Typescript using React and Material-UI. Aside from
-[canvas-confetti](https://www.npmjs.com/package/canvas-confetti/v/1.0.0) it has few dependencies.
+[canvas-confetti](https://www.npmjs.com/package/canvas-confetti/v/1.0.0) it has no other dependencies.
 
 ## Privacy and Security
 
@@ -70,7 +70,7 @@ you must download them as JSON file and then upload that file to the other brows
 
 ## Cost
 
-Amanuensis is free. There are no usage tiers or plans to introduce them. Though if you feel inclined to
+Amanuensis is free! There are no usage tiers or plans to introduce them. Though if you feel inclined to
 [give me a tip](https://www.buymeacoffee.com/dfhoughton) I won't take it amiss.
 
 ## Known Problems
@@ -84,9 +84,9 @@ For reasons I have not tracked down, the first bit, the code running on the page
 
 ## Acknowledgements and Confessions
 
-I have written this by myself. I've gotten and patient toleration from my family and co-workers. Also
+I have written this by myself. I've gotten patience and toleration from my family and co-workers. Also
 - My son Jude has worked on making this extension function in Firefox.
 - My daughter Ada created the writing quill icon and approved my color choices.
 
 This is the first significant piece of work I've done in React and Typescript. Undoubtedly some of it could
-be done better. If time allows it will eventually be done better.
+be done better. It eventually will be done better.
