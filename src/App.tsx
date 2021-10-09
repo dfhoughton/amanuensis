@@ -295,6 +295,9 @@ export class App extends React.Component<AppProps, AppState> {
     }
     this.setState({ message: { text, level, hideIn, interval, open: true } })
   }
+  info(message: string | ReactElement, hideIn?: number) {
+    this.notify(message, "info", hideIn)
+  }
   success(message: string | ReactElement, hideIn?: number) {
     this.notify(message, "success", hideIn)
   }

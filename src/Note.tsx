@@ -350,7 +350,7 @@ class Note extends React.Component<NoteProps, NoteState> {
             count = r.matches.length
             break
         }
-        this.app.notify(`Notes taken today: ${count}`, "info", 1500)
+        this.app.info(`Notes taken today: ${count}`)
       })
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "Amanuensis",
-  "description": "Takes notes on page contents.",
+  "description": "Take notes on page contents. Quiz yourself on these notes later.",
   "version": "0.0.1",
   "icons": {
     "512": "logo512.png"
