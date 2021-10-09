@@ -967,6 +967,7 @@ function NoteDetails({
           multiple
           freeSolo
           autoComplete
+          size="small"
           renderInput={(params) => (
             <TextField {...params} label="Tags" placeholder="category" />
           )}

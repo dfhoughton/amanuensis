@@ -586,6 +586,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             value={project}
             multiple
             autoComplete
+            size="small"
             getOptionLabel={(option) =>
               app.switchboard.index!.reverseProjectIndex.get(option) ||
               "default"
@@ -627,6 +628,7 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
             value={tagRequired || []}
             multiple
             autoComplete
+            size="small"
             renderInput={(params) => (
               <TextField {...params} label="Tags" placeholder="tag" />
             )}
