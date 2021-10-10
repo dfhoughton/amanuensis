@@ -10,6 +10,12 @@
       NOTE: the title below must be kept in sync with projectName in App.tsx
     -->
     <title>Amanuensis</title>
+    <style type="text/css">
+      /* hack until we switch to mui 5 */
+      .MuiAutocomplete-listbox > .MuiAutocomplete-option {
+        min-height: initial !important;
+      }
+    </style>
   </head>
   <body style="margin:0;">
     <div id="root"></div>
