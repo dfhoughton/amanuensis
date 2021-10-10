@@ -34,10 +34,6 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://*/*",
-        "http://*/*"
-      ],
       "js": [
         "content.js"
       ],

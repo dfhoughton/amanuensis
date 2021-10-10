@@ -1,0 +1,11 @@
+Amanuensis is a browser extension to facilitate taking notes on web pages. It was originally conceived as a language learning aid, but really it is suitable for any sort of note. You see something on a web page. You highlight it and press a keyboard command, alt/option-a (⌥a). You take a note. You return to your reading.
+
+The first guiding idea behind Amanuensis is that the biggest hurdle to acquiring fluency in a new language is not grammar or pronunciation but the acquisition of vocabulary. A language has tens of thousands of words. Getting them all in your head can be a chore.
+
+The second guiding idea behind Amanuensis is that we learn words not just as strings of characters with meanings but as inhabitants of neighborhoods of words, neighborhoods with cultures and histories. "Sirrah" is from Shakespeare's neighborhood of words. "Cardiac" is from the healthcare neighborhood. "Jazz" lives with musicians near the neighborhood of "ragtime".
+
+I designed Amanuensis to help you (me, really, but I'm sharing) capture the context in which you see a new word: the time, the place, the words around it. It does this quickly with little effort on your part. You can return to these words and then return to the places you saw them. If you find yourself taking a note on the same word twice, that's a clue that this is one you should put a little effort into. When it suits you, hopefully at regular intervals, you can drill yourself on what you've gathered, and maybe seeing these contexts again will help you learn the words faster and with a better feeling for their nuance.
+
+I find it convenient to use Amanuensis together with a contextual translator such as the Google translation extension.
+
+Amanuensis is open source and free. Further documentation can be found at https://github.com/dfhoughton/amanuensis#readme. The complete documentation is in the extension itself.
