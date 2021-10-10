@@ -18,7 +18,7 @@
   - they should be doing this already; maybe this is a mui 4 vs 5 thing?
 - [ ] convert to mui 5
    - [ ] remove the style hack in index.html
-- [ ] make text in citation widget non-expando
+- [x] make text in citation widget non-expando
 - [ ] switch to manifest v3
 - [ ] consider ways to make the search form more compact and hide more noise
    - advanced search button

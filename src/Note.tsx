@@ -1503,30 +1503,6 @@ function Citations({ note }: { note: Note }) {
   )
 }
 
-const citationsStyles = makeStyles((theme) => ({
-  cell: {
-    fontSize: "smaller",
-  },
-  first: {
-    fontWeight: "bold",
-    cursor: "pointer",
-  },
-  current: {
-    fontWeight: "bold",
-    backgroundColor: theme.palette.secondary.light,
-  },
-  repeat: {
-    color: theme.palette.grey[500],
-    cursor: "pointer",
-  },
-  date: {
-    color: theme.palette.grey[500],
-  },
-  remover: {
-    cursor: "pointer",
-  },
-}))
-
 function Cite({ note, i, c }: { note: Note; i: number; c: CitationRecord }) {
   const current = i === note.state.citationIndex
   let cz: "repeat" | "first" | "current" = "first"
@@ -1573,6 +1549,35 @@ function Cite({ note, i, c }: { note: Note; i: number; c: CitationRecord }) {
   )
 }
 
+const citationsStyles = makeStyles((theme) => ({
+  cell: {
+    fontSize: "smaller",
+  },
+  cite: {
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+    overflow: "hidden",
+    minWidth: 0,
+  },
+  first: {
+    cursor: "pointer",
+  },
+  current: {
+    fontWeight: "bold",
+    backgroundColor: theme.palette.secondary.light,
+  },
+  repeat: {
+    color: theme.palette.grey[500],
+    cursor: "pointer",
+  },
+  date: {
+    color: theme.palette.grey[500],
+  },
+  remover: {
+    cursor: "pointer",
+  },
+}))
+
 type CitationProps = {
   starred: boolean
   phrase: string
@@ -1605,18 +1610,18 @@ function Citation({
   return (
     <Grid container spacing={1} key={key}>
       <Grid item xs={2} className={classes[cz]} onClick={phraseCallback}>
-        <Expando text={phrase} id={`${key}-phrase`} className={classes.cell} />
+        <span className={`${classes.cell} ${classes.cite}`}>{phrase}</span>
       </Grid>
       <Grid item xs={3}>
-        <Expando text={title} id={`${key}-phrase`} className={classes.cell} />
+        <Expando text={title} id={`${key}-title`} className={classes.cell} />
       </Grid>
       <Grid item xs={onlyCitation ? 5 : 3}>
-        <Expando text={url} id={`${key}-phrase`} className={classes.cell} />
+        <Expando text={url} id={`${key}-url`} className={classes.cell} />
       </Grid>
       <Grid item xs={2} className={classes.date}>
         <Expando
           text={formatDates(when)}
-          id={`${key}-phrase`}
+          id={`${key}-date`}
           className={classes.cell}
         />
       </Grid>
