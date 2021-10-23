@@ -92,12 +92,24 @@ export class Index {
     this.compressor = compressor
     this.decompressor = {}
     for (const [k, v] of Object.entries(compressor)) this.decompressor[v] = k
+    this.sanityCheck()
+    this.reverseProjectIndex = new Map()
+    this.projects.forEach((value, key) =>
+      this.reverseProjectIndex.set(value.pk, key)
+    )
+    this.cache = new Map()
+  }
+
+  // some initialization that will only be necessary if the local storage
+  // is absent
+  sanityCheck() {
     if (this.projectIndices.size === 0) {
-      // add the default project
       const project = makeDefaultProject()
       this.projects.set(project.name, project)
       this.projectIndices.set(project.pk, new Map())
-      const storable = { projects: this.projects }
+      const lev: Sorter = makeDefaultSorter()
+      this.sorters.set(lev.pk, lev)
+      const storable = { projects: this.projects, sorters: this.sorters }
       this.chrome.storage.local.set(
         serialize(storable, this.compressor, true),
         () => {
@@ -111,15 +123,6 @@ export class Index {
         }
       )
     }
-    if (this.sorters.size === 0) {
-      const lev: Sorter = makeDefaultSorter()
-      sorters.set(lev.pk, lev)
-    }
-    this.reverseProjectIndex = new Map()
-    this.projects.forEach((value, key) =>
-      this.reverseProjectIndex.set(value.pk, key)
-    )
-    this.cache = new Map()
   }
 
   // store any new keys added to the compressor
@@ -1998,10 +2001,6 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                       Number.parseInt(idx),
                       deserialize(ridx, decompressor)
                     )
-                  }
-                  // make sure the default project index is present
-                  if (projectIndices.get(0) == null) {
-                    projectIndices.set(0, new Map())
                   }
                   resolve(
                     new Index({
