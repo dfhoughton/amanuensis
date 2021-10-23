@@ -49,6 +49,7 @@ import {
   LinkDown,
   LinkUp,
   Mark,
+  ProcrusteanBed,
   TabLink,
   TT,
 } from "./modules/components"
@@ -1553,12 +1554,6 @@ const citationsStyles = makeStyles((theme) => ({
   cell: {
     fontSize: "smaller",
   },
-  cite: {
-    whiteSpace: "nowrap",
-    textOverflow: "ellipsis",
-    overflow: "hidden",
-    minWidth: 0,
-  },
   first: {
     cursor: "pointer",
   },
@@ -1610,7 +1605,7 @@ function Citation({
   return (
     <Grid container spacing={1} key={key}>
       <Grid item xs={2} className={classes[cz]} onClick={phraseCallback}>
-        <span className={`${classes.cell} ${classes.cite}`}>{phrase}</span>
+        <ProcrusteanBed className={classes.cell}>{phrase}</ProcrusteanBed>
       </Grid>
       <Grid item xs={3}>
         <Expando text={title} id={`${key}-title`} className={classes.cell} />

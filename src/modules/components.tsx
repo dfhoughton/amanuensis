@@ -191,6 +191,20 @@ export function Expando({ text, id, className }: ExpandoOpts) {
   )
 }
 
+// provides the ellipsis and other stylings of an Expando without the expansion
+export const ProcrusteanBed: React.FC<{
+  className?: string
+  children: React.ReactNode
+}> = ({ className, children }) => {
+  const classes = expandoStyles()
+  const cz = className ? `${className} ${classes.root}` : classes.root
+  return (
+    <span className={cz}>
+      <span className={classes.item}>{children}</span>
+    </span>
+  )
+}
+
 // a general way to format a sequence of timestamps
 export function formatDates(dates: Date[]): string | React.ReactElement {
   let ar = uniq(dates.map((d) => ymd(d) || "")).sort()

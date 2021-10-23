@@ -1,11 +1,21 @@
 # Things I should get around to
 
+This list is in addition to github issues. I started it because I found it was convenient to have a list I could
+edit alongside the code. My editor was more at my fingertips than the github repo.
+
+These are listed in the order they occurred to me, not in order of importance. I may eliminate checked off items
+entirely at some point. There is no guarantee that this is a permanent list of things I've considered doing.
+
 - [ ] make it possible to hide portions of the automatically selected text when it is too long (I'm looking at you, German magazines).
 - [ ] add internationalization (tough because of the intermixed style)
   - create per-locale functions to return help text?
 - [x] make the note tag suggestions smaller
   - this seems to be a bit busted in mui v4; have installed a temporary hack in index.html (see below)
 - [ ] convert the React code to a more standard style
+  - [ ] use `Record` instead of `{[key: string]: whatever}`
+  - [ ] see if we can convert some `any`s to `unkown`s
+  - [ ] maybe convert a few more functions to `React.FC`
+  - [ ] maybe sprinkle in some `Readonly` to functions that shouldn't mutate their arguments
 - [ ] figure out what is happening when selections aren't registered and you need to reload the page
 - [ ] make hot keys configurable
 - [ ] make the default citation for a note *the last one seen*, not the first
@@ -24,3 +34,10 @@
    - advanced search button
    - fix the sorter stuff somehow
    - expand width of extension (don't like this aesthetically)
+- [ ] if you do a second search and click the present the second search doesn't replace the current search
+- [x] fix overflow of citations -- see *cynaliadwyedd*
+- Search
+   -  add booleans
+      - [ ] multiple citations
+      - [ ] any relations
+   - [ ] preserve page in search state
