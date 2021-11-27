@@ -41,3 +41,9 @@ entirely at some point. There is no guarantee that this is a permanent list of t
       - [ ] multiple citations
       - [ ] any relations
    - [ ] preserve page in search state
+- [ ] fix the date math in search so it handles things like daylight savings time
+- [ ] figure out why we're getting "description" instead of "mutation" in the entry for *llwm*
+- [ ] plug never type check into all descriminated union switches
+- [ ] add hint feature to flashcards; if there are tags, you get a hint button; if you click it, it shows you the tags
+- [ ] add indication in flashcards that the note has links
+- [ ] if you run a new search and press the stack link you should get the stack
