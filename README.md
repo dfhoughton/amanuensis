@@ -60,7 +60,9 @@ On the note tab itself, for reasons of space, an "i" in a bubble is used instead
 
 ## Installation
 
-I'll update this when I've uploaded this to the Chrome extension store.
+There are two ways:
+1. If you just want to install the extension, go to https://chrome.google.com/webstore/search/amanuensis
+2. If you want to contribute to the extension, or you want the bleeding edge version (full disclosure, there are pauses in development, so the published version is not so different from the development version), you can check out this repository, run the build script, switch your browser's extension state to development, and install the unpacked `dist` directory that the build script produces. I myself am developing this in VS Code, which shows me a list of NPM scripts. I click "build" and it builds the extension for me. The script it runs is in `script/build.sh`. This is defined as the build script in `package.json`.
 
 ## Technology
 
