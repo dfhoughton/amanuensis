@@ -1195,10 +1195,10 @@ export class Index {
                       `could not obtain some objects whose relations needed to be modified after the deletion of "${phrase}" from project ${project.name}: ${this.chrome.runtime.lastError}`
                     )
                   } else {
-                    for (let [key, note] of found) {
+                    for (let [key, note] of Object.entries(found)) {
                       note = deserialize(note, this.decompressor)
                       const [end, pair] = sought[key]
-                      removeRelation(end, pair, note)
+                      removeRelation(end, pair, note as unknown as NoteRecord)
                     }
                     continuation3()
                   }
@@ -1539,7 +1539,7 @@ export class Index {
     normalizer = "",
     sorter = 0,
     relations = [["see also", "see also"]],
-  }: ProjectInfo): Promise<number> {
+  }: Partial<ProjectInfo> & { name: string }): Promise<number> {
     return new Promise((resolve, reject) => {
       // whitespace normalization
       name = name.replace(/^\s+|\s+$/g, "").replace(/\s+/, " ")
@@ -1957,7 +1957,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
       } else {
         const { compressor = {} } = result
         const decompressor: { [key: string]: string } = {}
-        for (const [k, v] of Object.entries(compressor))
+        for (const [k, v] of Object.entries(compressor as Object))
           decompressor[v as string] = k
         chrome.storage.local.get(
           [
@@ -2013,7 +2013,7 @@ export function getIndex(chrome: Chrome): Promise<Index> {
                       currentSorter,
                       stacks,
                       config,
-                      compressor,
+                      compressor: compressor as unknown as any,
                     })
                   )
                 }

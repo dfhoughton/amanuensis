@@ -119,7 +119,9 @@ class Projects extends React.Component<ProjectProps, ProjectState> {
   alterProject() {
     const action = this.state.action
     if (action === "cloning" || action === "editing") {
-      const proj = deepClone(this.state.modifying) || {}
+      const proj: Partial<ProjectInfo> & { name: string } = deepClone(
+        this.state.modifying
+      ) || { name: "ad hoc" }
       delete proj.pk
       this.props.app.switchboard
         .index!.saveProject(proj)
@@ -373,7 +375,7 @@ function ChangeModal({ proj, app }: { proj: Projects; app: App }) {
                 disabled={disableNormalizerChange}
                 onChange={(event) => {
                   const modifying = deepClone(mod)
-                  modifying.normalizer = event.target.value
+                  modifying.normalizer = event.target.value as string
                   proj.setState({ modifying })
                 }}
               >
@@ -608,16 +610,16 @@ function ProjectDetails({ app }: { app: App }) {
           project will begin with no notes.
         </p>
         <p>
-          Amanuensis always has a default project. This is the project that
-          a new note will be created in unless you say otherwise. If you do
-          say otherwise the default project will be whatever you choose. You
-          may also set the default project by click a project's star in this
-          tab. The project with a golden start is the current default.
+          Amanuensis always has a default project. This is the project that a
+          new note will be created in unless you say otherwise. If you do say
+          otherwise the default project will be whatever you choose. You may
+          also set the default project by click a project's star in this tab.
+          The project with a golden start is the current default.
         </p>
         <p>
-          There is one project, the nameless project, that cannot be modified
-          or deleted. This is the only project that Amanuensis starts with
-          and may be the only project you need.
+          There is one project, the nameless project, that cannot be modified or
+          deleted. This is the only project that Amanuensis starts with and may
+          be the only project you need.
         </p>
         <h3 id="normalizer">
           Normalizer <LinkUp />

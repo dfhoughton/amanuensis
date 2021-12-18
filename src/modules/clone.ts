@@ -5,39 +5,36 @@ Some utility functions for cloning state and diffing state
 // make a deep copy of an object, possibly nullifying certain object keys at whatever depth they might appear
 // this is meant for cloning the sorts of things that can be stored in chrome.storage.local
 // this should handle all types that serialization covers
-export function deepClone(obj: any, ...except: string[]): any {
+export function deepClone<T>(obj: T, ...except: string[]): T {
   if (typeof obj === "object") {
-    if (obj == null) {
-      return null
+    if (obj === null) {
+      return null!
     }
-    if (obj.getTime) {
-      return new Date(obj.getTime())
-    } else if (Array.isArray(obj)) {
-      const rv: any[] = obj.slice()
-      for (let i = 0; i < rv.length; i++) {
-        rv[i] = deepClone(rv[i], ...except)
-      }
-      return rv
-    } else if (obj instanceof Set) {
+    if (obj instanceof Date) {
+      return new Date(obj.getTime()) as unknown as T
+    }
+    if (Array.isArray(obj)) {
+      return obj.map((v) => deepClone(v, ...except)) as unknown as T
+    }
+    if (obj instanceof Set) {
       const rv = new Set()
       obj.forEach((k, _v, _s) => rv.add(deepClone(k, ...except)))
-      return rv
-    } else if (obj instanceof Map) {
+      return rv as unknown as T
+    }
+    if (obj instanceof Map) {
       const rv = new Map()
       obj.forEach((v, k, _m) => rv.set(k, deepClone(v, ...except)))
-      return rv
-    } else {
-      const rv: { [key: string]: any } = {}
-      for (const [k, v] of Object.entries(obj)) {
-        if (except.indexOf(k) === -1) {
-          rv[k] = deepClone(v, ...except)
-        }
-      }
-      return rv
+      return rv as unknown as T
     }
-  } else {
-    return obj
+    const rv: { [key: string]: any } = {}
+    for (const [k, v] of Object.entries(obj)) {
+      if (except.indexOf(k) === -1) {
+        rv[k] = deepClone(v, ...except)
+      }
+    }
+    return rv as unknown as T
   }
+  return obj
 }
 
 // to find whether there has been any change since the last save, possibly ignoring certain object keys at whatever depth they might appear

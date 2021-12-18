@@ -47,3 +47,4 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] add hint feature to flashcards; if there are tags, you get a hint button; if you click it, it shows you the tags
 - [ ] add indication in flashcards that the note has links
 - [ ] if you run a new search and press the stack link you should get the stack
+- [ ] fix linkage issue -- see llwyn/lwyni

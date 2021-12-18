@@ -38,6 +38,7 @@ import {
   Query,
   PhraseInContext,
   AdHocQuery,
+  Chromeable,
 } from "./modules/types"
 import { debounce, notePhrase, nws, sameNote } from "./modules/util"
 import {
@@ -113,7 +114,10 @@ class Note extends React.Component<NoteProps, NoteState> {
   // bring a citation into focus
   focus() {
     this.focusing = this.currentCitation()
-    this.app.switchboard.send({ action: "goto", citation: this.focusing })
+    this.app.switchboard.send({
+      action: "goto",
+      citation: this.focusing as unknown as Chromeable,
+    })
   }
 
   componentDidMount() {
@@ -244,7 +248,10 @@ class Note extends React.Component<NoteProps, NoteState> {
     const citation = this.currentCitation()
     if (citation?.source.url === url) {
       this.focusing = null
-      this.app.switchboard.send({ action: "select", selection: citation })
+      this.app.switchboard.send({
+        action: "select",
+        selection: citation as unknown as Chromeable,
+      })
     }
   }
 

@@ -106,7 +106,7 @@ function Params({ config }: { config: Config }) {
   const [firstInfo, setFirstInfo] = useState<boolean>(false)
   const [secondInfo, setSecondInfo] = useState<boolean>(false)
   const classes = paramStyles()
-  const configError = (e: any) =>
+  const configError = (e: unknown) =>
     config.app.error(`could not save configuration change: ${e}`)
   return (
     <TitleBox title="Parameters" mt={3}>

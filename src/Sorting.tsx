@@ -119,7 +119,7 @@ function Sorting({ app }: SortingProps) {
             error={!!nameError}
             helperText={nameError}
             onChange={(e) => {
-              const es: Sorter = deepClone(editedSort)
+              const es: Sorter = deepClone(editedSort!)
               es.name = e.target.value
               setEditedSort(es)
             }}
@@ -130,7 +130,7 @@ function Sorting({ app }: SortingProps) {
             className={classes.text}
             value={editedSort?.description || undefined}
             onChange={(e) => {
-              const es: Sorter = deepClone(editedSort)
+              const es: Sorter = deepClone(editedSort!)
               es.description = e.target.value
               setEditedSort(es)
             }}
@@ -144,7 +144,7 @@ function Sorting({ app }: SortingProps) {
                 InputProps={{ inputProps: { min: 0, step: 1 } }}
                 value={editedSort?.prefix || 0}
                 onChange={(e) => {
-                  const es: Sorter = deepClone(editedSort)
+                  const es: Sorter = deepClone(editedSort!)
                   const prefix = e.target.value
                     ? Number.parseInt(e.target.value)
                     : 0
@@ -161,7 +161,7 @@ function Sorting({ app }: SortingProps) {
                 InputProps={{ inputProps: { min: 0, step: 1 } }}
                 value={editedSort?.suffix || 0}
                 onChange={(e) => {
-                  const es: Sorter = deepClone(editedSort)
+                  const es: Sorter = deepClone(editedSort!)
                   const suffix = e.target.value
                     ? Number.parseInt(e.target.value)
                     : 0
@@ -176,7 +176,7 @@ function Sorting({ app }: SortingProps) {
             className={classes.text}
             value={editedSort?.insertables || ""}
             onChange={(e) => {
-              const es: Sorter = deepClone(editedSort)
+              const es: Sorter = deepClone(editedSort!)
               es.insertables = e.target.value
               setEditedSort(es)
             }}
@@ -185,7 +185,7 @@ function Sorting({ app }: SortingProps) {
             value={editedSort?.similars || []}
             options={editedSort?.similars || []}
             onChange={(_event, choices) => {
-              const es: Sorter = deepClone(editedSort)
+              const es: Sorter = deepClone(editedSort!)
               es.similars = choices
               setEditedSort(es)
             }}

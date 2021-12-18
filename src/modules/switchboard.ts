@@ -53,7 +53,7 @@ export default class Switchboard {
   mounted(): Promise<void> {
     this.port = this.chrome.runtime.connect({ name: "popup" })
     this.port.onMessage.addListener((msg) => {
-      let handlers = this.actions[msg.action]
+      let handlers = this.actions[msg.action as string]
       if (handlers) {
         for (const handler of Object.values(handlers)) {
           handler(msg)

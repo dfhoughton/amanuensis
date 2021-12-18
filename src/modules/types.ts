@@ -85,8 +85,18 @@ export interface Normalizer {
   code: (phrase: string) => string
 }
 
+// the types of things chrome.storage.local can store
+export type Chromeable =
+  | string
+  | number
+  | boolean
+  | null
+  | Date
+  | RegExp
+  | Chromeable[]
+  | { [key: string]: Chromeable }
 // the sort of string-keyed object typically given as a parameter to chrome extension API methods
-export type Payload = { [key: string]: any }
+export type Payload = Record<string, Chromeable>
 
 // a port for communication over the chrome extension API
 export interface Port {
@@ -100,7 +110,7 @@ export interface Port {
 export interface Chrome {
   storage: {
     local: {
-      get: (key: string[], callback: (arg: any) => void) => void
+      get: (key: string[], callback: (arg: Payload) => void) => void
       set: (vals: Payload, callback?: () => void) => void
       clear: (callback?: () => void) => void
       getBytesInUse: (arg: null, callback: (bytes: number) => void) => void
