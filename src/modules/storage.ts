@@ -27,7 +27,9 @@ import {
   none,
   notePhrase,
   rng,
+  sameKey,
   sample,
+  uniq,
 } from "./util"
 
 type FindResponse =
@@ -38,6 +40,11 @@ type FindResponse =
 // how to take a KeyPair and make a local storage/cache key
 export function enkey(key: KeyPair): string {
   return `${key[0]}:${key[1]}`
+}
+
+// and how to go the other way
+export function toKeyPair(key: string): KeyPair {
+  return key.split(":").map((s) => Number.parseInt(s)) as KeyPair
 }
 
 type IndexConstructorParams = {
@@ -98,6 +105,7 @@ export class Index {
       this.reverseProjectIndex.set(value.pk, key)
     )
     this.cache = new Map()
+    this.heal()
   }
 
   // some initialization that will only be necessary if the local storage
@@ -123,6 +131,168 @@ export class Index {
         }
       )
     }
+  }
+
+  // look for and fix broken things
+  async heal() {
+    this.fixLinks()
+  }
+
+  // fix things related to key pairs and linking
+  async fixLinks() {
+    this.scan((kp, n) => {
+      const changes: string[] = []
+      const phrase = notePhrase(n)
+      const [project] = this.findProject(n.key[0])
+      if (!sameKey(kp, n.key)) {
+        changes.push(
+          `fixed keypair of "${phrase}" in "${project}"; changed from ${enkey(
+            n.key
+          )} to ${enkey(kp)}`
+        )
+        n.key = kp
+      }
+      if (Object.keys(n.relations).length > 0) {
+        Object.entries(n.relations).forEach(([id, pairs]) => {
+          const other = this.reverseRelation(n.key[0], id)
+          if (other === null) {
+            changes.push(
+              `could not find counterpart of relation "${id}" for "${phrase}" in project ${project}; removed`
+            )
+            delete n.relations[id]
+          } else {
+            if (pairs.length) {
+              // remove duplicates
+              const counts: Record<string, number> = {}
+              for (const pair of pairs) {
+                const k = enkey(pair)
+                if (counts[k]) {
+                  changes.push(
+                    `removed duplicates of relation "${id}" for "${phrase}" in project ${project}`
+                  )
+                  n.relations[id] = uniq(n.relations[id]!, (kp) => enkey(kp))
+                  break
+                } else {
+                  counts[k] = 1
+                }
+              }
+              // make sure counterparts are also linked
+              for (const pair of pairs) {
+                const [otherProject] = this.findProject(pair[0])
+                this.fetch(pair)
+                  .catch((e) => {
+                    console.error(
+                      `could not fetch ${enkey(
+                        pair
+                      )} for "${phrase}" and relation "${id}" in ${otherProject}`,
+                      e
+                    )
+                  })
+                  .then((otherNote) => {
+                    if (otherNote) {
+                      const otherPhrase = notePhrase(otherNote)
+                      const otherRelations = otherNote.relations[other]
+                      let changed = false
+                      if (otherRelations) {
+                        if (
+                          !otherRelations.some((kp, _i, _ar) =>
+                            sameKey(kp, n.key)
+                          )
+                        ) {
+                          changed = true
+                          otherRelations.push(n.key)
+                        }
+                      } else {
+                        changed = true
+                        otherNote.relations[other] = [n.key]
+                      }
+                      if (changed) {
+                        this.save(otherNote)
+                          .catch((e) => {
+                            console.error(
+                              `could not save "${otherPhrase}" in ${otherProject}`,
+                              e
+                            )
+                          })
+                          .then(() =>
+                            console.log(
+                              `saved "${otherPhrase}" in ${otherProject}`
+                            )
+                          )
+                      }
+                    } else {
+                      console.error(
+                        `could not find ${enkey(
+                          pair
+                        )} for "${phrase}" and relation "${id}" in ${otherProject}; will attempt removal`
+                      )
+                      // because this is all asynchronous, we must refetch note and remove bad link
+                      const msg = `attempt to fetch ${enkey(
+                        n.key
+                      )} to remove key ${enkey(
+                        pair
+                      )} from relation "${id}" in "${phrase}" in project ${project} failed`
+                      this.fetch(n.key)
+                        .catch((e) => console.error(msg, e))
+                        .then((n) => {
+                          if (n) {
+                            const relations = n.relations[id].filter(
+                              (k) => !sameKey(pair, k)
+                            )
+                            if (relations.length > 0) {
+                              n.relations[id] = relations
+                            } else {
+                              delete n.relations[id]
+                            }
+                            this.save(n)
+                              .catch((e) =>
+                                console.error(
+                                  `failed to save "${phrase}" in project ${project} after removing spurious link ${enkey(
+                                    pair
+                                  )}, relation "${id}"`,
+                                  e
+                                )
+                              )
+                              .then(() => {
+                                console.log(
+                                  `saved "${phrase}" in project ${project} after removing spurious link ${enkey(
+                                    pair
+                                  )}, relation "${id}"`
+                                )
+                              })
+                          } else {
+                            console.error(msg)
+                          }
+                        })
+                    }
+                  })
+              }
+            } else {
+              // remove unused relation
+              changes.push(
+                `removed empty relation "${id}" from "${phrase}" in project ${project}`
+              )
+              delete n.relations[id]
+            }
+          }
+        })
+      }
+      //here
+      if (changes.length) {
+        this.save(n)
+          .catch((e) =>
+            console.error(
+              `could not save "${phrase}" in project ${project} when attempting to remove empty relations`,
+              e
+            )
+          )
+          .then(() => {
+            for (const c of changes) {
+              console.log(c)
+            }
+          })
+      }
+    })
   }
 
   // store any new keys added to the compressor
@@ -308,6 +478,27 @@ export class Index {
           }
         })
       }
+    })
+  }
+
+  // convenience method for getting the NoteRecord corresponding to a KeyPair
+  async fetch(phrase: KeyPair): Promise<NoteRecord> {
+    return new Promise((resolve, reject) => {
+      const id = enkey(phrase)
+      this.chrome.storage.local.get([id], (found) => {
+        if (this.chrome.runtime.lastError) {
+          reject(this.chrome.runtime.lastError)
+        } else {
+          const obj = found[id]
+          if (obj) {
+            resolve(
+              deserialize(obj, this.decompressor) as unknown as NoteRecord
+            )
+          } else {
+            reject(`could not find note for keypair ${id}`)
+          }
+        }
+      })
     })
   }
 
@@ -548,7 +739,7 @@ export class Index {
             }
             return true
           }
-          this.scan((note) => {
+          this.scan((_kp, note) => {
             if (test(note)) candidates.push(note)
           })
             .then(() => {
@@ -674,7 +865,7 @@ export class Index {
   resetTags(): Promise<void> {
     this.tags.clear()
     return new Promise((resolve, reject) => {
-      this.scan((note) => {
+      this.scan((_kp, note) => {
         for (const t of note.tags) {
           this.tags.add(t)
         }
@@ -697,14 +888,14 @@ export class Index {
 
   // scan all stored notes, giving each to the visitor callback
   // no scan order is guaranteed
-  scan(visitor: (note: NoteRecord) => void): Promise<void> {
+  scan(visitor: (key: KeyPair, note: NoteRecord) => void): Promise<void> {
     const queue: string[] = []
     this.projectIndices.forEach((map, project, _indices) => {
       map.forEach((pk, _norm, _index) => {
         const key = enkey([project, pk])
         const note = this.cache.get(key)
         if (note) {
-          visitor(note)
+          visitor([project, pk], note)
         } else {
           queue.push(key)
         }
@@ -718,8 +909,11 @@ export class Index {
             if (this.chrome.runtime.lastError) {
               reject(this.chrome.runtime.lastError)
             } else {
-              for (const note of Object.values(found)) {
-                visitor(deserialize(note, this.decompressor) as NoteRecord)
+              for (const [key, note] of Object.entries(found)) {
+                visitor(
+                  toKeyPair(key),
+                  deserialize(note, this.decompressor) as NoteRecord
+                )
               }
               visitBatch()
             }
@@ -840,7 +1034,6 @@ export class Index {
     head: RelationPart,
     dependent: RelationPart
   ): Promise<{ head: NoteRecord; dependent: NoteRecord }> {
-    console.log({ head, dependent })
     return new Promise((resolve, reject) => {
       const [, project] = this.findProject(head.phrase[0])
       if (
@@ -870,7 +1063,6 @@ export class Index {
                   dn,
                   this.decompressor
                 )
-                console.log({ headNote, dependentNote })
                 const headRelations = headNote.relations[head.role] || []
                 const dependentRelations =
                   dependentNote.relations[dependent.role] || []
@@ -891,7 +1083,6 @@ export class Index {
                   const storable: any = {}
                   storable[headKey] = headNote
                   storable[dependentKey] = dependentNote
-                  console.log("storable", storable)
                   this.chrome.storage.local.set(
                     serialize(storable, this.compressor, true),
                     () => {
@@ -1512,9 +1703,11 @@ export class Index {
         throw new Error("unreachable")
     }
   }
+
   defaultProject(): [string, ProjectInfo] {
     return ["", this.projects.get("") as ProjectInfo]
   }
+
   setCurrentProject(pk: number): Promise<void> {
     return new Promise((resolve, reject) => {
       if (this.reverseProjectIndex.get(pk) != null) {
@@ -1531,6 +1724,7 @@ export class Index {
       }
     })
   }
+
   // save a project or create a new one
   // the optional callback receives an error message, if any
   saveProject({
@@ -1583,6 +1777,7 @@ export class Index {
       )
     })
   }
+
   removeProject(project: ProjectIdentifier): Promise<void> {
     return new Promise((resolve, reject) => {
       const [, projectInfo] = this.findProject(project)
@@ -1704,6 +1899,7 @@ export class Index {
       }
     })
   }
+
   // create the key a phrase should be stored under for a given project
   key(phrase: string, project: ProjectIdentifier): string | null {
     const [, projectInfo] = this.findProject(project)
@@ -1713,6 +1909,7 @@ export class Index {
     }
     return null
   }
+
   // return the pk, if any, of a phrase within a project
   projectIndex(phrase: string, project: ProjectIdentifier): number | null {
     const [, projectInfo] = this.findProject(project)
@@ -1724,6 +1921,7 @@ export class Index {
       return i
     }
   }
+
   // normalize phrase for use in retrieval and insertion
   normalize(phrase: string, project: ProjectIdentifier): string {
     let r: ProjectInfo
@@ -1735,6 +1933,7 @@ export class Index {
     const normalizer = r ? r.normalizer : ""
     return normalizers[normalizer || ""].code(phrase)
   }
+
   // clears *everything* from local storage; if promise fails error message is provided
   clear(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -1762,6 +1961,7 @@ export class Index {
       })
     })
   }
+
   // save a configuration change
   saveConfiguration(config: Configuration): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -1775,6 +1975,7 @@ export class Index {
       })
     })
   }
+
   // load a new state onto disk; remember to reload the index after this
   load(state: { [key: string]: any }): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -1787,6 +1988,7 @@ export class Index {
       })
     })
   }
+
   // produce a JSON dump of everything in chrome.storage.local
   // NOTE keep this in sync with getIndex
   dump(readable = false): Promise<{ [key: string]: any }> {
@@ -1851,7 +2053,7 @@ export class Index {
             } else {
               for (const key of batch) {
                 if (!found[key]) {
-                  const [k1, k2] = key.split(":").map((n) => Number.parseInt(n))
+                  const [k1, k2] = toKeyPair(key)
                   const pi = this.projectIndices.get(k1)!
                   const [norm] = Array.from(pi.entries()).find(
                     (pair) => pair[1] === k2
@@ -1871,7 +2073,7 @@ export class Index {
   }
 
   _save_all_notes(): Promise<void> {
-    return this.scan((n) => this.save(n))
+    return this.scan((_kp, n) => this.save(n))
   }
 
   _save_non_notes(): Promise<void> {
@@ -1908,7 +2110,7 @@ export class Index {
       let changeCount = 0,
         notesWithTrials = 0,
         notesWithoutTrials = 0
-      this.scan((n) => {
+      this.scan((_kp, n) => {
         if (n.trials) {
           changeCount += n.trials.length
           notesWithTrials++

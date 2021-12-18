@@ -21,8 +21,8 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] make the default citation for a note *the last one seen*, not the first
   - [ ] favorite citation seems to be written for pushing rather than shifting citations
 - [ ] make expand elaboration configurable
-- [ ] links are sometimes broken
-  - [ ] haven't seen this lately; collect more details 
+- [x] links are sometimes broken
+  - [x] haven't seen this lately; collect more details 
 - [ ] perhaps add substring test to similarity measures
 - [ ] make expandos scroll with their context
   - they should be doing this already; maybe this is a mui 4 vs 5 thing?
@@ -42,11 +42,14 @@ entirely at some point. There is no guarantee that this is a permanent list of t
       - [ ] any relations
    - [ ] preserve page in search state
 - [ ] fix the date math in search so it handles things like daylight savings time
-- [ ] figure out why we're getting "description" instead of "mutation" in the entry for *llwm*
+- [x] figure out why we're getting "description" instead of "mutation" in the entry for *llwm*
 - [ ] plug never type check into all descriminated union switches
 - [ ] add hint feature to flashcards; if there are tags, you get a hint button; if you click it, it shows you the tags
 - [ ] add indication in flashcards that the note has links
 - [ ] if you run a new search and press the stack link you should get the stack
-- [ ] fix linkage issue -- see llwyn/lwyni
-- [ ] add "fix link" function for when the old path no longer works with
-- [ ] switch to latest typescript
+- [x] fix linkage issue -- see llwyn/lwyni
+- [ ] add "fix link" function for when the old path no longer works
+- [x] switch to latest typescript
+- [ ] remove cache
+- [x] create general cleaning mechanism
+- [ ] switch to recoil state management
