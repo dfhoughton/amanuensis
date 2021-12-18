@@ -48,3 +48,5 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] add indication in flashcards that the note has links
 - [ ] if you run a new search and press the stack link you should get the stack
 - [ ] fix linkage issue -- see llwyn/lwyni
+- [ ] add "fix link" function for when the old path no longer works with
+- [ ] switch to latest typescript
