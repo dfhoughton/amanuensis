@@ -1,7 +1,7 @@
 {
   "name": "Amanuensis",
   "description": "Take notes on page contents. Quiz yourself on these notes later.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "icons": {
     "512": "AmanuensislogoC1.png",
     "192": "AmanuensislogosmC1.png"
@@ -29,7 +29,7 @@
       "suggested_key": {
         "default": "Alt+A"
       },
-      "description": "Take a note on the currently highlighted text or the page generally."
+      "description": "Take a note on the currently highlighted text or find notes on the page."
     }
   },
   "content_scripts": [
