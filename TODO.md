@@ -54,7 +54,7 @@ entirely at some point. There is no guarantee that this is a permanent list of t
   - I tried the naive approach and there were problems. I'm giving up on this for the moment.
 - [x] create general cleaning mechanism
 - [ ] switch to recoil state management
-- [ ] adjust appearance of elaboration/citation expander widget
+- [x] adjust appearance of elaboration/citation expander widget
 - [ ] make words in context clickable if they are in the index
 - [ ] make it possible to search the gist
 - [ ] invert history in nav element

@@ -804,7 +804,13 @@ function NoteDetails({
         <UnfoldMore fontSize="small" /> icon that appears to the right of the
         gist. If either a citation note or an elaboration has been provided,
         this icon will appear like this:{" "}
-        <UnfoldMore fontSize="small" color="secondary" />.
+        <span
+          className={`${annotationClasses.hasStuff}`}
+          style={{ padding: "2px 0", borderRadius: "3px" }}
+        >
+          <UnfoldMore fontSize="small" style={{ verticalAlign: "middle" }} />
+        </span>
+        .
       </p>
       <strong id="citation-note">
         Citation Note <LinkUp />
@@ -1669,6 +1675,7 @@ const annotationStyles = makeStyles((theme) => ({
   },
   unfolder: {
     cursor: "pointer",
+    verticalAlign: "middle",
   },
   centering: {
     display: "flex",
@@ -1677,6 +1684,11 @@ const annotationStyles = makeStyles((theme) => ({
   centered: {
     display: "table",
     margin: "auto auto",
+    padding: "2px 0",
+    borderRadius: "5px",
+  },
+  hasStuff: {
+    backgroundColor: theme.palette.secondary.light,
   },
 }))
 
@@ -1701,7 +1713,6 @@ function Annotations({
     className: classes.unfolder,
     onClick: () => setShowMore(!showMore),
   }
-  if (citationNote || details) showerOpts.color = "secondary"
   return (
     <div>
       <Collapse in={showMore}>
@@ -1730,7 +1741,11 @@ function Annotations({
           />
         </Grid>
         <Grid item xs={1} className={classes.centering}>
-          <div className={classes.centered}>
+          <div
+            className={`${classes.centered} ${
+              citationNote || details ? classes.hasStuff : ""
+            }`}
+          >
             {showMore ? (
               <UnfoldMore {...showerOpts} />
             ) : (
