@@ -22,6 +22,7 @@ import {
 import {
   all,
   any,
+  assertNever,
   buildEditDistanceMetric,
   cachedSorter,
   none,
@@ -578,6 +579,7 @@ export class Index {
           ) {
             if (relativeTime) {
               // initially we set the start time
+              // TODO fix date math here
               startTime = new Date()
               startTime.setHours(0)
               startTime.setMinutes(0)
@@ -621,8 +623,11 @@ export class Index {
                     startTime.getTime() - 365 * 24 * 60 * 60 * 1000 // a typical year
                   )
                   break
+                case "ever":
+                  // TODO confirm that this is sane
+                  break
                 default:
-                  throw new Error("unreachable")
+                  assertNever(relativePeriod)
               }
               if (relativeInterpretation === "on") {
                 switch (relativePeriod) {
@@ -640,10 +645,15 @@ export class Index {
                       startTime.getTime() + 7 * 24 * 60 * 60 * 1000
                     ) // a whole week
                     break
-                  default:
+                  case "six months ago":
+                  case "a year ago":
+                  case "ever":
                     endTime = new Date(
                       startTime.getTime() + 30 * 24 * 60 * 60 * 1000
                     ) // a whole month
+                    break
+                  default:
+                    assertNever(relativePeriod)
                 }
               }
             } else {
@@ -735,6 +745,11 @@ export class Index {
                   )
                     return false
                   break
+                case "similar":
+                  // TODO confirm saneness
+                  break
+                default:
+                  assertNever(strictness)
               }
             }
             return true
@@ -836,6 +851,7 @@ export class Index {
                         break
                       default:
                         m.set(0, candidates)
+                      // can't use assertNever trick because this isn't a pure discriminated union
                     }
                     const keys = Array.from(m.keys()).sort()
                     let c: NoteRecord[] = []
@@ -1581,6 +1597,10 @@ export class Index {
               case "found":
                 notes = [result.match]
                 break
+              case "none":
+                break
+              default:
+                assertNever(result)
             }
             resolve({ stack, notes })
           })

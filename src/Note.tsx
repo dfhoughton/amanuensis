@@ -40,7 +40,13 @@ import {
   AdHocQuery,
   Chromeable,
 } from "./modules/types"
-import { debounce, notePhrase, nws, sameNote } from "./modules/util"
+import {
+  assertNever,
+  debounce,
+  notePhrase,
+  nws,
+  sameNote,
+} from "./modules/util"
 import {
   AboutLink,
   Details,
@@ -228,6 +234,8 @@ class Note extends React.Component<NoteProps, NoteState> {
               this.setState(newState)
               this.app.notify("this note is no longer saved")
               break
+            default:
+              assertNever(response)
           }
         })
         .catch((error) => this.app.error(error))
@@ -311,6 +319,8 @@ class Note extends React.Component<NoteProps, NoteState> {
               searchResults: found.matches,
             })
             break
+          default:
+            assertNever(found)
         }
       })
       .catch((error) => this.app.error(error))
@@ -357,6 +367,10 @@ class Note extends React.Component<NoteProps, NoteState> {
           case "ambiguous":
             count = r.matches.length
             break
+          case "none":
+            break
+          default:
+            assertNever(r)
         }
         this.app.info(`Notes taken today: ${count}`)
       })
@@ -1193,6 +1207,10 @@ function Similar({ app, n }: { app: App; n: Note }) {
           case "ambiguous":
             matches = found.matches
             break
+          case "none":
+            break
+          default:
+            assertNever(found)
         }
         const similars = matches
           .map((m) => notePhrase(m))
@@ -1212,6 +1230,10 @@ function Similar({ app, n }: { app: App; n: Note }) {
         case "found":
           searchResults.push(r.match)
           break
+        case "none":
+          break
+        default:
+          assertNever(r)
       }
       app.setState({ tab: Section.search, search, searchResults })
     })

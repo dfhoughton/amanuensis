@@ -399,3 +399,8 @@ export const bogusProject = ({
   normalizer: "",
   relations: [["see also", "see also"]],
 })
+
+// for use in discriminated union exhaustiveness checking
+export function assertNever(x: never): never {
+  throw new Error("Unexpected object: " + x);
+}

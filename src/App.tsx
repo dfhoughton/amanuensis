@@ -44,7 +44,13 @@ import {
 } from "./modules/types"
 import { anyDifference, deepClone } from "./modules/clone"
 import { enkey, setConfigurationDefaults } from "./modules/storage"
-import { flatten, notePhrase, sameKey, sameNote } from "./modules/util"
+import {
+  assertNever,
+  flatten,
+  notePhrase,
+  sameKey,
+  sameNote,
+} from "./modules/util"
 import Sorting from "./Sorting"
 import FlashCards, { FlashCardState } from "./FlashCards"
 
@@ -343,6 +349,9 @@ export class App extends React.Component<AppProps, AppState> {
                 tab: Section.search,
                 searchResults: [found.match],
               })
+              break
+            default:
+              assertNever(found)
           }
         })
         .catch((e) => this.error(e))
@@ -527,6 +536,9 @@ export class App extends React.Component<AppProps, AppState> {
                 break
               case "found":
                 changes.searchResults = [found.match]
+                break
+              default:
+                assertNever(found)
             }
           }
           this.setState(changes, resolve)

@@ -24,7 +24,7 @@ import {
 } from "@material-ui/icons"
 import React, { ReactElement } from "react"
 import { App, Section, Sections, VERSION } from "../App"
-import { uniq, ymd } from "./util"
+import { assertNever, uniq, ymd } from "./util"
 
 interface TTProps {
   children: ReactElement
@@ -442,7 +442,7 @@ export function TabLink({
       icon = <Sort fontSize="small" />
       break
     default:
-      throw new Error("we should never get here")
+      assertNever(tab)
   }
   return (
     <a

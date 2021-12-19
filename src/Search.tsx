@@ -14,6 +14,7 @@ import {
   bogusNote,
   bogusProject,
   bogusCitation,
+  assertNever,
 } from "./modules/util"
 import {
   Details,
@@ -219,6 +220,8 @@ function ResultsInfo({
               case "found":
                 searchResults = [results.match]
                 break
+              default:
+                assertNever(results)
             }
             setShowSample(false)
             app.setState({ search: s, searchResults })
@@ -244,6 +247,8 @@ function ResultsInfo({
               case "found":
                 searchResults = [results.match]
                 break
+              default:
+                assertNever(results)
             }
             setShowSample(false)
             app.setState({ search: s, searchResults })
@@ -517,6 +522,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                   case "ambiguous":
                     searchResults = results.matches
                     break
+                  default:
+                    assertNever(results)
                 }
                 const newState = {
                   searchResults,
@@ -763,6 +770,9 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                         app.setState({ searchResults: [found.match] }, () =>
                           reset(search)
                         )
+                        break
+                      default:
+                        assertNever(found)
                     }
                   })
                   .catch((e) => app.error(e))
@@ -996,7 +1006,7 @@ const TimeWidget: React.FC<{
             id="after"
             label="After"
             type="date"
-            InputLabelProps={{ shrink: true }} 
+            InputLabelProps={{ shrink: true }}
             value={ymd(after)}
             onChange={onChangeAfter}
           />
@@ -1004,7 +1014,7 @@ const TimeWidget: React.FC<{
             id="before"
             label="Before"
             type="date"
-            InputLabelProps={{ shrink: true }} 
+            InputLabelProps={{ shrink: true }}
             value={ymd(before)}
             onChange={onChangeBefore}
           />
