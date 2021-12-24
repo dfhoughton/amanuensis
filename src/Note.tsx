@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState } from "react"
+import React, { ChangeEvent, useEffect, useState } from "react"
 
 import Autocomplete from "@material-ui/lab/Autocomplete"
 import Chip from "@material-ui/core/Chip"
@@ -426,7 +426,7 @@ function Editor({ note }: { note: Note }) {
           setShowDetails={setShowDetails}
         />
         {hasWord && <Widgets app={note.props.app} n={note} />}
-        <Phrase phrase={note.currentCitation()} hasWord={hasWord} />
+        <Phrase phrase={note.currentCitation()} hasWord={hasWord} note={note} />
         {hasWord && (
           <Annotations
             gist={note.state.gist}
@@ -640,6 +640,7 @@ function NoteDetails({
   const classes = noteDetailsStyles()
   const annotationClasses = annotationStyles()
   const tagClasses = tagStyles()
+  const maybeClickableClasses = maybeClickableStyles()
   return (
     <>
       <Details
@@ -649,8 +650,7 @@ function NoteDetails({
       >
         <p>
           This tab lets you take notes about something you found somewhere on
-          the web. This is the central purpose of Amanuensis. Further details
-          are below.
+          the web. This is the central purpose of Amanuensis.
         </p>
         <T variant="h6" id="toc">
           Table of Contents
@@ -730,9 +730,22 @@ function NoteDetails({
       </Box>
       <p>
         The context surrounding your selection is based on the structure of the
-        page. It is selected automatically. Sometimes there maybe be a little
-        more context than you wish. There is more on this{" "}
+        page. It is selected automatically. Sometimes there may be a little more
+        context than you wish. There is more on this{" "}
         <LinkDown to="internals">below</LinkDown>.
+      </p>
+      <p>
+        Amanuensis looks up all the words in the context to see if you also have
+        notes on them. If so,{" "}
+        <span className={maybeClickableClasses.root}>it</span>{" "}
+        <span className={maybeClickableClasses.root}>renders</span>{" "}
+        <span className={maybeClickableClasses.root}>them</span>{" "}
+        <span className={maybeClickableClasses.root}>like</span>{" "}
+        <span className={maybeClickableClasses.root}>this</span>. This lookup
+        sometimes is slow to start, so you won't see this immediately. The
+        underlined words are clickable. If you click them you will be sent to
+        their note. Unfortunately, for the sake of efficiency Amanuensis only
+        looks up single words, not phrases.
       </p>
       <T id="header" variant="h6">
         Header <LinkUp />
@@ -1448,10 +1461,12 @@ export function Phrase({
   hasWord = true,
   phrase,
   trim,
+  note,
 }: {
   hasWord?: boolean
   phrase: PhraseInContext
   trim?: number
+  note?: Note
 }) {
   const classes = phraseStyles()
   if (hasWord) {
@@ -1466,14 +1481,82 @@ export function Phrase({
     }
     return (
       <div className={classes.root}>
-        <span>{before}</span>
+        <MaybeClickableSequence text={before} note={note} />
         <span className={classes.word}>{phrase.phrase}</span>
-        <span>{after}</span>
+        <MaybeClickableSequence text={after} note={note} />
       </div>
     )
   } else {
     return <div className={classes.root}>No phrase</div>
   }
+}
+
+const MaybeClickableSequence: React.FC<{
+  text: string
+  note?: Note
+}> = ({ text, note }) => {
+  return (
+    <>
+      {text
+        .split(/((?:\p{L}(?:['.]\p{L})?)+|[^\p{L}]+)/u)
+        .filter((w) => w.length)
+        .map((w, i, _ar) => (
+          <MaybeClickable key={`${i}`} item={w} note={note} />
+        ))}
+    </>
+  )
+}
+
+const maybeClickableStyles = makeStyles((theme) => ({
+  root: {
+    cursor: "pointer",
+    textDecoration: "underline",
+    textDecorationColor: theme.palette.secondary.light,
+    textDecorationThickness: "3px",
+  },
+}))
+
+// returns either the raw item or, if the item has an entry in the same project, a clickable
+// span that will take you to the corresponding note
+const MaybeClickable: React.FC<{
+  item: string
+  note?: Note
+}> = ({ item, note }) => {
+  const classes = maybeClickableStyles()
+  const [n, setN] = useState<NoteRecord | null>(null)
+  useEffect(() => {
+    if (note && /\p{L}/u.test(item)) {
+      note.app.switchboard
+        .index!.find({
+          type: "ad hoc",
+          phrase: item,
+          project: [note.state.key[0]],
+        })
+        .then((found) => {
+          if (found.type === "found") {
+            setN(found.match)
+          }
+        })
+    }
+  }, [item, note])
+  return n ? (
+    <span
+      className={classes.root}
+      onClick={() => {
+        note?.app.goto(n, () =>
+          note.setState(
+            deepClone(
+              note.app.state.history[note.app.state.historyIndex].current
+            )
+          )
+        )
+      }}
+    >
+      {item}
+    </span>
+  ) : (
+    <>{item}</>
+  )
 }
 
 const tagStyles = makeStyles((theme) => ({
