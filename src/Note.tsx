@@ -1436,9 +1436,9 @@ function HistoryLink({ v, app, n }: { v: Visit; app: App; n: Note }) {
   const callback = () => {
     if (!currentKey) {
       app.goto(v.current, () => {
-        const visit = app.recentHistory()
-        n.savedState = visit!.saved
-        n.setState(visit!.current)
+        const visit = deepClone(app.recentHistory())!
+        n.savedState = visit.saved
+        n.setState(visit.current)
       })
     }
   }
@@ -1501,7 +1501,7 @@ const MaybeClickableSequence: React.FC<{
         .split(/((?:\p{L}(?:['.]\p{L})?)+|[^\p{L}]+)/u)
         .filter((w) => w.length)
         .map((w, i, _ar) => (
-          <MaybeClickable key={`${i}`} item={w} note={note} />
+          <MaybeClickable key={`${i}-${w}`} item={w} note={note} />
         ))}
     </>
   )
@@ -1537,19 +1537,18 @@ const MaybeClickable: React.FC<{
             setN(found.match)
           }
         })
+        .catch(e => console.error(`failed to find ${item}`, e))
     }
   }, [item, note])
   return n ? (
     <span
       className={classes.root}
       onClick={() => {
-        note?.app.goto(n, () =>
-          note.setState(
-            deepClone(
-              note.app.state.history[note.app.state.historyIndex].current
-            )
-          )
-        )
+        note?.app.goto(n, () => {
+          const visit = deepClone(note.app.recentHistory())!
+          note.savedState = visit.saved
+          note.setState(visit.current)
+        })
       }}
     >
       {item}

@@ -4,6 +4,7 @@ Key changes in each release. The dates with each release are the dates I submitt
 
 *0.0.3 pending*
 - make known words in the gist clickable
+- display history most recent first
 
 *0.0.2 2020-12-20*
 - added mechanism to repair storage errors
