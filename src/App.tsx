@@ -350,6 +350,8 @@ export class App extends React.Component<AppProps, AppState> {
                 searchResults: [found.match],
               })
               break
+            case "batch":
+              throw new Error("unreachable")
             default:
               assertNever(found)
           }
@@ -537,6 +539,8 @@ export class App extends React.Component<AppProps, AppState> {
               case "found":
                 changes.searchResults = [found.match]
                 break
+              case "batch":
+                throw new Error("unreachable")
               default:
                 assertNever(found)
             }

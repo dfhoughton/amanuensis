@@ -46,6 +46,7 @@ import {
   notePhrase,
   nws,
   sameNote,
+  uniq,
 } from "./modules/util"
 import {
   AboutLink,
@@ -234,6 +235,8 @@ class Note extends React.Component<NoteProps, NoteState> {
               this.setState(newState)
               this.app.notify("this note is no longer saved")
               break
+            case "batch":
+              throw new Error("unreachable")
             default:
               assertNever(response)
           }
@@ -319,6 +322,8 @@ class Note extends React.Component<NoteProps, NoteState> {
               searchResults: found.matches,
             })
             break
+          case "batch":
+            throw new Error("unreachable")
           default:
             assertNever(found)
         }
@@ -369,6 +374,8 @@ class Note extends React.Component<NoteProps, NoteState> {
             break
           case "none":
             break
+          case "batch":
+            throw new Error("unreachable")
           default:
             assertNever(r)
         }
@@ -1228,6 +1235,8 @@ function Similar({ app, n }: { app: App; n: Note }) {
             break
           case "none":
             break
+          case "batch":
+            throw new Error("unreachable")
           default:
             assertNever(found)
         }
@@ -1251,6 +1260,8 @@ function Similar({ app, n }: { app: App; n: Note }) {
           break
         case "none":
           break
+        case "batch":
+          throw new Error("unreachable")
         default:
           assertNever(r)
       }
@@ -1367,8 +1378,15 @@ function Nav({ app, n }: { app: App; n: Note }) {
           <div className={classes.focus} onClick={() => n.focus()}>
             <FilterCenterFocus color="primary" />
           </div>
-          {app.state.history.map((v) => (
-            <HistoryLink v={v} app={app} n={n} />
+          {app.state.history.map((v, i, _ar) => (
+            <HistoryLink
+              key={`${i}-${
+                v.current.citations[v.current.canonicalCitation || 0].phrase
+              }`}
+              v={v}
+              app={app}
+              n={n}
+            />
           ))}
         </div>
       </Popover>
@@ -1495,14 +1513,32 @@ const MaybeClickableSequence: React.FC<{
   text: string
   note?: Note
 }> = ({ text, note }) => {
+  const [map, setMap] = useState(new Map<string, NoteRecord>())
+  const bits = text
+    .split(/((?:\p{L}(?:['.]\p{L})?)+|[^\p{L}]+)/u)
+    .filter((w) => w.length)
+  useEffect(() => {
+    if (note) {
+      note.app.switchboard
+        .index!.find({
+          type: "batch",
+          project: note.state.key[0],
+          phrases: uniq(bits.filter((s) => /\p{L}/u.test(s))),
+        })
+        .then((found) => {
+          if (found.type === "batch") {
+            setMap(found.map)
+          }
+        })
+        .catch((e) => console.error(`failed to find items`, e))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text])
   return (
     <>
-      {text
-        .split(/((?:\p{L}(?:['.]\p{L})?)+|[^\p{L}]+)/u)
-        .filter((w) => w.length)
-        .map((w, i, _ar) => (
-          <MaybeClickable key={`${i}-${w}`} item={w} note={note} />
-        ))}
+      {bits.map((w, i, _ar) => (
+        <MaybeClickable key={`${i}-${w}`} item={w} note={note} map={map} />
+      ))}
     </>
   )
 }
@@ -1521,38 +1557,25 @@ const maybeClickableStyles = makeStyles((theme) => ({
 const MaybeClickable: React.FC<{
   item: string
   note?: Note
-}> = ({ item, note }) => {
+  map: Map<string, NoteRecord>
+}> = ({ item, note, map }) => {
   const classes = maybeClickableStyles()
-  const [n, setN] = useState<NoteRecord | null>(null)
-  useEffect(() => {
-    if (note && /\p{L}/u.test(item)) {
-      note.app.switchboard
-        .index!.find({
-          type: "ad hoc",
-          phrase: item,
-          project: [note.state.key[0]],
-        })
-        .then((found) => {
-          if (found.type === "found") {
-            setN(found.match)
-          }
-        })
-        .catch(e => console.error(`failed to find ${item}`, e))
-    }
-  }, [item, note])
-  return n ? (
-    <span
-      className={classes.root}
-      onClick={() => {
-        note?.app.goto(n, () => {
-          const visit = deepClone(note.app.recentHistory())!
-          note.savedState = visit.saved
-          note.setState(visit.current)
-        })
-      }}
-    >
-      {item}
-    </span>
+  const n = map.get(item)
+  return n && !sameNote(note!.state, n) ? (
+    <TT msg={n.gist || "no gist for this phrase"}>
+      <span
+        className={classes.root}
+        onClick={() => {
+          note?.app.goto(n, () => {
+            const visit = deepClone(note.app.recentHistory())!
+            note.savedState = visit.saved
+            note.setState(visit.current)
+          })
+        }}
+      >
+        {item}
+      </span>
+    </TT>
   ) : (
     <>{item}</>
   )

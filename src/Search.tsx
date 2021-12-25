@@ -220,6 +220,8 @@ function ResultsInfo({
               case "found":
                 searchResults = [results.match]
                 break
+              case "batch":
+                throw new Error("unreachable")
               default:
                 assertNever(results)
             }
@@ -247,6 +249,8 @@ function ResultsInfo({
               case "found":
                 searchResults = [results.match]
                 break
+              case "batch":
+                throw new Error("unreachable")
               default:
                 assertNever(results)
             }
@@ -410,6 +414,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
       search = { type: "ad hoc", phrase: app.state.search.phrase }
       app.setState({ search })
       break
+    case "batch":
+      throw new Error("unreachable")
     default:
       search = deepClone(app.state.search)
       break
@@ -522,6 +528,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                   case "ambiguous":
                     searchResults = results.matches
                     break
+                  case "batch":
+                    throw new Error("unreachable")
                   default:
                     assertNever(results)
                 }
@@ -771,6 +779,8 @@ function Form({ app, resetter }: { app: App; resetter: () => void }) {
                           reset(search)
                         )
                         break
+                      case "batch":
+                        throw new Error("unreachable")
                       default:
                         assertNever(found)
                     }

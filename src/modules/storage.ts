@@ -37,6 +37,7 @@ type FindResponse =
   | { type: "found"; match: NoteRecord }
   | { type: "ambiguous"; matches: NoteRecord[] }
   | { type: "none" }
+  | { type: "batch"; map: Map<string, NoteRecord> }
 
 // how to take a KeyPair and make a local storage/cache key
 export function enkey(key: KeyPair): string {
@@ -874,6 +875,34 @@ export class Index {
             })
             .catch((e) => reject(e))
         })
+      case "batch":
+        return new Promise((resolve, reject) => {
+          const normalizer =
+            normalizers[this.findProject(query.project)[1].normalizer]
+          const normalized = new Map<string, string[]>()
+          for (const phrase of query.phrases) {
+            const n = normalizer.code(phrase)
+            const unnormalized = normalized.get(n) || []
+            unnormalized.push(phrase)
+            normalized.set(n, unnormalized)
+          }
+          let candidates = new Map<string, NoteRecord>()
+          const test = (note: NoteRecord): boolean => {
+            if (note.key[0] !== query.project) return false
+            return normalized.has(normalizer.code(note.citations[0].phrase))
+          }
+          this.scan((_kp, note) => {
+            if (test(note)) {
+              for (const phrase of normalized.get(
+                normalizer.code(note.citations[0].phrase)
+              )!) {
+                candidates.set(phrase, deepClone(note))
+              }
+            }
+          })
+            .then(() => resolve({ type: "batch", map: candidates }))
+            .catch((e) => reject(e))
+        })
     }
   }
 
@@ -1558,7 +1587,7 @@ export class Index {
     query: Query
   ): Promise<void | { stack: CardStack; notes: NoteRecord[] }> {
     return new Promise((resolve, reject) => {
-      if (query.type === "lookup") {
+      if (query.type === "lookup" || query.type === "batch") {
         resolve()
       } else {
         const existingStack = Array.from(this.stacks.values()).find(
@@ -1597,6 +1626,8 @@ export class Index {
               case "found":
                 notes = [result.match]
                 break
+              case "batch":
+                throw new Error("unreachable")
               case "none":
                 break
               default:
