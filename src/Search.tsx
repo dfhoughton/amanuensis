@@ -143,7 +143,7 @@ function Search({ app }: SearchProps) {
           </div>
         )}
         {pagedResults.map((r) => (
-          <Result note={r} app={app} setCurrentNote={setCurrentNote} />
+          <Result key={enkey(r.key)} note={r} app={app} setCurrentNote={setCurrentNote} />
         ))}
         {paginate && (
           <div className={classes.pagination}>
