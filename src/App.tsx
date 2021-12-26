@@ -97,6 +97,8 @@ interface AppState {
   defaultProject: number
   search: Query
   searchResults: NoteRecord[]
+  searchPage?: number
+  scrollTo?: string
   confirmation: ConfirmationState
   stack?: string // the flash card stack currently being worked on
   flashcards?: FlashCardState

@@ -103,7 +103,12 @@ function Search({ app }: SearchProps) {
   const classes = searchStyles()
   const results = app.state.searchResults
   const paginate = results.length > 10
-  const [page, setPage] = useState<number>(1)
+  // we're effectively sharing this bit of state between the app and search
+  const [page, setP] = useState<number>(app.state.searchPage ?? 1)
+  const setPage = (n: number) => {
+    app.setState({ searchPage: n })
+    setP(n)
+  }
   const [showSample, setShowSample] = useState<boolean>(false)
   const [relation, setRelation] = useState("see also")
   const [currentNote, setCurrentNote] = useState<NoteRecord | null>(null)
@@ -117,7 +122,7 @@ function Search({ app }: SearchProps) {
         <SearchDetails app={app} />
       </Details>
       <Form app={app} resetter={() => setPage(1)} />
-      <Box marginTop={3}>
+      <Box id={"results-top"} marginTop={3}>
         {!!results.length && (
           <ResultsInfo
             app={app}
@@ -143,7 +148,12 @@ function Search({ app }: SearchProps) {
           </div>
         )}
         {pagedResults.map((r) => (
-          <Result key={enkey(r.key)} note={r} app={app} setCurrentNote={setCurrentNote} />
+          <Result
+            key={enkey(r.key)}
+            note={r}
+            app={app}
+            setCurrentNote={setCurrentNote}
+          />
         ))}
         {paginate && (
           <div className={classes.pagination}>
@@ -1219,7 +1229,7 @@ export function Result({
   const project = getProject()
   const key = enkey(note.key)
   return (
-    <Card className={classes.root} key={key}>
+    <Card className={classes.root} id={key} key={key}>
       <CardContent>
         <Grid container spacing={1}>
           <Grid item xs={5} className={classes.phrase}>

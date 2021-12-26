@@ -40,7 +40,7 @@ entirely at some point. There is no guarantee that this is a permanent list of t
    -  add booleans
       - [ ] multiple citations
       - [ ] any relations
-   - [ ] preserve page in search state
+   - [x] preserve page in search state
 - [ ] fix the date math in search so it handles things like daylight savings time
 - [x] figure out why we're getting "description" instead of "mutation" in the entry for *llwm*
 - [x] plug never type check into all descriminated union switches

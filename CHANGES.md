@@ -6,6 +6,7 @@ Key changes in each release. The dates with each release are the dates I submitt
 - make known words in the gist clickable
 - fixed relation rendering so broken links do not appear
 - list nav history with the most recent first
+- preserve search page in app state
 
 *0.0.2 2020-12-20*
 - added mechanism to repair storage errors
