@@ -2,7 +2,7 @@
 
 Key changes in each release. The dates with each release are the dates I submitted the extension to Google, not the dates these releases appeared in the extension store.
 
-*0.0.3 pending*
+*0.0.3 2020-12-26*
 - make known words in the gist clickable
 - fixed relation rendering so broken links do not appear
 - list nav history with the most recent first
