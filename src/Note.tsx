@@ -458,9 +458,13 @@ function Editor({ note }: { note: Note }) {
             }
           />
         )}
-        <Tags note={note} />
-        <Relations note={note} hasWord={hasWord} />
-        <Citations note={note} />
+        <Tags note={note} tags={note.state.tags} />
+        <Relations
+          note={note}
+          relations={note.state.relations}
+          hasWord={hasWord}
+        />
+        <Citations note={note} citations={note.state.citations} />
       </Collapse>
     </>
   )
@@ -1591,10 +1595,9 @@ const tagStyles = makeStyles((theme) => ({
   },
 }))
 
-function Tags(props: { note: Note }) {
+function Tags(props: { note: Note; tags: string[] }) {
   const classes = tagStyles()
-  const { note } = props
-  const { tags } = note.state
+  const { note, tags } = props
   if (!note.hasWord()) {
     return null
   }
@@ -1634,11 +1637,17 @@ function Tags(props: { note: Note }) {
   )
 }
 
-function Citations({ note }: { note: Note }) {
+function Citations({
+  note,
+  citations,
+}: {
+  note: Note
+  citations: CitationRecord[]
+}) {
   return (
     <div>
-      {note.state.citations.map((c, i) => (
-        <Cite note={note} i={i} c={c} />
+      {citations.map((c, i) => (
+        <Cite key={i} note={note} i={i} c={c} />
       ))}
     </div>
   )
@@ -1875,11 +1884,17 @@ function Annotations({
   )
 }
 
-function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
-  const [initialize, setInitialize] = useState(true)
-  const [phraseMap, setPhraseMap] = useState(new Map<string, string>())
-  const { relations } = note.state
-  if (initialize) {
+function Relations({
+  note,
+  relations,
+  hasWord,
+}: {
+  note: Note
+  hasWord: boolean
+  relations: { [name: string]: KeyPair[] }
+}) {
+  const [phraseMap, setPhraseMap] = useState(new Map<string, NoteRecord>())
+  useEffect(() => {
     const keys: string[] = []
     for (const others of Object.values(relations)) {
       for (const k of others) {
@@ -1891,22 +1906,23 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
         note.app.switchboard
           .index!.getBatch(keys)
           .then((results) => {
-            const realMap = new Map<string, string>()
+            const realMap = new Map<string, NoteRecord>()
             Object.entries(results).forEach(([key, n]) => {
-              realMap.set(key, notePhrase(n))
-              note.app.switchboard.index!.cache.set(key, n)
+              realMap.set(key, n)
             })
-            setInitialize(false)
             setPhraseMap(realMap)
           })
-          .catch((e) => note.app.error(e))
+          .catch((e) => {
+            note.app.error(
+              `failed to render relations for ${notePhrase(note.state)}`
+            )
+            console.error(e)
+          })
       })
-    } else {
-      setInitialize(false)
     }
-  }
-  const showSomething =
-    hasWord && !!Object.keys(relations).length && !initialize
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relations])
+  const showSomething = hasWord && !!phraseMap.size
   return (
     <>
       {!showSomething && <Box mt={2} />}
@@ -1920,45 +1936,57 @@ function Relations({ note, hasWord }: { note: Note; hasWord: boolean }) {
               <Grid item xs={9}>
                 {keys.map((k) => {
                   const key = enkey(k)
+                  const other = phraseMap.get(key)
+                  if (!other)
+                    console.error(
+                      `expected to retrieve note with this key for relation ${relation}`,
+                      { key, other }
+                    )
                   return (
-                    <Chip
-                      key={key}
-                      label={phraseMap.get(key)}
-                      size="small"
-                      variant="outlined"
-                      clickable
-                      onClick={() => {
-                        // a bit of a hack -- this forces a refresh of everything -- going to sorters because it's a simplish tab
-                        note.app.setState({ tab: Section.sorters }, () => {
-                          note.app.goto(
-                            note.app.switchboard.index!.cache.get(key)!
-                          )
-                        })
-                      }}
-                      onDelete={() => {
-                        note.app.switchboard
-                          .index!.unrelate(
-                            { phrase: note.state.key, role: relation },
-                            {
-                              phrase: k,
-                              role: note.app.switchboard.index!.reverseRelation(
-                                k[0],
-                                relation
-                              )!,
-                            }
-                          )
-                          .then(({ head }) => {
-                            note.setState({ relations: head.relations }, () => {
-                              setInitialize(true)
-                              setPhraseMap(new Map())
-                              note.app.cleanSearch()
-                              note.app.cleanHistory(true)
+                    other && (
+                      <Chip
+                        key={key}
+                        label={notePhrase(other)}
+                        size="small"
+                        variant="outlined"
+                        clickable
+                        onClick={() => {
+                          note.app.setState({ tab: Section.sorters }, () => {
+                            note.app.goto(other, () => {
+                              const { current, saved } = deepClone(
+                                note.app.recentHistory()
+                              )!
+                              note.savedState = saved
+                              note.setState(current)
                             })
                           })
-                          .catch((e) => note.app.error(e))
-                      }}
-                      deleteIcon={<Cancel />}
-                    />
+                        }}
+                        onDelete={() => {
+                          note.app.switchboard
+                            .index!.unrelate(
+                              { phrase: note.state.key, role: relation },
+                              {
+                                phrase: k,
+                                role: note.app.switchboard.index!.reverseRelation(
+                                  k[0],
+                                  relation
+                                )!,
+                              }
+                            )
+                            .then(({ head }) => {
+                              note.setState(
+                                { relations: head.relations },
+                                () => {
+                                  note.app.cleanSearch()
+                                  note.app.cleanHistory(true)
+                                }
+                              )
+                            })
+                            .catch((e) => note.app.error(e))
+                        }}
+                        deleteIcon={<Cancel />}
+                      />
+                    )
                   )
                 })}
               </Grid>

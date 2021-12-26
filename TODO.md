@@ -60,4 +60,7 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] invert history in nav element
 - [x] investigate null colors showing up in confetti cannon
    - This seems to be a problem with the library. Leaving it alone for the moment.
-- [ ] mechanism when displaying a note that looks up missing links
+- [x] mechanism when displaying a note that looks up missing links
+- [ ] improve error reporting mechanism so it's easier to dump error objects to the console
+- [ ] fix situation where if you navigate about among notes the search result linkers are unaware of this
+- [ ] remove redundant app arguments when note is passed down as a prop
