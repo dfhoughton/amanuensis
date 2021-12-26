@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 
 import { App, Section, Visit } from "./App"
 import {
@@ -112,6 +112,22 @@ function Search({ app }: SearchProps) {
   const [showSample, setShowSample] = useState<boolean>(false)
   const [relation, setRelation] = useState("see also")
   const [currentNote, setCurrentNote] = useState<NoteRecord | null>(null)
+  const [scrollTo, setST] = useState(app.state.scrollTo)
+  const setScrollTo = (s?: string) => {
+    app.setState({scrollTo: s})
+    setST(s)
+  }
+  useEffect(() => {
+    if (scrollTo) {
+      document.getElementById(scrollTo)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "center",
+      })
+      setScrollTo()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo])
   const offset = (page - 1) * 10
   let end = offset + 10
   if (end > results.length) end = results.length
@@ -122,7 +138,7 @@ function Search({ app }: SearchProps) {
         <SearchDetails app={app} />
       </Details>
       <Form app={app} resetter={() => setPage(1)} />
-      <Box id={"results-top"} marginTop={3}>
+      <Box marginTop={3}>
         {!!results.length && (
           <ResultsInfo
             app={app}
@@ -147,6 +163,7 @@ function Search({ app }: SearchProps) {
             />
           </div>
         )}
+        <span id={"results-top"}></span>
         {pagedResults.map((r) => (
           <Result
             key={enkey(r.key)}

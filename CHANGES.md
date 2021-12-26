@@ -7,6 +7,7 @@ Key changes in each release. The dates with each release are the dates I submitt
 - fixed relation rendering so broken links do not appear
 - list nav history with the most recent first
 - preserve search page in app state
+- make clicking on similars send you to the correct result
 
 *0.0.2 2020-12-20*
 - added mechanism to repair storage errors

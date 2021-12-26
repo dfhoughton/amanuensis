@@ -74,7 +74,7 @@ export interface NoteState extends NoteRecord {
   everSaved: boolean
   unsavedCitation: boolean
   citationIndex: number
-  similars?: string[]
+  similars?: NoteRecord[]
 }
 
 class Note extends React.Component<NoteProps, NoteState> {
@@ -985,7 +985,7 @@ function NoteDetails({
           alignItems="center"
         >
           <Grid item>
-            <DemoSimilar />
+            <DemoSimilar app={app} />
           </Grid>
           <Grid item>
             <span style={{ fontSize: "smaller", fontStyle: "italic" }}>
@@ -999,7 +999,9 @@ function NoteDetails({
         your notes that are most similar to the current note's phrase. If you
         click click the <Search color="primary" fontSize="small" /> at the top
         of the list Amanuensis will send you to the search tab and run a search
-        sorting all the notes by their similarity to this phrase.
+        sorting all the notes by their similarity to this phrase. If you click
+        on of the items listed you will go to that item among the search
+        results.
       </p>
       <p>
         When you first start taking notes you are unlikely to find this widget
@@ -1197,6 +1199,9 @@ const similarStyles = makeStyles((theme) => ({
   similars: {
     padding: theme.spacing(1),
   },
+  similarItem: {
+    cursor: "pointer",
+  },
   fallback: {
     fontSize: "smaller",
     fontStyle: "italic",
@@ -1245,14 +1250,13 @@ function Similar({ n }: { n: Note }) {
             assertNever(found)
         }
         const similars = matches
-          .map((m) => notePhrase(m))
-          .filter((w) => w !== search.phrase)
+          .filter((w) => notePhrase(w) !== search.phrase)
           .slice(0, n.app.state.config.notes.similarCount)
         setFallback(similars.length ? "" : "none")
         n.setState({ similars })
       })
   }
-  const similarSearch = () => {
+  const similarSearch = (s: string) => {
     n.app.switchboard.index?.find(search).then((r) => {
       let searchResults: NoteRecord[] = []
       switch (r.type) {
@@ -1269,7 +1273,12 @@ function Similar({ n }: { n: Note }) {
         default:
           assertNever(r)
       }
-      n.app.setState({ tab: Section.search, search, searchResults })
+      n.app.setState({
+        tab: Section.search,
+        scrollTo: s,
+        search,
+        searchResults,
+      })
     })
   }
   return (
@@ -1292,12 +1301,21 @@ function Similar({ n }: { n: Note }) {
             <div className={classes.similars}>
               {!!fallback && <div className={classes.fallback}>{fallback}</div>}
               {!fallback && (
-                <div className={classes.search} onClick={similarSearch}>
+                <div
+                  className={classes.search}
+                  onClick={() => similarSearch("results-top")}
+                >
                   <Search color="primary" />
                 </div>
               )}
               {(n.state.similars || []).map((v) => (
-                <div key={v}>{v}</div>
+                <div
+                  key={enkey(v.key)}
+                  className={classes.similarItem}
+                  onClick={() => similarSearch(enkey(v.key))}
+                >
+                  {notePhrase(v)}
+                </div>
               ))}
             </div>
           </Popover>
@@ -1307,7 +1325,7 @@ function Similar({ n }: { n: Note }) {
   )
 }
 
-function DemoSimilar() {
+function DemoSimilar({ app }: { app: App }) {
   const classes = similarStyles()
   const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
   const open = Boolean(anchorEl)
@@ -1328,10 +1346,27 @@ function DemoSimilar() {
       >
         <div className={classes.similars}>
           <div className={classes.search}>
-            <Search color="primary" />
+            <Search
+              color="primary"
+              onClick={() => {
+                app.notify(
+                  "clicking this takes you to the search results for similar phrases"
+                )
+              }}
+            />
           </div>
           {["food", "foot", "boo", "moo"].map((v) => (
-            <div key={v}>{v}</div>
+            <div
+              key={v}
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                app.notify(
+                  `clicking this takes you to the "${v}" result in the search tab`
+                )
+              }}
+            >
+              {v}
+            </div>
           ))}
         </div>
       </Popover>
