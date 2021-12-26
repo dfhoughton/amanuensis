@@ -57,7 +57,7 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [x] adjust appearance of elaboration/citation expander widget
 - [x] make words in context clickable if they are in the index
 - [ ] make it possible to search the gist
-- [ ] invert history in nav element
+- [x] invert history in nav element
 - [x] investigate null colors showing up in confetti cannon
    - This seems to be a problem with the library. Leaving it alone for the moment.
 - [x] mechanism when displaying a note that looks up missing links

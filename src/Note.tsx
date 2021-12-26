@@ -432,7 +432,7 @@ function Editor({ note }: { note: Note }) {
           showDetails={showDetails}
           setShowDetails={setShowDetails}
         />
-        {hasWord && <Widgets app={note.props.app} n={note} />}
+        {hasWord && <Widgets n={note} history={note.app.state.history} />}
         <Phrase phrase={note.currentCitation()} hasWord={hasWord} note={note} />
         {hasWord && (
           <Annotations
@@ -1155,16 +1155,16 @@ const widgetStyles = makeStyles((theme) => ({
   },
 }))
 
-function Widgets({ app, n }: { n: Note; app: App }) {
+function Widgets({ n, history }: { n: Note; history: Visit[] }) {
   const classes = widgetStyles()
 
   const t = () => {
-    app.confirm({
+    n.app.confirm({
       title: `Delete this note?`,
       text: `Delete this note concerning "${notePhrase(n.state)}"?`,
       callback: () => {
         return new Promise((resolve, _reject) => {
-          app.removeNote(n.state)
+          n.app.removeNote(n.state)
           n.savedState = nullState()
           const state: NoteState = deepClone(n.state)
           state.relations = {}
@@ -1178,14 +1178,14 @@ function Widgets({ app, n }: { n: Note; app: App }) {
   }
   return (
     <div className={classes.root}>
-      <Nav app={app} n={n} />
+      <Nav n={n} history={history} />
       {n.state.unsavedContent && (
         <TT msg="save unsaved content" placement="left">
           <Save className={classes.save} onClick={() => n.save()} />
         </TT>
       )}
       {n.state.everSaved && <Delete className={classes.delete} onClick={t} />}
-      {n.hasWord() && <Similar app={app} n={n} />}
+      {n.hasWord() && <Similar n={n} />}
     </div>
   )
 }
@@ -1209,7 +1209,7 @@ const similarStyles = makeStyles((theme) => ({
   },
 }))
 
-function Similar({ app, n }: { app: App; n: Note }) {
+function Similar({ n }: { n: Note }) {
   const classes = similarStyles()
   const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
   const [fallback, setFallback] = useState("...")
@@ -1218,15 +1218,15 @@ function Similar({ app, n }: { app: App; n: Note }) {
   const search: AdHocQuery = {
     type: "ad hoc",
     phrase: n.currentCitation().phrase,
-    sorter: app.sorterFor(n),
+    sorter: n.app.sorterFor(n),
     strictness: "similar",
   }
   const findSimilar = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     setAnchorEl(e.currentTarget)
-    app.switchboard.index
+    n.app.switchboard.index
       ?.find({
         ...search,
-        limit: app.state.config.notes.similarCount + 1, // add one to account for term itself
+        limit: n.app.state.config.notes.similarCount + 1, // add one to account for term itself
       })
       .then((found) => {
         let matches: NoteRecord[] = []
@@ -1247,13 +1247,13 @@ function Similar({ app, n }: { app: App; n: Note }) {
         const similars = matches
           .map((m) => notePhrase(m))
           .filter((w) => w !== search.phrase)
-          .slice(0, app.state.config.notes.similarCount)
+          .slice(0, n.app.state.config.notes.similarCount)
         setFallback(similars.length ? "" : "none")
         n.setState({ similars })
       })
   }
   const similarSearch = () => {
-    app.switchboard.index?.find(search).then((r) => {
+    n.app.switchboard.index?.find(search).then((r) => {
       let searchResults: NoteRecord[] = []
       switch (r.type) {
         case "ambiguous":
@@ -1269,12 +1269,12 @@ function Similar({ app, n }: { app: App; n: Note }) {
         default:
           assertNever(r)
       }
-      app.setState({ tab: Section.search, search, searchResults })
+      n.app.setState({ tab: Section.search, search, searchResults })
     })
   }
   return (
     <>
-      {app.noteCount() > 1 && (
+      {n.app.noteCount() > 1 && (
         <div>
           <span
             id="similar-target"
@@ -1346,6 +1346,10 @@ const navStyles = makeStyles((theme) => ({
   nav: {
     padding: theme.spacing(1),
   },
+  navColumn: {
+    display: "flex",
+    flexDirection: "column-reverse",
+  },
   focus: {
     cursor: "pointer",
     display: "table",
@@ -1354,9 +1358,9 @@ const navStyles = makeStyles((theme) => ({
   },
 }))
 
-function Nav({ app, n }: { app: App; n: Note }) {
+function Nav({ n, history }: { n: Note; history: Visit[] }) {
   const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
-  if (app.state.history.length < 1) {
+  if (n.app.state.history.length < 1) {
     return null
   }
   const classes = navStyles()
@@ -1382,16 +1386,11 @@ function Nav({ app, n }: { app: App; n: Note }) {
           <div className={classes.focus} onClick={() => n.focus()}>
             <FilterCenterFocus color="primary" />
           </div>
-          {app.state.history.map((v, i, _ar) => (
-            <HistoryLink
-              key={`${i}-${
-                v.current.citations[v.current.canonicalCitation || 0].phrase
-              }`}
-              v={v}
-              app={app}
-              n={n}
-            />
-          ))}
+          <div className={classes.navColumn}>
+            {history.map((v, i, _ar) => (
+              <HistoryLink key={`${i}-${notePhrase(v.current)}`} v={v} n={n} />
+            ))}
+          </div>
         </div>
       </Popover>
     </div>
@@ -1451,23 +1450,22 @@ const historyLinkStyles = makeStyles((theme) => ({
   },
 }))
 
-function HistoryLink({ v, app, n }: { v: Visit; app: App; n: Note }) {
+function HistoryLink({ v, n }: { v: Visit; n: Note }) {
   const classes = historyLinkStyles()
-  const note = app.currentNote()
-  const currentKey = note && sameNote(note, v.current)
+  const currentKey = sameNote(n.state, v.current)
   const callback = () => {
     if (!currentKey) {
-      app.goto(v.current, () => {
-        const visit = deepClone(app.recentHistory())!
-        n.savedState = visit.saved
-        n.setState(visit.current)
+      n.app.goto(v.current, () => {
+        const { current, saved } = deepClone(n.app.recentHistory())!
+        n.savedState = saved
+        n.setState(current)
       })
     }
   }
   const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root
   return (
-    <div key={enkey(v.current.key)} onClick={callback} className={cz}>
-      {v.current.citations[v.current.canonicalCitation || 0].phrase}
+    <div onClick={callback} className={cz}>
+      {notePhrase(v.current)}
     </div>
   )
 }
