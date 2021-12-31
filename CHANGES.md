@@ -2,6 +2,9 @@
 
 Key changes in each release. The dates with each release are the dates I submitted the extension to Google, not the dates these releases appeared in the extension store.
 
+*0.0.4 pending*
+- added forward and back hotkeys for moving about in note history
+
 *0.0.3 2020-12-26*
 - make known words in the gist clickable
 - fixed relation rendering so broken links do not appear

@@ -56,7 +56,7 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] switch to recoil state management
 - [x] adjust appearance of elaboration/citation expander widget
 - [x] make words in context clickable if they are in the index
-- [ ] make it possible to search the gist
+- [x] make it possible to search the gist
 - [x] invert history in nav element
 - [x] investigate null colors showing up in confetti cannon
    - This seems to be a problem with the library. Leaving it alone for the moment.
@@ -64,3 +64,6 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] improve error reporting mechanism so it's easier to dump error objects to the console
 - [ ] fix situation where if you navigate about among notes the search result linkers are unaware of this
 - [ ] remove redundant app arguments when note is passed down as a prop
+- [ ] add special celebration when there were no mistakes in the quiz
+- [ ] speed up the scrolling of scrolling links
+- [ ] add forward and back hotkeys

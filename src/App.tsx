@@ -55,7 +55,7 @@ import Sorting from "./Sorting"
 import FlashCards, { FlashCardState } from "./FlashCards"
 
 // TODO add some code to the build script to ensure this matches whatever is in public/manifest.json
-export const VERSION = "0.0.3"
+export const VERSION = "0.0.4"
 
 const theme = createTheme({
   palette: {
@@ -93,6 +93,9 @@ interface AppState {
   url: string | null
   message: Message
   history: Visit[]
+  back: KeyPair[]
+  forward: KeyPair[]
+  shiftingHistory: "forward" | "back" | null
   historyIndex: number
   defaultProject: number
   search: Query
@@ -154,6 +157,9 @@ const nullState: AppState = {
   url: null,
   message: { open: false, level: "info", text: "", interval: null },
   history: [],
+  back: [],
+  forward: [],
+  shiftingHistory: null,
   historyIndex: -1,
   defaultProject: 0,
   search: { type: "ad hoc" },
@@ -405,6 +411,24 @@ export class App extends React.Component<AppProps, AppState> {
 
   // go to an existing saved note
   goto(note: NoteRecord | NoteState, callback: () => void = () => {}) {
+    // prepare to adjust the forward and back stacks as appropriate
+    let cb: () => void
+    switch (this.state.shiftingHistory) {
+      // if we got here by calling forward or back, we just need to unset that flag
+      case "back":
+      case "forward":
+        cb = () => {
+          this.setState({ shiftingHistory: null }, callback)
+        }
+        break
+      // otherwise, we need to store this on the back stack and clear the forward stack
+      default:
+        cb = () => {
+          const back = deepClone(this.state.back)
+          back.push(deepClone(note.key))
+          this.setState({ back, forward: [] }, callback)
+        }
+    }
     let historyIndex = 0
     // erase the null state if it's present in the history
     const history: Visit[] = (deepClone(this.state.history) as Visit[]).filter(
@@ -413,7 +437,7 @@ export class App extends React.Component<AppProps, AppState> {
     for (let l = history.length; historyIndex < l; historyIndex++) {
       const v = this.state.history[historyIndex]
       if (sameNote(v.current, note)) {
-        this.setState({ history, historyIndex, tab: Section.note }, callback)
+        this.setState({ history, historyIndex, tab: Section.note }, cb)
         return
       }
     }
@@ -426,7 +450,7 @@ export class App extends React.Component<AppProps, AppState> {
     }
     const saved: NoteState = deepClone(current)
     history.push({ current, saved })
-    this.setState({ tab: Section.note, history, historyIndex }, callback)
+    this.setState({ tab: Section.note, history, historyIndex }, cb)
   }
 
   // for just changing the URL of the content page without highlighting anything

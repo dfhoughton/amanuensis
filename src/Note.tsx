@@ -45,6 +45,7 @@ import {
   debounce,
   notePhrase,
   nws,
+  sameKey,
   sameNote,
   uniq,
 } from "./modules/util"
@@ -387,6 +388,58 @@ class Note extends React.Component<NoteProps, NoteState> {
   allTags() {
     return Array.from(this.app.switchboard.index?.tags || []).sort()
   }
+
+  // move about in the history queue
+  shiftHistory(dir: "forward" | "back") {
+    let { forward, back } = this.app.state
+    let [from, to] = dir === "forward" ? [forward, back] : [back, forward]
+    if (
+      from.length &&
+      !(from.length === 1 && sameKey(from[0], this.state.key))
+    ) {
+      let key = from[from.length - 1]!
+      let popCount = 1
+      if (sameKey(key, this.state.key)) {
+        key = from[from.length - 2]!
+        popCount = 2
+      }
+      const v = this.app.state.history.find((v) => sameKey(v.current.key, key))
+      if (v) {
+        from = deepClone(from)
+        to = deepClone(to)
+        for (let i = 0; i < popCount; i++) {
+          to.push(from.pop()!)
+        }
+        const rest =
+          dir === "forward"
+            ? { forward: from, back: to }
+            : { forward: to, back: from }
+        this.app.setState({ shiftingHistory: dir, ...rest }, () =>
+          this.app.goto(v.current, () => {
+            const { current, saved } = deepClone(this.app.recentHistory())!
+            this.savedState = saved
+            this.setState(current)
+          })
+        )
+      } else {
+        console.error(
+          `The last key in the ${dir} stack, ${enkey(
+            key
+          )}, does not correspond to any state in history.`
+        )
+        this.app.error(
+          `There was a problem and we could not go ${dir} further.`
+        )
+      }
+    } else {
+      this.app.warn(
+        dir === "forward"
+          ? "there is no next note to return to"
+          : "there is no previous note to revisit",
+        1000
+      )
+    }
+  }
 }
 
 export default Note
@@ -394,6 +447,12 @@ export default Note
 function Editor({ note }: { note: Note }) {
   const keyCallback = (event: KeyboardEvent, handler: any) => {
     switch (handler.key) {
+      case "alt+right":
+        note.shiftHistory("forward")
+        break
+      case "alt+left":
+        note.shiftHistory("back")
+        break
       case "ctrl+shift+s": // pop open similars popup
         document.getElementById("similar-target")?.click()
         break
@@ -409,10 +468,10 @@ function Editor({ note }: { note: Note }) {
   }
   // overriding the filter option so we can save while in textareas and such
   useHotkeys(
-    "ctrl+s,ctrl+shift+s",
+    "alt+right,alt+left,ctrl+s,ctrl+shift+s",
     keyCallback,
     { enableOnTags: ["INPUT", "TEXTAREA", "SELECT"] },
-    [note.state]
+    [note.state] // TODO I think we can omit this parameter
   )
   const [showDetails, setShowDetails] = useState<boolean>(false)
   const hasWord = note.hasWord()
@@ -960,7 +1019,7 @@ function NoteDetails({
         note generated or retrieved with Alt-A, or if you've already navigated
         about. It allows you to return to citations you have written notes
         about. If you click on the navigational widget you get a list containing
-        your phrase of the current note, highlighted, and the phrases of any
+        the phrase of the current note, highlighted, and the phrases of any
         other notes you've looked at in this Amanuensis session. If you click on
         one of the non-highlighted phrases that note will be shown. If you click
         click the <FilterCenterFocus color="primary" fontSize="small" /> at the
@@ -971,6 +1030,15 @@ function NoteDetails({
         page. If the structure of the page has changed greatly since the note
         was taken the original selection may no longer be there, or Amanuensis
         may fail to find it. See <LinkDown to="internals">internals</LinkDown>.
+      </p>
+      <p>
+        <strong>Note</strong>, the navigational widget doesn't show anything
+        more than once. If you've wandered about following links and gotten to
+        the same note in multiple ways, it will still show up only once in the
+        navigation list. However, there is an alternative method of moving about
+        in your history without using the navigational widget:{" "}
+        <em>forward and backward hotkeys</em>. Alt-left (⎇←) will take you
+        back one step. Alt-right (⎇→) will take you forward.
       </p>
       <strong id="similar">
         <FilterList fontSize="small" color="primary" /> Similar Phrases{" "}
@@ -1552,7 +1620,7 @@ const MaybeClickableSequence: React.FC<{
 }> = ({ text, note }) => {
   const [map, setMap] = useState(new Map<string, NoteRecord>())
   const bits = text
-    .split(/((?:\p{L}(?:['.]\p{L})?)+|[^\p{L}]+)/u)
+    .split(/((?:\p{L}(?:['.-]\p{L})?)+|[^\p{L}]+)/u)
     .filter((w) => w.length)
   useEffect(() => {
     if (note) {
