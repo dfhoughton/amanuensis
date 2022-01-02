@@ -8,9 +8,11 @@ import {
   Typography as T,
 } from "@material-ui/core"
 import {
+  Add,
   ArrowForward,
   Done,
   Edit,
+  Link as RelationLink,
   School,
   SentimentVeryDissatisfied,
   SentimentVerySatisfied,
@@ -19,7 +21,7 @@ import { useState } from "react"
 import { useHotkeys } from "react-hotkeys-hook"
 import { App, Section } from "./App"
 import { deepClone } from "./modules/clone"
-import { AboutLink, Details, TabLink } from "./modules/components"
+import { AboutLink, Details, TabLink, TT } from "./modules/components"
 import { enkey } from "./modules/storage"
 import { CardStack, NoteRecord, PhraseInContext } from "./modules/types"
 import { canonicalCitation, notePhrase, pick, rando } from "./modules/util"
@@ -324,6 +326,12 @@ function CurrentCard({
       banner={() => done(s) && <T className={classes.success}>{s.banner}!</T>}
       which={state.which}
       total={state.total}
+      citationCount={note.citations.length}
+      relationCount={(() => {
+        let count = 0
+        Object.values(note.relations).forEach((list) => (count += list.length))
+        return count
+      })()}
       gist={note.gist}
       showingGist={s.showingGist}
       phrase={canonicalCitation(note)}
@@ -350,6 +358,8 @@ const CardWidget: React.FC<{
   banner: () => React.ReactNode
   which: number
   total: number
+  citationCount: number
+  relationCount: number
   judgment: boolean | null
   gist: string
   showingGist: boolean
@@ -371,6 +381,8 @@ const CardWidget: React.FC<{
   banner,
   which,
   total,
+  citationCount,
+  relationCount,
   judgment,
   gist,
   showingGist,
@@ -432,9 +444,11 @@ const CardWidget: React.FC<{
           </IconButton>
         </Grid>
         <Grid item>
-          <IconButton onClick={doEdit}>
-            <Edit fontSize="large" />
-          </IconButton>
+          <EditWidget
+            citationCount={citationCount}
+            relationCount={relationCount}
+            doEdit={doEdit}
+          />
         </Grid>
         <Grid item>
           <IconButton onClick={doNext}>
@@ -453,6 +467,52 @@ const CardWidget: React.FC<{
         </Grid>
       </Grid>
     </>
+  )
+}
+
+const editWidgetStyles = makeStyles((theme) => ({
+  root: {
+    position: "relative",
+  },
+  citations: {
+    position: "absolute",
+    top: "-1rem",
+    left: "-1rem",
+  },
+  relations: {
+    position: "absolute",
+    top: "-1rem",
+    right: "-1rem",
+  },
+}))
+
+const EditWidget: React.FC<{
+  citationCount: number
+  relationCount: number
+  doEdit: () => void
+}> = ({ citationCount, relationCount, doEdit }) => {
+  const classes = editWidgetStyles()
+  return (
+    <span className={classes.root}>
+      {citationCount > 1 && (
+        <TT msg={`${citationCount} citations`} placement="left">
+          <Add fontSize="small" className={classes.citations} />
+        </TT>
+      )}
+      <IconButton onClick={doEdit}>
+        <Edit fontSize="large" />
+      </IconButton>
+      {relationCount > 0 && (
+        <TT
+          msg={`${relationCount} ${
+            relationCount === 1 ? "relation" : "relations"
+          }`}
+          placement="right"
+        >
+          <RelationLink fontSize="small" className={classes.relations} />
+        </TT>
+      )}
+    </span>
   )
 }
 
@@ -522,6 +582,8 @@ function DemoCard({ app }: { app: App }) {
       banner={() => null}
       which={5}
       total={15}
+      citationCount={3}
+      relationCount={1}
       gist="a small, carnivorous mammal that likes laser pointers"
       showingGist={showingGist}
       phrase={{ before: "Behold the fuzzy ", phrase: "cat", after: "." }}
@@ -656,7 +718,11 @@ function DetailsContent({ app }: { app: App }) {
       <p>
         Finally, if you wish to see the note on which a card is based, you can
         click the <Edit fontSize="small" /> icon or press &ldquo;e&rdquo;
-        (edit).
+        (edit). This icon may have two small satellites,{" "}
+        <Add fontSize="small" /> and <RelationLink fontSize="small" />. These
+        appear if the note in question has additional citations or relations to
+        other notes, respectively. Basically, they indicate whether the note has
+        other information you may with to review.
       </p>
       <AboutLink app={app} />
     </>

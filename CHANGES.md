@@ -4,6 +4,7 @@ Key changes in each release. The dates with each release are the dates I submitt
 
 *0.0.4 pending*
 - added forward and back hotkeys for moving about in note history
+- added badges indicating whether a note in a flashcard stack as relations or additional citations
 
 *0.0.3 2020-12-26*
 - make known words in the gist clickable

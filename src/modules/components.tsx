@@ -47,7 +47,7 @@ interface TTProps {
 
 // decorate an element with a tooltip
 export function TT({ children, msg, placement, wrap }: TTProps): ReactElement {
-  const child = wrap ? <span>{children}</span> : children
+  const child = wrap ? <>{children}</> : children
   return (
     <Tooltip title={msg} placement={placement} arrow>
       {child}
