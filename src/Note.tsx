@@ -139,13 +139,29 @@ class Note extends React.Component<NoteProps, NoteState> {
   }
 
   componentWillUnmount() {
-    this.app.makeHistory(this.state, this.savedState)
-    this.app.switchboard.removeActions("note", [
-      "selection",
-      "focused",
-      "reloaded",
-      "noSelection",
-    ])
+    this.makeHistory(() => {
+      this.app.switchboard.removeActions("note", [
+        "selection",
+        "focused",
+        "reloaded",
+        "noSelection",
+      ])
+    })
+  }
+
+  makeHistory(callback: () => void = () => {}) {
+    this.app.makeHistory(this.state, this.savedState, callback)
+  }
+
+  // a goto that resets all the bits of state that need resetting
+  goto(note: NoteRecord | NoteState, callback: () => void = () => {}) {
+    this.makeHistory(() => {
+      this.app.goto(note, () => {
+        const { current, saved } = deepClone(this.app.recentHistory())!
+        this.savedState = saved
+        this.setState(current, callback)
+      })
+    })
   }
 
   checkSavedState() {
@@ -337,6 +353,7 @@ class Note extends React.Component<NoteProps, NoteState> {
       return
     }
     const data = deepClone(this.state, "unsavedContent", "project")
+    const originalKey = data.key
     this.app.switchboard.index
       ?.add({
         phrase: this.currentCitation().phrase,
@@ -355,7 +372,10 @@ class Note extends React.Component<NoteProps, NoteState> {
             everSaved: true,
             unsavedCitation: false,
           },
-          () => this.reportTodaysCount()
+          () => {
+            this.reportTodaysCount()
+            this.app.checkForKeyChange(originalKey, key)
+          }
         )
       })
   }
@@ -390,54 +410,43 @@ class Note extends React.Component<NoteProps, NoteState> {
   }
 
   // move about in the history queue
+  // current should be on neither stack
   shiftHistory(dir: "forward" | "back") {
     let { forward, back } = this.app.state
-    let [from, to] = dir === "forward" ? [forward, back] : [back, forward]
-    if (
-      from.length &&
-      !(from.length === 1 && sameKey(from[0], this.state.key))
-    ) {
-      let key = from[from.length - 1]!
-      let popCount = 1
-      if (sameKey(key, this.state.key)) {
-        key = from[from.length - 2]!
-        popCount = 2
+    forward = deepClone(forward)
+    back = deepClone(back)
+    const isBack = dir === "back"
+    let [from, to] = isBack ? [back, forward] : [forward, back]
+    if (isBack && back.length && back[0][1] === 0) {
+      // clean null key that may be head of back
+      if (
+        !this.app.state.history.find((v) => sameKey(v.current.key, back[0]))
+      ) {
+        back.splice(0, 1)
       }
-      const v = this.app.state.history.find((v) => sameKey(v.current.key, key))
+    }
+    if (from.length) {
+      const leaving = deepClone(this.state.key)
+      const [joining] = from.splice(from.length - 1, 1)
+      to.push(leaving)
+      const v = this.app.state.history.find((v) =>
+        sameKey(v.current.key, joining)
+      )
       if (v) {
-        from = deepClone(from)
-        to = deepClone(to)
-        for (let i = 0; i < popCount; i++) {
-          to.push(from.pop()!)
-        }
-        const rest =
-          dir === "forward"
-            ? { forward: from, back: to }
-            : { forward: to, back: from }
-        this.app.setState({ shiftingHistory: dir, ...rest }, () =>
-          this.app.goto(v.current, () => {
-            const { current, saved } = deepClone(this.app.recentHistory())!
-            this.savedState = saved
-            this.setState(current)
-          })
-        )
+        const [forward, back] = isBack ? [to, from] : [from, to]
+        this.goto(v.current, () => {
+          this.app.setState({ back, forward })
+        })
       } else {
-        console.error(
-          `The last key in the ${dir} stack, ${enkey(
-            key
-          )}, does not correspond to any state in history.`
-        )
+        // this should be an unreachable state
         this.app.error(
-          `There was a problem and we could not go ${dir} further.`
+          `the back stack contained a key, ${enkey(
+            joining
+          )}, that is not in the history`
         )
       }
     } else {
-      this.app.warn(
-        dir === "forward"
-          ? "there is no next note to return to"
-          : "there is no previous note to revisit",
-        1000
-      )
+      this.app.warn("there are no more notes to show", 500)
     }
   }
 }
@@ -1037,8 +1046,8 @@ function NoteDetails({
         the same note in multiple ways, it will still show up only once in the
         navigation list. However, there is an alternative method of moving about
         in your history without using the navigational widget:{" "}
-        <em>forward and backward hotkeys</em>. Alt-left (⎇←) will take you
-        back one step. Alt-right (⎇→) will take you forward.
+        <em>forward and backward hotkeys</em>. Alt-left (⎇←) will take you back
+        one step. Alt-right (⎇→) will take you forward.
       </p>
       <strong id="similar">
         <FilterList fontSize="small" color="primary" /> Similar Phrases{" "}
@@ -1463,12 +1472,12 @@ const navStyles = makeStyles((theme) => ({
 
 function Nav({ n, history }: { n: Note; history: Visit[] }) {
   const [anchorEl, setAnchorEl] = React.useState<null | Element>(null)
-  if (n.app.state.history.length < 1) {
-    return null
-  }
   const classes = navStyles()
   const open = Boolean(anchorEl)
   const id = open ? "simple-popover" : undefined
+  if (n.app.state.history.length < 1) {
+    return null
+  }
   return (
     <div>
       <span
@@ -1558,11 +1567,7 @@ function HistoryLink({ v, n }: { v: Visit; n: Note }) {
   const currentKey = sameNote(n.state, v.current)
   const callback = () => {
     if (!currentKey) {
-      n.app.goto(v.current, () => {
-        const { current, saved } = deepClone(n.app.recentHistory())!
-        n.savedState = saved
-        n.setState(current)
-      })
+      n.goto(v.current)
     }
   }
   const cz = currentKey ? `${classes.root} ${classes.current}` : classes.root
@@ -1668,16 +1673,7 @@ const MaybeClickable: React.FC<{
   const n = map.get(item)
   return n && !sameNote(note!.state, n) ? (
     <TT msg={n.gist || "no gist for this phrase"}>
-      <span
-        className={classes.root}
-        onClick={() => {
-          note?.app.goto(n, () => {
-            const visit = deepClone(note.app.recentHistory())!
-            note.savedState = visit.saved
-            note.setState(visit.current)
-          })
-        }}
-      >
+      <span className={classes.root} onClick={() => note?.goto(n)}>
         {item}
       </span>
     </TT>
@@ -2052,15 +2048,9 @@ function Relations({
                         variant="outlined"
                         clickable
                         onClick={() => {
-                          note.app.setState({ tab: Section.sorters }, () => {
-                            note.app.goto(other, () => {
-                              const { current, saved } = deepClone(
-                                note.app.recentHistory()
-                              )!
-                              note.savedState = saved
-                              note.setState(current)
-                            })
-                          })
+                          note.app.setState({ tab: Section.sorters }, () =>
+                            note.goto(other)
+                          )
                         }}
                         onDelete={() => {
                           note.app.switchboard

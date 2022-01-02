@@ -95,7 +95,6 @@ interface AppState {
   history: Visit[]
   back: KeyPair[]
   forward: KeyPair[]
-  shiftingHistory: "forward" | "back" | null
   historyIndex: number
   defaultProject: number
   search: Query
@@ -159,7 +158,6 @@ const nullState: AppState = {
   history: [],
   back: [],
   forward: [],
-  shiftingHistory: null,
   historyIndex: -1,
   defaultProject: 0,
   search: { type: "ad hoc" },
@@ -384,7 +382,11 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   // to happen when a note is navigated away from to another tab
-  makeHistory(current: NoteState, saved: NoteState) {
+  makeHistory(
+    current: NoteState,
+    saved: NoteState,
+    callback: () => void = () => {}
+  ) {
     let historyIndex = 0,
       found = false
     for (let l = this.state.history.length; historyIndex < l; historyIndex++) {
@@ -392,7 +394,7 @@ export class App extends React.Component<AppProps, AppState> {
       if (sameNote(v.current, current)) {
         found = true
         if (!anyDifference(v.current, current)) {
-          this.setState({ historyIndex })
+          this.setState({ historyIndex }, callback)
           return
         }
         break
@@ -406,38 +408,64 @@ export class App extends React.Component<AppProps, AppState> {
       historyIndex = history.length
       history.push(newEvent)
     }
-    this.setState({ history, historyIndex })
+    this.setState({ history, historyIndex }, callback)
+  }
+
+  checkForKeyChange(original: KeyPair, novel: KeyPair) {
+    if (!sameKey(original, novel)) {
+      // this is a new key, make sure we replace the original everywhere that's relevant
+      let { history, forward, back } = this.state
+      history = deepClone(history)
+      forward = deepClone(forward)
+      back = deepClone(back)
+      let change = false
+      for (const v of history) {
+        if (sameKey(v.current.key, original)) {
+          v.current.key = novel
+          v.saved.key = novel
+          change = true
+          break
+        }
+      }
+      for (const kp of back) {
+        if (sameKey(kp, original)) {
+          kp[1] = novel[1]
+          change = true
+          break
+        }
+      }
+      for (const kp of forward) {
+        if (sameKey(kp, original)) {
+          kp[1] = novel[1]
+          change = true
+          break
+        }
+      }
+      if (change) this.setState({ history, forward, back })
+    }
   }
 
   // go to an existing saved note
   goto(note: NoteRecord | NoteState, callback: () => void = () => {}) {
-    // prepare to adjust the forward and back stacks as appropriate
-    let cb: () => void
-    switch (this.state.shiftingHistory) {
-      // if we got here by calling forward or back, we just need to unset that flag
-      case "back":
-      case "forward":
-        cb = () => {
-          this.setState({ shiftingHistory: null }, callback)
-        }
-        break
-      // otherwise, we need to store this on the back stack and clear the forward stack
-      default:
-        cb = () => {
-          const back = deepClone(this.state.back)
-          back.push(deepClone(note.key))
-          this.setState({ back, forward: [] }, callback)
-        }
+    const back = deepClone(this.state.back)
+    const currentKey = deepClone(this.currentNote()?.key)
+    if (currentKey) {
+      back.push(currentKey)
+    } else {
+      console.error("there is no current key!")
     }
     let historyIndex = 0
     // erase the null state if it's present in the history
-    const history: Visit[] = (deepClone(this.state.history) as Visit[]).filter(
+    const history = deepClone(this.state.history).filter(
       (v) => v.current.citations.length > 0
     )
     for (let l = history.length; historyIndex < l; historyIndex++) {
       const v = this.state.history[historyIndex]
       if (sameNote(v.current, note)) {
-        this.setState({ history, historyIndex, tab: Section.note }, cb)
+        this.setState(
+          { history, historyIndex, back, tab: Section.note, forward: [] },
+          callback
+        )
         return
       }
     }
@@ -450,7 +478,10 @@ export class App extends React.Component<AppProps, AppState> {
     }
     const saved: NoteState = deepClone(current)
     history.push({ current, saved })
-    this.setState({ tab: Section.note, history, historyIndex }, cb)
+    this.setState(
+      { tab: Section.note, history, historyIndex, back, forward: [] },
+      callback
+    )
   }
 
   // for just changing the URL of the content page without highlighting anything
