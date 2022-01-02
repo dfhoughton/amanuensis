@@ -1,7 +1,7 @@
 {
   "name": "Amanuensis",
   "description": "Take notes on page contents. Quiz yourself on these notes later.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "icons": {
     "512": "AmanuensislogoC1.png",
     "192": "AmanuensislogosmC1.png"
