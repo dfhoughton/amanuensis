@@ -83,20 +83,13 @@ class Note extends React.Component<NoteProps, NoteState> {
   app: App
   debouncedCheckSavedState: () => void
   focusing: CitationRecord | null
-  splitter: RegExp | null
   constructor(props: Readonly<NoteProps>) {
     super(props)
     this.focusing = null
     this.app = props.app
-    this.splitter = null
     const visit = this.app.recentHistory()
     if (visit) {
       const { current, saved }: Visit = deepClone(visit)
-      this.app.switchboard.then(() => {
-        this.app.switchboard.index
-          ?.getSplitter(current.key[0])
-          .then((rx) => (this.splitter = rx))
-      })
       if (current.canonicalCitation) {
         current.citationIndex = current.canonicalCitation
       }
@@ -1627,45 +1620,28 @@ const MaybeClickableSequence: React.FC<{
   note?: Note
 }> = ({ text, note }) => {
   const [map, setMap] = useState(new Map<string, NoteRecord>())
-  const [bits, setBits] = useState(
-    note?.splitter ? text.split(note.splitter) : [text]
-  )
+  const [bits, setBits] = useState([text])
   useEffect(() => {
     if (note) {
       const index = note.app.switchboard.index!
-      if (bits.length > 1) {
-        index
-          .find({
-            type: "batch",
-            project: note.state.key[0],
-            phrases: uniq(bits),
-          })
-          .then((found) => {
-            if (found.type === "batch") {
-              setMap(found.map)
-            }
-          })
-          .catch((e) => console.error(`failed to find items`, e))
-      } else {
-        index.getSplitter(note.state.key[0]).then((rx) => {
-          const newBits = text.split(rx)
-          if (anyDifference(bits, newBits)) {
-            index
-              .find({
-                type: "batch",
-                project: note.state.key[0],
-                phrases: uniq(newBits),
-              })
-              .then((found) => {
-                if (found.type === "batch") {
-                  setBits(newBits)
-                  setMap(found.map)
-                }
-              })
-              .catch((e) => console.error(`failed to find items`, e))
-          }
-        })
-      }
+      index.getSplitter(note.state.key[0]).then((rx) => {
+        const newBits = text.split(rx)
+        if (anyDifference(bits, newBits)) {
+          index
+            .find({
+              type: "batch",
+              project: note.state.key[0],
+              phrases: uniq(newBits),
+            })
+            .then((found) => {
+              if (found.type === "batch") {
+                setBits(newBits)
+                setMap(found.map)
+              }
+            })
+            .catch((e) => console.error(`failed to find items`, e))
+        }
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text])

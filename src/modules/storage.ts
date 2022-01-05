@@ -111,15 +111,6 @@ export class Index {
     this.cache = new Map()
     this.splitters = new Map()
     this.heal()
-    this.initializeSplitters()
-  }
-
-  initializeSplitters() {
-    this.projects.forEach((info, name, _m) =>
-      this.getSplitter(info.pk).then(() =>
-        console.log(`initialized splitter for "${name}" project`)
-      )
-    )
   }
 
   refreshSplitter(i: number): Promise<RegExp> {
@@ -155,6 +146,7 @@ export class Index {
           Promise.all(promises).then(() => {
             const rx = trie(phrases, { capture: true })
             this.splitters.set(i, rx)
+            console.log(`compiled splitter for ${this.reverseProjectIndex.get(i)}`)
             resolve(rx)
           })
         } else {

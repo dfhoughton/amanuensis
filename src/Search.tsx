@@ -2070,7 +2070,6 @@ function RelationModal({
     const [left, right] = r.split("-")
     const relations = app.switchboard.index!.findProject(note.key[0])![1]
       .relations
-    console.log("relations", relations) // debugging a null pointer exception
     for (const [headRole, dependentRole] of relations) {
       if (headRole === left && dependentRole === (right || left)) {
         return { headRole, dependentRole, reversed: false }
@@ -2080,9 +2079,7 @@ function RelationModal({
     }
     return null
   }
-  console.log("relation", relation) // debugging a null pointer exception
   const parsedRelation = parseRelation(relation)!
-  console.log("parsedRelation", parsedRelation) // debugging a null pointer exception
   const message = `link "${notePhrase(note)}" to "${notePhrase(cn)}"`
   const [r1, r2] = parsedRelation.reversed
     ? [parsedRelation.dependentRole, parsedRelation.headRole]
