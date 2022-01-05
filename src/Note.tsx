@@ -83,13 +83,20 @@ class Note extends React.Component<NoteProps, NoteState> {
   app: App
   debouncedCheckSavedState: () => void
   focusing: CitationRecord | null
+  splitter: RegExp | null
   constructor(props: Readonly<NoteProps>) {
     super(props)
     this.focusing = null
     this.app = props.app
+    this.splitter = null
     const visit = this.app.recentHistory()
     if (visit) {
       const { current, saved }: Visit = deepClone(visit)
+      this.app.switchboard.then(() => {
+        this.app.switchboard.index
+          ?.getSplitter(current.key[0])
+          .then((rx) => (this.splitter = rx))
+      })
       if (current.canonicalCitation) {
         current.citationIndex = current.canonicalCitation
       }
@@ -816,15 +823,11 @@ function NoteDetails({
       <p>
         Amanuensis looks up all the words in the context to see if you also have
         notes on them. If so,{" "}
-        <span className={maybeClickableClasses.root}>it</span>{" "}
-        <span className={maybeClickableClasses.root}>renders</span>{" "}
+        <span className={maybeClickableClasses.root}>it renders</span>{" "}
         <span className={maybeClickableClasses.root}>them</span>{" "}
-        <span className={maybeClickableClasses.root}>like</span>{" "}
-        <span className={maybeClickableClasses.root}>this</span>. This lookup
-        sometimes is slow to start, so you won't see this immediately. The
+        <span className={maybeClickableClasses.root}>like this</span>. The
         underlined words are clickable. If you click them you will be sent to
-        their note. Unfortunately, for the sake of efficiency Amanuensis only
-        looks up single words, not phrases.
+        their note.
       </p>
       <T id="header" variant="h6">
         Header <LinkUp />
@@ -1624,23 +1627,45 @@ const MaybeClickableSequence: React.FC<{
   note?: Note
 }> = ({ text, note }) => {
   const [map, setMap] = useState(new Map<string, NoteRecord>())
-  const bits = text
-    .split(/((?:\p{L}(?:['.-]\p{L})?)+|[^\p{L}]+)/u)
-    .filter((w) => w.length)
+  const [bits, setBits] = useState(
+    note?.splitter ? text.split(note.splitter) : [text]
+  )
   useEffect(() => {
     if (note) {
-      note.app.switchboard
-        .index!.find({
-          type: "batch",
-          project: note.state.key[0],
-          phrases: uniq(bits.filter((s) => /\p{L}/u.test(s))),
-        })
-        .then((found) => {
-          if (found.type === "batch") {
-            setMap(found.map)
+      const index = note.app.switchboard.index!
+      if (bits.length > 1) {
+        index
+          .find({
+            type: "batch",
+            project: note.state.key[0],
+            phrases: uniq(bits),
+          })
+          .then((found) => {
+            if (found.type === "batch") {
+              setMap(found.map)
+            }
+          })
+          .catch((e) => console.error(`failed to find items`, e))
+      } else {
+        index.getSplitter(note.state.key[0]).then((rx) => {
+          const newBits = text.split(rx)
+          if (anyDifference(bits, newBits)) {
+            index
+              .find({
+                type: "batch",
+                project: note.state.key[0],
+                phrases: uniq(newBits),
+              })
+              .then((found) => {
+                if (found.type === "batch") {
+                  setBits(newBits)
+                  setMap(found.map)
+                }
+              })
+              .catch((e) => console.error(`failed to find items`, e))
           }
         })
-        .catch((e) => console.error(`failed to find items`, e))
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text])
@@ -2034,11 +2059,6 @@ function Relations({
                 {keys.map((k) => {
                   const key = enkey(k)
                   const other = phraseMap.get(key)
-                  if (!other)
-                    console.error(
-                      `expected to retrieve note with this key for relation ${relation}`,
-                      { key, other }
-                    )
                   return (
                     other && (
                       <Chip

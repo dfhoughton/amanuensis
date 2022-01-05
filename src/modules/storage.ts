@@ -5,6 +5,7 @@ import {
   deserialize,
   serialize,
 } from "./clone"
+import { trie } from "./trie"
 import {
   Chrome,
   KeyPair,
@@ -75,6 +76,7 @@ export class Index {
   currentSorter: number // the index of the currently preferred sorter
   stacks: Map<string, CardStack> // the saved flashcard stacks
   config: Configuration // app configuration parameters
+  splitters: Map<number, RegExp>
   compressor: { [key: string]: string }
   decompressor: { [key: string]: string }
   constructor({
@@ -107,7 +109,59 @@ export class Index {
       this.reverseProjectIndex.set(value.pk, key)
     )
     this.cache = new Map()
+    this.splitters = new Map()
     this.heal()
+    this.initializeSplitters()
+  }
+
+  initializeSplitters() {
+    this.projects.forEach((info, name, _m) =>
+      this.getSplitter(info.pk).then(() =>
+        console.log(`initialized splitter for "${name}" project`)
+      )
+    )
+  }
+
+  refreshSplitter(i: number): Promise<RegExp> {
+    this.splitters.delete(i)
+    return this.getSplitter(i)
+  }
+
+  // get a splitter taking into account that it might not exist yet
+  getSplitter(i: number): Promise<RegExp> {
+    return new Promise((resolve, reject) => {
+      let splitter = this.splitters.get(i)
+      if (splitter) {
+        resolve(splitter)
+      } else {
+        const index = this.projectIndices.get(i)
+        if (index) {
+          const keys: string[] = []
+          index.forEach((v, _k, _m) => keys.push(`${i}:${v}`))
+          const phrases: string[] = []
+          const promises: Promise<void>[] = []
+          while (keys.length) {
+            const batch = keys.splice(0, 100)
+            promises.push(
+              this.getBatch(batch).then((records) => {
+                Object.values(records).forEach((r) => {
+                  for (const c of r.citations) {
+                    phrases.push(c.phrase)
+                  }
+                })
+              })
+            )
+          }
+          Promise.all(promises).then(() => {
+            const rx = trie(phrases, { capture: true })
+            this.splitters.set(i, rx)
+            resolve(rx)
+          })
+        } else {
+          reject(`there is no project ${i}; could not construct its splitter`)
+        }
+      }
+    })
   }
 
   // some initialization that will only be necessary if the local storage
@@ -1059,7 +1113,12 @@ export class Index {
           reject(this.chrome.runtime.lastError)
         } else {
           this.checkCompressor()
-            .then(() => resolve(pk))
+            .then(() => {
+              this.refreshSplitter(project).then(() =>
+                console.log("refreshed splitter after save")
+              )
+              resolve(pk)
+            })
             .catch(reject)
         }
       })

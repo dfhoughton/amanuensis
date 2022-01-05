@@ -494,24 +494,24 @@ const EditWidget: React.FC<{
   const classes = editWidgetStyles()
   return (
     <span className={classes.root}>
-      {citationCount > 1 && (
+      <Collapse in={citationCount > 1} className={classes.citations}>
         <TT msg={`${citationCount} citations`} placement="left">
-          <Add fontSize="small" className={classes.citations} />
+          <Add fontSize="small" />
         </TT>
-      )}
+      </Collapse>
       <IconButton onClick={doEdit}>
         <Edit fontSize="large" />
       </IconButton>
-      {relationCount > 0 && (
+      <Collapse in={relationCount > 0} className={classes.relations}>
         <TT
           msg={`${relationCount} ${
             relationCount === 1 ? "relation" : "relations"
           }`}
           placement="right"
         >
-          <RelationLink fontSize="small" className={classes.relations} />
+          <RelationLink fontSize="small" />
         </TT>
-      )}
+      </Collapse>
     </span>
   )
 }

@@ -2,6 +2,10 @@
 
 Key changes in each release. The dates with each release are the dates I submitted the extension to Google, not the dates these releases appeared in the extension store.
 
+*0.0.5 pending*
+- minor interface changes
+- improve known word in gist lookup so it now can handle phrases
+
 *0.0.4 2022-1-2*
 - added forward and back hotkeys for moving about in note history
 - added badges indicating whether a note in a flashcard stack as relations or additional citations
