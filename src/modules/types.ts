@@ -179,14 +179,6 @@ export interface AdHocQuery {
   limit?: number
 }
 
-// for looking up a collection of phrases in a particular project
-// used only to generate crosslinks in context of a phrase
-export interface BatchQuery {
-  type: "batch"
-  project: number
-  phrases: string[]
-}
-
 export type SampleType = "random" | "hard" | "novel"
 
 export interface EditDistanceProperties {
@@ -205,7 +197,7 @@ export interface Sorter extends EditDistanceProperties {
   metric: (w1: string, w2: string) => number
 }
 
-export type Query = LookupQuery | AdHocQuery | BatchQuery
+export type Query = LookupQuery | AdHocQuery
 
 // configuration hash for the app
 // default values for the parameters are set by setConfigurationDefaults in storage

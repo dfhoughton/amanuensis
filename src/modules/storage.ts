@@ -38,7 +38,6 @@ type FindResponse =
   | { type: "found"; match: NoteRecord }
   | { type: "ambiguous"; matches: NoteRecord[] }
   | { type: "none" }
-  | { type: "batch"; map: Map<string, NoteRecord> }
 
 // how to take a KeyPair and make a local storage/cache key
 export function enkey(key: KeyPair): string {
@@ -146,7 +145,9 @@ export class Index {
           Promise.all(promises).then(() => {
             const rx = trie(phrases, { capture: true })
             this.splitters.set(i, rx)
-            console.log(`compiled splitter for ${this.reverseProjectIndex.get(i)}`)
+            console.log(
+              `compiled splitter for ${this.reverseProjectIndex.get(i)}`
+            )
             resolve(rx)
           })
         } else {
@@ -529,6 +530,62 @@ export class Index {
     })
   }
 
+  // for looking up a bunch of words all in the same project
+  async projectLookup(
+    words: string[],
+    project: number
+  ): Promise<Map<string, NoteRecord>> {
+    return new Promise((resolve, reject) => {
+      const index = this.projectIndices.get(project)
+      if (index) {
+        const normMap = new Map<string, Set<string>>()
+        const keyMap = new Map<string, string>()
+        const rv = new Map<string, NoteRecord>()
+        for (const w of words) {
+          const norm = this.normalize(w, project)
+          let set = normMap.get(norm)
+          if (set === undefined) {
+            set = new Set([w])
+            normMap.set(norm, set)
+            const key = index.get(norm)
+            if (key !== undefined) {
+              keyMap.set(`${project}:${key}`, norm)
+            }
+          } else {
+            set.add(w)
+          }
+          if (normMap.get(norm)?.size) {
+            normMap.get(norm)
+          }
+        }
+        if (keyMap.size) {
+          this.chrome.storage.local.get(
+            Array.from(keyMap.keys()),
+            (payload) => {
+              if (this.chrome.runtime.lastError) {
+                reject(this.chrome.runtime.lastError)
+              } else {
+                for (const [key, value] of Object.entries(payload)) {
+                  const note = deserialize(
+                    value,
+                    this.decompressor
+                  ) as NoteRecord
+                  const norm = keyMap.get(key)!
+                  normMap.get(norm)?.forEach((word) => rv.set(word, note))
+                  resolve(rv)
+                }
+              }
+            }
+          )
+        } else {
+          resolve(rv)
+        }
+      } else {
+        reject(`there is no project ${project}`)
+      }
+    })
+  }
+
   // convenience method for getting the NoteRecord corresponding to a KeyPair
   async fetch(phrase: KeyPair): Promise<NoteRecord> {
     return new Promise((resolve, reject) => {
@@ -708,12 +765,9 @@ export class Index {
               endTime = before
             }
           }
-          const [project, allProjects] = query.project?.length
-            ? [
-                query.project,
-                query.project.length === this.allProjects().length,
-              ]
-            : [this.allProjects(), true]
+          const project = query.project?.length
+            ? query.project
+            : this.allProjects()
           let normalized: Map<number, string> | undefined
           let fuzzyMatchers: Map<number, RegExp> | undefined
           if (query.phrase != null) {
@@ -738,10 +792,6 @@ export class Index {
           let candidates: NoteRecord[] = []
           const test = (note: NoteRecord): boolean => {
             // proceed from easy to hard
-            if (!allProjects) {
-              if (none(project, (pk: number) => note.key[0] === pk))
-                return false
-            }
             if (phrase != null && query.strictness === "exact") {
               if (
                 none(
@@ -803,7 +853,7 @@ export class Index {
           }
           this.scan((_kp, note) => {
             if (test(note)) candidates.push(note)
-          })
+          }, project)
             .then(() => {
               if (candidates.length) {
                 if (candidates.length === 1) {
@@ -921,34 +971,6 @@ export class Index {
             })
             .catch((e) => reject(e))
         })
-      case "batch":
-        return new Promise((resolve, reject) => {
-          const normalizer =
-            normalizers[this.findProject(query.project)[1].normalizer]
-          const normalized = new Map<string, string[]>()
-          for (const phrase of query.phrases) {
-            const n = normalizer.code(phrase)
-            const unnormalized = normalized.get(n) || []
-            unnormalized.push(phrase)
-            normalized.set(n, unnormalized)
-          }
-          let candidates = new Map<string, NoteRecord>()
-          const test = (note: NoteRecord): boolean => {
-            if (note.key[0] !== query.project) return false
-            return normalized.has(normalizer.code(note.citations[0].phrase))
-          }
-          this.scan((_kp, note) => {
-            if (test(note)) {
-              for (const phrase of normalized.get(
-                normalizer.code(note.citations[0].phrase)
-              )!) {
-                candidates.set(phrase, deepClone(note))
-              }
-            }
-          })
-            .then(() => resolve({ type: "batch", map: candidates }))
-            .catch((e) => reject(e))
-        })
     }
   }
 
@@ -979,18 +1001,24 @@ export class Index {
 
   // scan all stored notes, giving each to the visitor callback
   // no scan order is guaranteed
-  scan(visitor: (key: KeyPair, note: NoteRecord) => void): Promise<void> {
+  scan(
+    visitor: (key: KeyPair, note: NoteRecord) => void,
+    onlyProjects?: number[]
+  ): Promise<void> {
+    const projects = new Set(onlyProjects || this.allProjects())
     const queue: string[] = []
     this.projectIndices.forEach((map, project, _indices) => {
-      map.forEach((pk, _norm, _index) => {
-        const key = enkey([project, pk])
-        const note = this.cache.get(key)
-        if (note) {
-          visitor([project, pk], note)
-        } else {
-          queue.push(key)
-        }
-      })
+      if (projects.has(project)) {
+        map.forEach((pk, _norm, _index) => {
+          const key = enkey([project, pk])
+          const note = this.cache.get(key)
+          if (note) {
+            visitor([project, pk], note)
+          } else {
+            queue.push(key)
+          }
+        })
+      }
     })
     return new Promise((resolve, reject) => {
       const visitBatch = () => {
@@ -1638,7 +1666,7 @@ export class Index {
     query: Query
   ): Promise<void | { stack: CardStack; notes: NoteRecord[] }> {
     return new Promise((resolve, reject) => {
-      if (query.type === "lookup" || query.type === "batch") {
+      if (query.type === "lookup") {
         resolve()
       } else {
         const existingStack = Array.from(this.stacks.values()).find(
@@ -1677,8 +1705,6 @@ export class Index {
               case "found":
                 notes = [result.match]
                 break
-              case "batch":
-                throw new Error("unreachable")
               case "none":
                 break
               default:

@@ -66,4 +66,6 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [ ] remove redundant app arguments when note is passed down as a prop
 - [ ] add special celebration when there were no mistakes in the quiz
 - [ ] speed up the scrolling of scrolling links
-- [ ] add forward and back hotkeys
+- [x] add forward and back hotkeys
+- [x] make it possible to limit scanning by project
+- [x] use indexes rather than search to do a batch search for phrases found by splitter

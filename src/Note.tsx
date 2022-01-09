@@ -47,7 +47,6 @@ import {
   nws,
   sameKey,
   sameNote,
-  uniq,
 } from "./modules/util"
 import {
   AboutLink,
@@ -252,8 +251,6 @@ class Note extends React.Component<NoteProps, NoteState> {
               this.setState(newState)
               this.app.notify("this note is no longer saved")
               break
-            case "batch":
-              throw new Error("unreachable")
             default:
               assertNever(response)
           }
@@ -339,8 +336,6 @@ class Note extends React.Component<NoteProps, NoteState> {
               searchResults: found.matches,
             })
             break
-          case "batch":
-            throw new Error("unreachable")
           default:
             assertNever(found)
         }
@@ -395,8 +390,6 @@ class Note extends React.Component<NoteProps, NoteState> {
             break
           case "none":
             break
-          case "batch":
-            throw new Error("unreachable")
           default:
             assertNever(r)
         }
@@ -1317,8 +1310,6 @@ function Similar({ n }: { n: Note }) {
             break
           case "none":
             break
-          case "batch":
-            throw new Error("unreachable")
           default:
             assertNever(found)
         }
@@ -1341,8 +1332,6 @@ function Similar({ n }: { n: Note }) {
           break
         case "none":
           break
-        case "batch":
-          throw new Error("unreachable")
         default:
           assertNever(r)
       }
@@ -1626,21 +1615,13 @@ const MaybeClickableSequence: React.FC<{
       const index = note.app.switchboard.index!
       index.getSplitter(note.state.key[0]).then((rx) => {
         const newBits = text.split(rx)
-        if (anyDifference(bits, newBits)) {
-          index
-            .find({
-              type: "batch",
-              project: note.state.key[0],
-              phrases: uniq(newBits),
-            })
-            .then((found) => {
-              if (found.type === "batch") {
-                setBits(newBits)
-                setMap(found.map)
-              }
-            })
-            .catch((e) => console.error(`failed to find items`, e))
-        }
+        index
+          .projectLookup(newBits, note.state.key[0])
+          .then((map) => {
+            setBits(newBits)
+            setMap(map)
+          })
+          .catch((e) => console.error("failed to find items", e))
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
