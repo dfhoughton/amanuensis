@@ -69,3 +69,4 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [x] add forward and back hotkeys
 - [x] make it possible to limit scanning by project
 - [x] use indexes rather than search to do a batch search for phrases found by splitter
+- [ ] adjust tooltip proximity

@@ -23,8 +23,8 @@ type Test = {
 
 const tests: Test[] = [
   { words: ["cat"], pattern: "/(?<=\\P{L}|^)cat(?=\\P{L}|$)/iu" },
-  { words: ["foo"], pattern: "/(?<=\\P{L}|^)fo{2}(?=\\P{L}|$)/iu" },
-  { words: ["cat foo"], pattern: "/(?<=\\P{L}|^)cat\\s+fo{2}(?=\\P{L}|$)/iu" },
+  { words: ["fooooo"], pattern: "/(?<=\\P{L}|^)fo{5}(?=\\P{L}|$)/iu" },
+  { words: ["cat foo"], pattern: "/(?<=\\P{L}|^)cat\\s+foo(?=\\P{L}|$)/iu" },
   {
     words: "cat cats".split(" "),
     pattern: "/(?<=\\P{L}|^)cats?(?=\\P{L}|$)/iu",

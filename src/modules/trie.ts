@@ -15,7 +15,7 @@ export function trie(words: string[], opts: TrieOpts = {}): RegExp {
 type Slice = [string[], number, number]
 
 function condense(slices: Slice[]): string {
-  if (slices.length === 0) return '(?!)'
+  if (slices.length === 0) return "(?!)"
   const [slcs1, suffix] = extractSuffix(slices)
   // if this was everything, just return the suffix
   if (slcs1.length === 1 && sliceLength(slcs1[0]) === 0) return suffix
@@ -86,10 +86,10 @@ function extractSuffix(slices: Slice[]): [Slice[], string] {
   return [slices, reduceDuplicates(suffix.reverse())]
 }
 
-// converts aaa into a{3}, etc.
+// look for repeating characters and maybe use a repetition count -- a{5}, e.g.
 function reduceDuplicates(sequence: string[]): string {
   if (sequence.length === 0) return ""
-  let dupCount = 0
+  let dupCount = 1
   let unit = sequence[0]
   let reduced = ""
   for (let i = 1; i < sequence.length; i++) {
@@ -97,13 +97,23 @@ function reduceDuplicates(sequence: string[]): string {
     if (p === unit) {
       dupCount += 1
     } else {
-      reduced += dupCount ? `${unit}{${dupCount + 1}}` : unit
+      reduced += maybeReduce(dupCount, unit)
       unit = p
-      dupCount = 0
+      dupCount = 1
     }
   }
-  reduced += dupCount ? `${unit}{${dupCount + 1}}` : unit
+  reduced += maybeReduce(dupCount, unit)
   return reduced
+}
+
+// converts aaaaa into a{5}, etc.
+// cannot return a pattern longer than the input sequence
+function maybeReduce(dc: number, unit: string): string {
+  return dc === 1
+    ? unit
+    : dc * unit.length > unit.length + 3
+    ? `${unit}{${dc}}`
+    : Array(dc).fill(unit).join("")
 }
 
 function firstChar(slice: Slice): string | undefined {
