@@ -244,7 +244,7 @@ function CurrentCard({
             .index!.save(note)
             .then(() => {
               s.done.add(enkey(note.key))
-              next(s, setState)
+              next(s, app, setState)
               resolve(`Removed "${notePhrase(note)}" from flashcard decks.`)
             })
             .catch((e) => reject(e))
@@ -281,7 +281,7 @@ function CurrentCard({
         flip()
         break
       case "n":
-        next(s, setState)
+        next(s, app, setState)
         break
       case "d":
         removeMe()
@@ -343,7 +343,7 @@ function CurrentCard({
       doBad={() => addTrial(false, note, app, s, setState)}
       doDone={removeMe}
       doEdit={() => app.goto(note)}
-      doNext={() => next(s, setState)}
+      doNext={() => next(s, app, setState)}
       doGood={good}
       isDone={() => done(s)}
     />
@@ -869,14 +869,18 @@ function init(
         s.notes = notes
         s.initialize = false
         s.which = 0
-        next(s, setState)
+        next(s, app, setState)
       })
       .catch((e) => app.error(e))
   }
 }
 
 // show the next card
-function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
+function next(
+  s: FlashCardState,
+  app: App,
+  setState: (s: FlashCardState) => void
+): void {
   const { done, notes } = s
   s.revealed = false
   s.judgment = null
@@ -900,23 +904,37 @@ function next(s: FlashCardState, setState: (s: FlashCardState) => void): void {
         // we've done both sides of the stack, recalculate total
         s.total = remaining(s)
       }
-      next(s, setState)
+      next(s, app, setState)
     } else {
       s.index = i
       s.which += 1
-      const e = document.getElementById("flipper")
-      if (e) {
-        // if we've been using the keyboard flipper, we need to hide the text before
-        // unflipping it
-        s.conceal = true
-        const newState: FlashCardState = deepClone(s)
-        setTimeout(() => {
-          newState.conceal = false
-          setState(newState)
-        }, 250)
-        e.classList.remove("flipper")
+      const continuation = () => {
+        const e = document.getElementById("flipper")
+        if (e) {
+          // if we've been using the keyboard flipper, we need to hide the text before
+          // unflipping it
+          s.conceal = true
+          const newState: FlashCardState = deepClone(s)
+          setTimeout(() => {
+            newState.conceal = false
+            setState(newState)
+          }, 250)
+          e.classList.remove("flipper")
+        }
+        setState(s)
       }
-      setState(s)
+      // in case the note has changed since the flashcard query was run, reload it
+      app.switchboard.index
+        ?.fetch(s.notes[i].key)
+        .then((note) => {
+          s.notes[i] = note
+          continuation()
+        })
+        .catch((e) => {
+          // well, that didn't work; continue with unreloaded note
+          console.error(e)
+          continuation()
+        })
     }
   }
 }

@@ -1059,13 +1059,20 @@ export class Index {
     project: number
     data: NoteRecord
   }): Promise<number> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const storable: { [key: string]: any } = {}
       const [, projectInfo] = this.findProject(project)
       const key = this.normalize(phrase, projectInfo)
       let projectIndex = this.projectIndices.get(projectInfo.pk) || new Map()
       let pk: number = projectIndex.get(key) || 0
-      if (!pk) {
+      let needNewSplitter = false
+      if (pk) {
+        const oldRecord = await this.fetch(data.key)
+        needNewSplitter = anyDifference(
+          uniq(oldRecord.citations.map((c) => c.phrase)),
+          uniq(data.citations.map((c) => c.phrase))
+        )
+      } else {
         // this is necessarily in neither the index nor the project index
         // we will have to generate a primary key for this phrase and store both indices
         pk = 1
@@ -1077,6 +1084,7 @@ export class Index {
         projectIndex.set(key, pk)
         data.key[1] = pk
         storable[projectInfo.pk.toString()] = projectIndex
+        needNewSplitter = true
       }
       const keyPair: KeyPair = [projectInfo.pk, pk] // convert key to the
       this.cache.set(enkey(keyPair), data)
@@ -1131,7 +1139,7 @@ export class Index {
       this.chrome.storage.local.set(compressed, () => {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError)
-        } else {
+        } else if (needNewSplitter) {
           this.checkCompressor()
             .then(() => {
               this.refreshSplitter(project).then(() =>

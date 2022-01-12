@@ -70,3 +70,4 @@ entirely at some point. There is no guarantee that this is a permanent list of t
 - [x] make it possible to limit scanning by project
 - [x] use indexes rather than search to do a batch search for phrases found by splitter
 - [ ] adjust tooltip proximity
+- [x] improve splitter recompilation logic so it only happens when there's a change in *citations*
