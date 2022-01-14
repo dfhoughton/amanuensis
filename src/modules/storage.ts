@@ -25,7 +25,6 @@ import {
   any,
   assertNever,
   buildEditDistanceMetric,
-  cachedSorter,
   none,
   notePhrase,
   rng,
@@ -890,9 +889,7 @@ export class Index {
                     this.sorters.has(query.sorter)
                   ) {
                     // sort by the chosen similarity metric applied to case- and whitespace-normalized strings
-                    const sorter = cachedSorter(
-                      this.sorters.get(query.sorter)!.metric
-                    )
+                    const sorter = this.sorters.get(query.sorter)!.metric
                     const normMap: Map<string, string> = new Map()
                     function norm(s: string): string {
                       let ns = normMap.get(s)
@@ -1139,12 +1136,13 @@ export class Index {
       this.chrome.storage.local.set(compressed, () => {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError)
-        } else if (needNewSplitter) {
+        } else {
           this.checkCompressor()
             .then(() => {
-              this.refreshSplitter(project).then(() =>
-                console.log("refreshed splitter after save")
-              )
+              if (needNewSplitter)
+                this.refreshSplitter(project).then(() =>
+                  console.log("refreshed splitter after save")
+                )
               resolve(pk)
             })
             .catch(reject)

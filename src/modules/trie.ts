@@ -16,10 +16,10 @@ type Slice = [string[], number, number]
 
 function condense(slices: Slice[]): string {
   if (slices.length === 0) return "(?!)"
-  const [slcs1, suffix] = extractSuffix(slices)
-  // if this was everything, just return the suffix
-  if (slcs1.length === 1 && sliceLength(slcs1[0]) === 0) return suffix
-  const [slcs2, prefix] = extractPrefix(slcs1)
+  const [slcs1, prefix] = extractPrefix(slices)
+  // if this was everything, just return the prefix
+  if (slcs1.length === 1 && sliceLength(slcs1[0]) === 0) return prefix
+  const [slcs2, suffix] = extractSuffix(slcs1)
   const slcs3 = slcs2.filter((sl) => sliceLength(sl))
   const anyOptional = slcs3.length < slices.length ? "?" : ""
   const parts = groupByFirst(slcs3).map((slcs) => condense(slcs))
@@ -113,7 +113,7 @@ function maybeReduce(dc: number, unit: string): string {
     ? unit
     : dc * unit.length > unit.length + 3
     ? `${unit}{${dc}}`
-    : Array(dc).fill(unit).join("")
+    : unit.repeat(dc)
 }
 
 function firstChar(slice: Slice): string | undefined {

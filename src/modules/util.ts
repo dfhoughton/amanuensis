@@ -277,38 +277,6 @@ export function buildEditDistanceMetric({
   }
 }
 
-// for memoizing expensive similarity metrics used in sorting
-export function cachedSorter(
-  metric: (w1: string, w2: string) => number
-): (w1: string, w2: string) => number {
-  const wordCache: Map<string, number> = new Map()
-  const metricCache: Map<string, number> = new Map()
-  function id(w: string): number {
-    let i = wordCache.get(w)
-    if (i === undefined) {
-      i = wordCache.size
-      wordCache.set(w, i)
-    }
-    return i
-  }
-  return function (w1: string, w2: string): number {
-    let i1 = id(w1),
-      i2 = id(w2)
-    if (i2 < i1) {
-      const i3 = i1
-      i2 = i1
-      i1 = i3
-    }
-    const i = `${i1}:${i2}`
-    let m = metricCache.get(i)
-    if (m === undefined) {
-      m = metric(w1, w2)
-      metricCache.set(i, m)
-    }
-    return m
-  }
-}
-
 // converts 1000 into 1,000 and -2000.5 into -2,001
 export const formatNumber = (n: number) =>
   ((n < 0 ? -1 : 1) * Math.round(Math.abs(n))).toLocaleString()

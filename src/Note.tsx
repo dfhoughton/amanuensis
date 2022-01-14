@@ -1062,11 +1062,12 @@ function NoteDetails({
       </Box>
       <p>
         The similar phrases widget shows a list of the top few phrases among
-        your notes that are most similar to the current note's phrase. If you
-        click click the <Search color="primary" fontSize="small" /> at the top
-        of the list Amanuensis will send you to the search tab and run a search
-        sorting all the notes by their similarity to this phrase. If you click
-        on of the items listed you will go to that item among the search
+        your notes in the current project that are most similar to the current
+        note's phrase. If you click the{" "}
+        <Search color="primary" fontSize="small" /> at the top of the list
+        Amanuensis will send you to the search tab and run a search sorting all
+        the notes in this project by their similarity to this phrase. If you
+        click on of the items listed you will go to that item among the search
         results.
       </p>
       <p>
@@ -1289,6 +1290,7 @@ function Similar({ n }: { n: Note }) {
   const search: AdHocQuery = {
     type: "ad hoc",
     phrase: n.currentCitation().phrase,
+    project: [n.state.key[0]],
     sorter: n.app.sorterFor(n),
     strictness: "similar",
   }

@@ -7,6 +7,7 @@ Key changes in each release. The dates with each release are the dates I submitt
 - improve known word in gist lookup so it now can handle phrases
 - various efficiency improvements
 - flashcards always show current state
+- restrict similars to same project
 
 *0.0.4 2022-1-2*
 - added forward and back hotkeys for moving about in note history
