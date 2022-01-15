@@ -903,10 +903,16 @@ export class Index {
                       return ns
                     }
                     const p = norm(phrase!)
+                    // we combine levenshtein distance and inclusion
+                    const simSort = (w: NoteRecord) => {
+                      const n = norm(notePhrase(w))
+                      let v = sorter(p, n)
+                      if (p.includes(n)) v -= n.length
+                      else if (n.includes(p)) v -= p.length
+                      return v
+                    }
                     candidates.sort((a: NoteRecord, b: NoteRecord) => {
-                      const an = sorter(p, norm(notePhrase(a)))
-                      const bn = sorter(p, norm(notePhrase(b)))
-                      const delta = an - bn
+                      const delta = simSort(a) - simSort(b)
                       if (delta) return delta
                       return fallbackSort(a, b)
                     })

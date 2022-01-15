@@ -590,6 +590,34 @@ function SortingDetails({ app }: { app: App }) {
         When editing a sorter one adds convertible letters as pairs. The order
         of the letters in the pair doesn't matter.
       </p>
+      <h2>Compound Words</h2>
+      <p>
+        Another source of interesting word similarity aside from{" "}
+        <LinkAway app={app} url="https://en.wikipedia.org/wiki/Inflection">
+          inflection
+        </LinkAway>{" "}
+        is{" "}
+        <LinkAway
+          app={app}
+          url="https://en.wikipedia.org/wiki/Compound_(linguistics)"
+        >
+          compounding
+        </LinkAway>
+        , when one word includes another word in it, an example is <i>baby</i>{" "}
+        and <i>sitter</i> in <i>babysitter</i>. Sorters worry about inflectional
+        similarity. To handle compounding Amanuensis regards one word as more
+        similar to another if one contains the other in it. It first calculates
+        the inflectional similarity of two words and then, if one of the words
+        cmntains the other, it subtracts a compounding bonus. The bonus is just
+        the length of the word contained. The Levenshtein distance between{" "}
+        <i>baby</i> and <i>babysitter</i> is 4, the number of characters you
+        must add to <i>sitter</i> to get <i>babysitter</i>. But since{" "}
+        <i>baby</i> is contained in <i>babysitter</i>, Amanuensis subtracts 4
+        out again from the similarity measure, leaving 0, so if you are creating
+        a note on <i>babysitter</i> Amanuensis will suggest <i>baby</i> and{" "}
+        <i>sitter</i> as extremely similar notes that you might want to link the{" "}
+        <i>babysitter</i> note to.
+      </p>
       <AboutLink app={app} />
     </Details>
   )
