@@ -8,6 +8,7 @@ Key changes in each release. The dates with each release are the dates I submitt
 - various efficiency improvements
 - flashcards always show current state
 - restrict similars to same project
+- added note counts to statistics in config tab
 
 *0.0.4 2022-1-2*
 - added forward and back hotkeys for moving about in note history

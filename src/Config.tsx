@@ -433,6 +433,50 @@ function Stats({ config }: { config: Config }) {
           been used.
         </Box>
       </InfoBox>
+      <Box mt={1}>
+        <Grid container alignItems="flex-start" spacing={2}>
+          <Grid
+            item
+            xs={4}
+            className={classes.label}
+            container
+            justify="flex-end"
+          >
+            notes per project
+          </Grid>
+          <Grid item container xs={8}>
+            {Array.from(
+              config.app.switchboard.index!.projectIndices.entries()
+            ).map(([i, map], _n) => (
+              <Grid
+                item
+                container
+                spacing={1}
+                xs={12}
+                style={{ fontSize: "smaller" }}
+                direction="row"
+                justifyContent="flex-start"
+                alignItems="flex-start"
+              >
+                <Grid
+                  item
+                  container
+                  xs={4}
+                  className={classes.label}
+                  justifyContent="flex-end"
+                >
+                  {config.app.switchboard.index?.reverseProjectIndex.get(i) || (
+                    <i>default</i>
+                  )}
+                </Grid>
+                <Grid item xs={2} style={{ textAlign: "right" }}>
+                  {formatNumber(map.size)}
+                </Grid>
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
+      </Box>
     </TitleBox>
   )
 }
