@@ -36,12 +36,7 @@ export function any<T>(things: T[], predicate: (arg: T) => boolean): boolean {
 
 // does predicate apply to all?
 export function all<T>(things: T[], predicate: (arg: T) => boolean): boolean {
-  for (const o of things) {
-    if (!predicate(o)) {
-      return false
-    }
-  }
-  return true
+  return things.every(predicate)
 }
 
 // does predicate apply to none?
@@ -370,5 +365,5 @@ export const bogusProject = ({
 
 // for use in discriminated union exhaustiveness checking
 export function assertNever(x: never): never {
-  throw new Error("Unexpected object: " + x);
+  throw new Error("Unexpected object: " + x)
 }

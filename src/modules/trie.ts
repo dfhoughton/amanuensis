@@ -1,7 +1,5 @@
 // holds code to make trie (non-backtracking) regexen from lists of words
 
-import { all } from "./util"
-
 export type TrieOpts = {
   noBoundary?: boolean
   capture?: boolean
@@ -24,7 +22,7 @@ function condense(slices: Slice[]): string {
   const anyOptional = slcs3.length < slices.length ? "?" : ""
   const parts = groupByFirst(slcs3).map((slcs) => condense(slcs))
   parts.sort()
-  const alternates = all(parts, (s) => /^\\?.$/.test(s))
+  const alternates = parts.every((s) => /^\\?.$/.test(s))
     ? parts.length === 1
       ? parts[0]
       : `[${parts.join("").replace(/-/g, "\\-")}]`
