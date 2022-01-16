@@ -2,7 +2,7 @@
 
 Key changes in each release. The dates with each release are the dates I submitted the extension to Google, not the dates these releases appeared in the extension store.
 
-*0.0.5 pending*
+*0.0.5 2022-1-16*
 - minor interface changes
 - improve known word in gist lookup so it now can handle phrases
 - various efficiency improvements
