@@ -55,7 +55,7 @@ import Sorting from "./Sorting"
 import FlashCards, { FlashCardState } from "./FlashCards"
 
 // TODO add some code to the build script to ensure this matches whatever is in public/manifest.json
-export const VERSION = "0.0.5"
+export const VERSION = "0.0.6"
 
 const theme = createTheme({
   palette: {
