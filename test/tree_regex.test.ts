@@ -48,6 +48,7 @@ const tests: Test[] = [
   { label: "metacharacters", words: "@#!#$ ()\\%%^& ./~@+-_".split(" ") },
   { label: "long list", words: randomList(200) },
   { label: "long list short words", words: randomList(200, 4) },
+  { label: "long list long words", words: randomList(200, 16) },
 ]
 tests.forEach(({ words, pattern, duds, label }) => {
   const rx = trie(words)
