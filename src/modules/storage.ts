@@ -902,11 +902,13 @@ export class Index {
                       }
                       return ns
                     }
+                    const simSortCache = new Map<string, number>()
                     const p = norm(phrase!)
                     // we combine levenshtein distance and inclusion
                     const simSort = (w: NoteRecord) => {
                       const n = norm(notePhrase(w))
-                      let v = sorter(p, n)
+                      let v = simSortCache.get(n)
+                      if (v === undefined) v = sorter(p, n)
                       if (p.includes(n)) v -= n.length
                       else if (n.includes(p)) v -= p.length
                       return v
