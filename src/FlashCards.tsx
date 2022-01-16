@@ -476,13 +476,15 @@ const editWidgetStyles = makeStyles((theme) => ({
   },
   citations: {
     position: "absolute",
-    top: "-1rem",
-    left: "-1rem",
+    top: "50%",
+    transform: "translateY(-50%)",
+    left: "-1.1rem",
   },
   relations: {
     position: "absolute",
-    top: "-1rem",
-    right: "-1rem",
+    top: "50%",
+    transform: "translateY(-50%)",
+    right: "-1.1rem",
   },
 }))
 
