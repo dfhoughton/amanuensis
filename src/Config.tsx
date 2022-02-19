@@ -260,6 +260,15 @@ function DownloadUpload({ config }: { config: Config }) {
                 ),
                 callback: () =>
                   new Promise((resolve, reject) => {
+                    // swap out the compressor/decompressor -- the new blob may have different ones
+                    const { compressor } = data
+                    const decompressor: Record<string, string> = {}
+                    for (const [k, v] of Object.entries(compressor as Record<string, string>)) {
+                      decompressor[v] = k
+                    }
+                    config.app.switchboard.index!.decompressor = decompressor
+                    config.app.switchboard.index!.compressor = compressor
+
                     config.app.switchboard
                       .index!.load(data)
                       .then(() => {
@@ -268,15 +277,12 @@ function DownloadUpload({ config }: { config: Config }) {
                           resolve("")
                         })
                       })
-                      .then(
-                        config.app.switchboard.index!.clean.bind(
-                          config.app.switchboard.index!
-                        )
-                      )
-                      .catch((e) =>
+                      .catch((e) => {
+                        console.error(e)
                         reject(
                           `could not store state in ${f.name} on disk: ${e}`
                         )
+                      }
                       )
                   }),
               })

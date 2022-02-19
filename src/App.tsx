@@ -448,7 +448,8 @@ export class App extends React.Component<AppProps, AppState> {
     const back = deepClone(this.state.back)
     const currentKey = deepClone(this.currentNote()?.key)
     if (currentKey) {
-      back.push(currentKey)
+      if (anyDifference(currentKey, back[back.length - 1]))
+        back.push(currentKey)
     } else {
       console.error("there is no current key!")
     }

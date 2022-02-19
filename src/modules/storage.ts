@@ -5,7 +5,8 @@ import {
   deserialize,
   serialize,
 } from "./clone"
-import { trie } from "./trie"
+// import { trie } from "./trie"
+import { regex } from "list-matcher"
 import {
   Chrome,
   KeyPair,
@@ -142,7 +143,14 @@ export class Index {
             )
           }
           Promise.all(promises).then(() => {
-            const rx = trie(phrases, { capture: true })
+            console.time(`getting splitter`)
+            const rx = regex(phrases, {
+              capture: true,
+              bound: true,
+              normalizeWhitespace: true,
+              flags: "i",
+            })
+            console.timeEnd(`getting splitter`)
             this.splitters.set(i, rx)
             console.log(
               `compiled splitter for ${this.reverseProjectIndex.get(i)}`
@@ -571,8 +579,8 @@ export class Index {
                   ) as NoteRecord
                   const norm = keyMap.get(key)!
                   normMap.get(norm)?.forEach((word) => rv.set(word, note))
-                  resolve(rv)
                 }
+                resolve(rv)
               }
             }
           )
@@ -2107,7 +2115,7 @@ export class Index {
   // save a configuration change
   saveConfiguration(config: Configuration): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.chrome.storage.local.set({ config: config }, () => {
+      this.chrome.storage.local.set({ config }, () => {
         if (this.chrome.runtime.lastError) {
           reject(this.chrome.runtime.lastError)
         } else {

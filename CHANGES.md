@@ -3,6 +3,9 @@
 Key changes in each release. The dates with each release are the dates I submitted the extension to Google, not the dates these releases appeared in the extension store.
 
 *0.0.6 pending*
+- more efficient splitter
+- fixed loading bug
+- improved recording of navigation history
 
 *0.0.5 2022-1-16*
 - minor interface changes
