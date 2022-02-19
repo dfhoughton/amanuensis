@@ -7288,10 +7288,10 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-1.1.6.tgz#1c00c743b433cd0a4e80758f7b64a57440d9ff00"
   integrity sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=
 
-list-matcher@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/list-matcher/-/list-matcher-1.0.1.tgz#781f7dff79172a85a00ba2050331a66e7c6f1b4b"
-  integrity sha512-vc7FIrvP6oQJh+QZ0lUbVogZxGNop8m+svdzwCy4l9pY9ViYaFRnDk3Dv7Y+H0OwnOxa/yIGXJxwUk5IObbsTA==
+list-matcher@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/list-matcher/-/list-matcher-1.0.2.tgz#2e92166a84b2ed24aae8d82173a2a171ab796faf"
+  integrity sha512-OC3puBs+8xovZFmd9ddWuYyz3f/7bIZhJSBB4+tUwPqw7D9lmU3E8P7x3xWliLE810LTUdVOVfuA4w2xxv10LA==
 
 load-json-file@^4.0.0:
   version "4.0.0"
